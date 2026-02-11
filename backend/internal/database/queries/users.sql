@@ -12,6 +12,17 @@ SELECT * FROM users WHERE email = $1;
 -- name: GetUserByUsername :one
 SELECT * FROM users WHERE username = $1;
 
+-- name: GetUserByKratosID :one
+SELECT * FROM users WHERE kratos_id = $1;
+
+-- name: SetUserKratosID :exec
+UPDATE users SET kratos_id = $2, updated_at = NOW() WHERE id = $1;
+
+-- name: CreateUserFromKratos :one
+INSERT INTO users (username, email, password_hash, kratos_id)
+VALUES ($1, $2, '', $3)
+RETURNING *;
+
 -- name: UpdateUserStatus :exec
 UPDATE users SET status = $2, updated_at = NOW() WHERE id = $1;
 

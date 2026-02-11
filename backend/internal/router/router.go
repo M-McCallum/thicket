@@ -20,6 +20,7 @@ type Config struct {
 	MessageHandler *handler.MessageHandler
 	DMHandler      *handler.DMHandler
 	JWTManager     *auth.JWTManager
+	JWKSManager    *auth.JWKSManager
 	Hub            *ws.Hub
 	CORSOrigin     string
 }
@@ -53,7 +54,7 @@ func Setup(app *fiber.App, cfg Config) {
 	authGroup.Post("/logout", cfg.AuthHandler.Logout)
 
 	// Protected routes
-	protected := api.Group("", auth.Middleware(cfg.JWTManager))
+	protected := api.Group("", auth.DualMiddleware(cfg.JWTManager, cfg.JWKSManager))
 
 	// User
 	protected.Get("/me", cfg.AuthHandler.Me)
