@@ -15,17 +15,18 @@
     "test:watch": "vitest watch"
   },
   "dependencies": {
-    "zustand": "^5.0.0",
+    "livekit-client": "^2.9.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.0.0",
-    "livekit-client": "^2.9.0"
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^4.0.0",
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.0.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.0",
