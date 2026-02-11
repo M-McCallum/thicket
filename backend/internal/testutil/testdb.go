@@ -131,6 +131,23 @@ func CreateTestUser(ctx context.Context, q *models.Queries, jwtManager *auth.JWT
 	}, nil
 }
 
+func AddTestMember(ctx context.Context, q *models.Queries, serverID, userID uuid.UUID, role string) error {
+	return q.AddServerMember(ctx, models.AddServerMemberParams{
+		ServerID: serverID,
+		UserID:   userID,
+		Role:     role,
+	})
+}
+
+func CreateTestChannel(ctx context.Context, q *models.Queries, serverID uuid.UUID, name, channelType string, position int32) (models.Channel, error) {
+	return q.CreateChannel(ctx, models.CreateChannelParams{
+		ServerID: serverID,
+		Name:     name,
+		Type:     channelType,
+		Position: position,
+	})
+}
+
 func CreateTestServer(ctx context.Context, q *models.Queries, ownerID uuid.UUID) (models.Server, models.Channel, error) {
 	inviteCode := uuid.New().String()[:8]
 	server, err := q.CreateServer(ctx, models.CreateServerParams{
