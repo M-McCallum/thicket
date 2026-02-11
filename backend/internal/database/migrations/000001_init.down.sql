@@ -1,0 +1,9 @@
+DROP TABLE IF EXISTS dm_messages;
+DROP TABLE IF EXISTS dm_participants;
+DROP TABLE IF EXISTS dm_conversations;
+DROP TABLE IF EXISTS messages;
+DROP TABLE IF EXISTS channels;
+DROP TABLE IF EXISTS server_members;
+DROP TABLE IF EXISTS servers;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
