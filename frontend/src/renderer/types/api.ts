@@ -52,6 +52,13 @@ export interface SendDMRequest {
   content: string
 }
 
+export interface OAuthTokens {
+  access_token: string
+  refresh_token: string | null
+  id_token: string | null
+  expires_at: number | null
+}
+
 export interface ApiError {
   error: string
 }

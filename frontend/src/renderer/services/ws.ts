@@ -4,6 +4,7 @@ const WS_URL = 'ws://localhost:8080/ws'
 const HEARTBEAT_INTERVAL = 30000
 const RECONNECT_DELAY = 3000
 const MAX_RECONNECT_DELAY = 30000
+const SESSION_EXPIRED_CLOSE_CODE = 4001
 
 type EventHandler = (data: unknown) => void
 
@@ -15,6 +16,7 @@ export class WebSocketService {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private reconnectDelay = RECONNECT_DELAY
   private shouldReconnect = false
+  private onSessionExpired: (() => void) | null = null
 
   connect(token: string): void {
     this.token = token
@@ -56,6 +58,15 @@ export class WebSocketService {
     this.send({ type: 'TYPING_START', data: { channel_id: channelId } })
   }
 
+  sendTokenRefresh(newToken: string): void {
+    this.token = newToken
+    this.send({ type: 'TOKEN_REFRESH', data: { token: newToken } })
+  }
+
+  setOnSessionExpired(handler: () => void): void {
+    this.onSessionExpired = handler
+  }
+
   private doConnect(): void {
     if (!this.token) return
 
@@ -70,14 +81,27 @@ export class WebSocketService {
     this.ws.onmessage = (event) => {
       try {
         const wsEvent: WSEvent = JSON.parse(event.data)
+
+        if (wsEvent.type === 'SESSION_EXPIRED') {
+          this.shouldReconnect = false
+          this.cleanup()
+          this.onSessionExpired?.()
+          return
+        }
+
         this.dispatch(wsEvent)
       } catch {
         // Ignore malformed messages
       }
     }
 
-    this.ws.onclose = () => {
+    this.ws.onclose = (event) => {
       this.stopHeartbeat()
+      if (event.code === SESSION_EXPIRED_CLOSE_CODE) {
+        this.shouldReconnect = false
+        this.onSessionExpired?.()
+        return
+      }
       if (this.shouldReconnect) {
         this.scheduleReconnect()
       }
