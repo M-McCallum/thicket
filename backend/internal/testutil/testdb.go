@@ -14,8 +14,8 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/models"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
 )
 
 type TestDB struct {
@@ -27,7 +27,7 @@ type TestDB struct {
 func SetupTestDB(ctx context.Context) (*TestDB, error) {
 	pgContainer, err := postgres.Run(ctx,
 		"postgres:16-alpine",
-		postgres.WithDatabase("neoncore_test"),
+		postgres.WithDatabase("thicket_test"),
 		postgres.WithUsername("test"),
 		postgres.WithPassword("test"),
 		testcontainers.WithWaitStrategy(

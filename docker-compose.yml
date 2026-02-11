@@ -3,15 +3,15 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${DB_USER:-neoncore}
+      POSTGRES_USER: ${DB_USER:-thicket}
       POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
-      POSTGRES_DB: ${DB_NAME:-neoncore}
+      POSTGRES_DB: ${DB_NAME:-thicket}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - internal
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-neoncore}"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-thicket}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -24,9 +24,9 @@ services:
     environment:
       - DB_HOST=postgres
       - DB_PORT=5432
-      - DB_USER=${DB_USER:-neoncore}
+      - DB_USER=${DB_USER:-thicket}
       - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME:-neoncore}
+      - DB_NAME=${DB_NAME:-thicket}
       - DB_SSL_MODE=disable
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ACCESS_EXPIRY=${JWT_ACCESS_EXPIRY:-15m}

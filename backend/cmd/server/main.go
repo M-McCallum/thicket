@@ -6,15 +6,15 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/mitchell/neoncore/internal/config"
-	"github.com/mitchell/neoncore/internal/database"
-	"github.com/mitchell/neoncore/internal/handler"
-	"github.com/mitchell/neoncore/internal/models"
-	"github.com/mitchell/neoncore/internal/router"
-	"github.com/mitchell/neoncore/internal/service"
-	"github.com/mitchell/neoncore/internal/ws"
+	"github.com/M-McCallum/thicket/internal/config"
+	"github.com/M-McCallum/thicket/internal/database"
+	"github.com/M-McCallum/thicket/internal/handler"
+	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/router"
+	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/ws"
 
-	"github.com/mitchell/neoncore/internal/auth"
+	"github.com/M-McCallum/thicket/internal/auth"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
-		AppName: "NeonCore API",
+		AppName: "Thicket API",
 	})
 
 	router.Setup(app, router.Config{
@@ -62,7 +62,7 @@ func main() {
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)
-	log.Printf("NeonCore API starting on %s", addr)
+	log.Printf("Thicket API starting on %s", addr)
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}

@@ -8,9 +8,9 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/service"
-	"github.com/mitchell/neoncore/internal/ws"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/ws"
 )
 
 type MessageHandler struct {

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 DIRECTION="${1:-up}"
-DATABASE_URL="${DATABASE_URL:-postgres://neoncore:neoncore_dev@localhost:5432/neoncore?sslmode=disable}"
+DATABASE_URL="${DATABASE_URL:-postgres://thicket:thicket_dev@localhost:5432/thicket?sslmode=disable}"
 
 if [ "$DIRECTION" = "up" ]; then
   echo "Running migrations up..."

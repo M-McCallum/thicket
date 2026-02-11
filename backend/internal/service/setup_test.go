@@ -7,9 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/models"
-	"github.com/mitchell/neoncore/internal/testutil"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/testutil"
 )
 
 var (

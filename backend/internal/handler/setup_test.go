@@ -13,11 +13,11 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/models"
-	"github.com/mitchell/neoncore/internal/service"
-	"github.com/mitchell/neoncore/internal/testutil"
-	"github.com/mitchell/neoncore/internal/ws"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/testutil"
+	"github.com/M-McCallum/thicket/internal/ws"
 )
 
 var (

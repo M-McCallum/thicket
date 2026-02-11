@@ -1,4 +1,4 @@
-# NeonCore
+# Thicket
 
 A self-hosted Discord clone with a cyberpunk aesthetic, built as an Electron desktop app.
 
@@ -26,8 +26,8 @@ A self-hosted Discord clone with a cyberpunk aesthetic, built as an Electron des
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/mitchell/neoncore.git
-cd neoncore
+git clone https://github.com/M-McCallum/thicket.git
+cd thicket
 
 # 2. Copy environment config
 cp .env.example .env
@@ -86,9 +86,9 @@ Copy `.env.example` to `.env` and adjust as needed:
 |----------|---------|-------------|
 | `DB_HOST` | `localhost` | PostgreSQL host |
 | `DB_PORT` | `5432` | PostgreSQL port |
-| `DB_USER` | `neoncore` | Database user |
-| `DB_PASSWORD` | `neoncore_dev` | Database password |
-| `DB_NAME` | `neoncore` | Database name |
+| `DB_USER` | `thicket` | Database user |
+| `DB_PASSWORD` | `thicket_dev` | Database password |
+| `DB_NAME` | `thicket` | Database name |
 | `DB_SSL_MODE` | `disable` | PostgreSQL SSL mode |
 | `JWT_SECRET` | `dev-secret-change-me` | HMAC-SHA256 signing key |
 | `JWT_ACCESS_EXPIRY` | `15m` | Access token lifetime |

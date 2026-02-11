@@ -47,10 +47,10 @@ build: build-backend build-frontend
 
 # Database
 migrate-up:
-	cd backend && go run -tags migrate ./cmd/migrate up
+	cd backend && go run ./cmd/migrate up
 
 migrate-down:
-	cd backend && go run -tags migrate ./cmd/migrate down
+	cd backend && go run ./cmd/migrate down
 
 seed:
 	./scripts/seed.sh

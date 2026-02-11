@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/microcosm-cc/bluemonday"
 
-	"github.com/mitchell/neoncore/internal/models"
+	"github.com/M-McCallum/thicket/internal/models"
 )
 
 var (

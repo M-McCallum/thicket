@@ -1,7 +1,7 @@
 {
-  "name": "neoncore",
+  "name": "thicket",
   "version": "0.1.0",
-  "description": "NeonCore - Cyberpunk Discord Clone",
+  "description": "Thicket - Cyberpunk Discord Clone",
   "main": "./out/main/index.js",
   "author": "mitchell",
   "license": "MIT",

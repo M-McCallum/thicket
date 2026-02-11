@@ -13,9 +13,9 @@ RUN CGO_ENABLED=0 GOOS=linux go build -o /server ./cmd/server
 FROM alpine:3.19
 
 RUN apk add --no-cache ca-certificates tzdata && \
-    adduser -D -u 1000 neoncore
+    adduser -D -u 1000 thicket
 
-USER neoncore
+USER thicket
 
 COPY --from=builder /server /server
 COPY --from=builder /app/internal/database/migrations /migrations

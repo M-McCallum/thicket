@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/models"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
 )
 
 var (

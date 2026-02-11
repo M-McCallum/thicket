@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "Starting NeonCore dev environment..."
+echo "Starting Thicket dev environment..."
 
 # Start Docker services
 docker compose -f docker-compose.dev.yml up -d
 
 # Wait for Postgres
 echo "Waiting for PostgreSQL..."
-until docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U neoncore > /dev/null 2>&1; do
+until docker compose -f docker-compose.dev.yml exec -T postgres pg_isready -U thicket > /dev/null 2>&1; do
   sleep 1
 done
 echo "PostgreSQL is ready."

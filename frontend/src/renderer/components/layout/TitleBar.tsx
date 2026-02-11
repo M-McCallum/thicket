@@ -3,7 +3,7 @@ export default function TitleBar(): JSX.Element {
     <div className="h-8 bg-cyber-bg flex items-center justify-between px-3 titlebar-drag border-b border-cyber-bg-elevated">
       <div className="flex items-center gap-2">
         <span className="font-display text-xs text-neon-cyan font-bold tracking-widest">
-          NEONCORE
+          THICKET
         </span>
         <div className="w-px h-3 bg-cyber-bg-elevated" />
         <span className="text-cyber-text-muted text-xs font-mono">v0.1.0</span>

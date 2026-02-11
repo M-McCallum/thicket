@@ -33,7 +33,7 @@ export default function LoginForm(): JSX.Element {
         {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="font-display text-4xl font-black text-neon-cyan tracking-wider">
-            NEONCORE
+            THICKET
           </h1>
           <p className="text-cyber-text-secondary mt-2 font-mono text-sm">
             {isSignup ? '// CREATE IDENTITY' : '// AUTHENTICATE'}
@@ -79,7 +79,7 @@ export default function LoginForm(): JSX.Element {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="input-field"
-              placeholder="runner@neoncore.app"
+              placeholder="runner@thicket.app"
               required
               autoComplete="email"
             />

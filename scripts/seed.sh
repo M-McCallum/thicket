@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DATABASE_URL="${DATABASE_URL:-postgres://neoncore:neoncore_dev@localhost:5432/neoncore?sslmode=disable}"
+DATABASE_URL="${DATABASE_URL:-postgres://thicket:thicket_dev@localhost:5432/thicket?sslmode=disable}"
 
 echo "Seeding database..."
 
@@ -9,9 +9,9 @@ psql "$DATABASE_URL" <<'SQL'
 -- Insert test users (password is "password123" bcrypt hashed)
 INSERT INTO users (id, username, email, password_hash, display_name, status)
 VALUES
-  ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'netrunner', 'netrunner@neoncore.app',
+  ('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'netrunner', 'netrunner@thicket.app',
    '$2a$12$LJ3m4ys3Sz8n.pSPT4l3/.yU8q3MwjW3GZfO5l3X0Q4n3B8K3e5DW', 'NetRunner', 'online'),
-  ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'cyberghost', 'cyberghost@neoncore.app',
+  ('b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', 'cyberghost', 'cyberghost@thicket.app',
    '$2a$12$LJ3m4ys3Sz8n.pSPT4l3/.yU8q3MwjW3GZfO5l3X0Q4n3B8K3e5DW', 'CyberGhost', 'online')
 ON CONFLICT (id) DO NOTHING;
 

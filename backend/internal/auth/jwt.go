@@ -38,7 +38,7 @@ func (m *JWTManager) CreateAccessToken(userID uuid.UUID, username string) (strin
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(m.accessExpiry)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			Issuer:    "neoncore",
+			Issuer:    "thicket",
 		},
 	}
 

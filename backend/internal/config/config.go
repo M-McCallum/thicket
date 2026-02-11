@@ -61,9 +61,9 @@ func Load() (*Config, error) {
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnv("DB_PORT", "5432"),
-			User:     getEnv("DB_USER", "neoncore"),
-			Password: getEnv("DB_PASSWORD", "neoncore_dev"),
-			Name:     getEnv("DB_NAME", "neoncore"),
+			User:     getEnv("DB_USER", "thicket"),
+			Password: getEnv("DB_PASSWORD", "thicket_dev"),
+			Name:     getEnv("DB_NAME", "thicket"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
 		},
 		JWT: JWTConfig{

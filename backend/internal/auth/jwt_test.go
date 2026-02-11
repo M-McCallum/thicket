@@ -29,7 +29,7 @@ func TestValidateToken_Valid(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, userID, claims.UserID)
 	assert.Equal(t, "testuser", claims.Username)
-	assert.Equal(t, "neoncore", claims.Issuer)
+	assert.Equal(t, "thicket", claims.Issuer)
 }
 
 func TestValidateToken_Expired(t *testing.T) {

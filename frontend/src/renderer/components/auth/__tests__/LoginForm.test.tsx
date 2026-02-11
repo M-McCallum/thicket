@@ -38,7 +38,7 @@ describe('LoginForm', () => {
   it('renders login mode by default', () => {
     render(<LoginForm />)
     expect(screen.getByRole('button', { name: 'JACK IN' })).toBeInTheDocument()
-    expect(screen.getByPlaceholderText('runner@neoncore.app')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('runner@thicket.app')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('••••••••')).toBeInTheDocument()
     expect(screen.queryByPlaceholderText('netrunner')).not.toBeInTheDocument()
   })
@@ -76,7 +76,7 @@ describe('LoginForm', () => {
     const user = userEvent.setup()
     render(<LoginForm />)
 
-    await user.type(screen.getByPlaceholderText('runner@neoncore.app'), 'test@test.com')
+    await user.type(screen.getByPlaceholderText('runner@thicket.app'), 'test@test.com')
     await user.type(screen.getByPlaceholderText('••••••••'), 'password123')
     await user.click(screen.getByRole('button', { name: 'JACK IN' }))
 
@@ -98,7 +98,7 @@ describe('LoginForm', () => {
 
     await user.click(screen.getByText("Don't have an account? Sign up"))
     await user.type(screen.getByPlaceholderText('netrunner'), 'newuser')
-    await user.type(screen.getByPlaceholderText('runner@neoncore.app'), 'new@test.com')
+    await user.type(screen.getByPlaceholderText('runner@thicket.app'), 'new@test.com')
     await user.type(screen.getByPlaceholderText('••••••••'), 'password123')
     await user.click(screen.getByRole('button', { name: 'CREATE ACCOUNT' }))
 
@@ -126,8 +126,8 @@ describe('LoginForm', () => {
     expect(screen.getByText('Invalid credentials')).toBeInTheDocument()
   })
 
-  it('renders NEONCORE branding', () => {
+  it('renders THICKET branding', () => {
     render(<LoginForm />)
-    expect(screen.getByText('NEONCORE')).toBeInTheDocument()
+    expect(screen.getByText('THICKET')).toBeInTheDocument()
   })
 })

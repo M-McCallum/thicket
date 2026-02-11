@@ -2,15 +2,15 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: neoncore
-      POSTGRES_PASSWORD: neoncore_dev
-      POSTGRES_DB: neoncore
+      POSTGRES_USER: thicket
+      POSTGRES_PASSWORD: thicket_dev
+      POSTGRES_DB: thicket
     ports:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U neoncore"]
+      test: ["CMD-SHELL", "pg_isready -U thicket"]
       interval: 5s
       timeout: 5s
       retries: 5

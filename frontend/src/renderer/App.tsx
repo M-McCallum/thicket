@@ -27,7 +27,7 @@ export default function App(): JSX.Element {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-cyber-bg">
         <div className="text-neon-cyan font-display text-2xl animate-pulse-neon">
-          NEONCORE
+          THICKET
         </div>
       </div>
     )

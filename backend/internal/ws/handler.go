@@ -8,7 +8,7 @@ import (
 	"github.com/gofiber/fiber/v3"
 	"github.com/valyala/fasthttp"
 
-	"github.com/mitchell/neoncore/internal/auth"
+	"github.com/M-McCallum/thicket/internal/auth"
 )
 
 var upgrader = websocket.FastHTTPUpgrader{

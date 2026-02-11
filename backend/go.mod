@@ -1,4 +1,4 @@
-module github.com/mitchell/neoncore
+module github.com/M-McCallum/thicket
 
 go 1.25.7
 

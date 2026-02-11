@@ -1,8 +1,8 @@
 {
-	email admin@neoncore.app
+	email admin@thicket.app
 }
 
-neoncore.app {
+thicket.app {
 	# API and WebSocket
 	handle /api/* {
 		reverse_proxy backend:8080

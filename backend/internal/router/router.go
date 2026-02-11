@@ -9,9 +9,9 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
-	"github.com/mitchell/neoncore/internal/auth"
-	"github.com/mitchell/neoncore/internal/handler"
-	"github.com/mitchell/neoncore/internal/ws"
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/handler"
+	"github.com/M-McCallum/thicket/internal/ws"
 )
 
 type Config struct {

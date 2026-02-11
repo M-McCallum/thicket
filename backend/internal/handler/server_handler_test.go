@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/mitchell/neoncore/internal/models"
-	"github.com/mitchell/neoncore/internal/testutil"
+	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/testutil"
 )
 
 func TestCreateServer_201(t *testing.T) {
