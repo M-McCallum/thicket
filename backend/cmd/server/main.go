@@ -30,7 +30,6 @@ func main() {
 	defer pool.Close()
 
 	queries := models.New(pool)
-	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessExpiry)
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
 	// Ory clients
@@ -38,7 +37,6 @@ func main() {
 	hydraClient := ory.NewHydraClient(cfg.Ory.HydraAdminURL)
 
 	// Services
-	authService := service.NewAuthService(queries, jwtManager, cfg.JWT.RefreshExpiry)
 	serverService := service.NewServerService(queries)
 	channelService := service.NewChannelService(queries)
 	messageService := service.NewMessageService(queries)
@@ -50,7 +48,6 @@ func main() {
 	go hub.Run()
 
 	// Handlers
-	authHandler := handler.NewAuthHandler(authService)
 	serverHandler := handler.NewServerHandler(serverService, channelService)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
@@ -62,12 +59,10 @@ func main() {
 	})
 
 	router.Setup(app, router.Config{
-		AuthHandler:    authHandler,
 		ServerHandler:  serverHandler,
 		MessageHandler: messageHandler,
 		DMHandler:      dmHandler,
 		OryHandler:     oryHandler,
-		JWTManager:     jwtManager,
 		JWKSManager:    jwksManager,
 		Hub:            hub,
 		CORSOrigin:     cfg.API.CORSOrigin,

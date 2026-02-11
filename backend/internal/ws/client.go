@@ -22,12 +22,11 @@ const (
 const CloseSessionExpired = 4001
 
 type Client struct {
-	Hub        *Hub
-	conn       *websocket.Conn
-	UserID     uuid.UUID
-	Username   string
-	send       chan []byte
-	jwtManager  *auth.JWTManager
+	Hub         *Hub
+	conn        *websocket.Conn
+	UserID      uuid.UUID
+	Username    string
+	send        chan []byte
 	jwksManager *auth.JWKSManager
 }
 
@@ -39,11 +38,6 @@ func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string
 		Username: username,
 		send:     make(chan []byte, sendBufferSize),
 	}
-}
-
-// Alias for backward compatibility with handler.go
-func NewClientFromFastHTTP(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string) *Client {
-	return NewClient(hub, conn, userID, username)
 }
 
 func (c *Client) ReadPump() {
@@ -103,17 +97,8 @@ func (c *Client) WritePump() {
 	}
 }
 
-// Aliases for the handler that uses FastHTTP naming
-func (c *Client) ReadPumpFastHTTP() {
-	c.ReadPump()
-}
-
-func (c *Client) WritePumpFastHTTP() {
-	c.WritePump()
-}
-
 func (c *Client) handleTokenRefresh(token string) {
-	claims, err := validateToken(token, c.jwksManager, c.jwtManager)
+	claims, err := c.jwksManager.ValidateToken(token)
 	if err != nil || claims.UserID != c.UserID {
 		expiredEvent, _ := NewEvent(EventSessionExpired, map[string]string{
 			"reason": "invalid_token",

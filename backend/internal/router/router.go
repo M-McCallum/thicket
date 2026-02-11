@@ -1,11 +1,8 @@
 package router
 
 import (
-	"time"
-
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
-	"github.com/gofiber/fiber/v3/middleware/limiter"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
 
@@ -15,12 +12,10 @@ import (
 )
 
 type Config struct {
-	AuthHandler    *handler.AuthHandler
 	ServerHandler  *handler.ServerHandler
 	MessageHandler *handler.MessageHandler
 	DMHandler      *handler.DMHandler
 	OryHandler     *handler.OryHandler
-	JWTManager     *auth.JWTManager
 	JWKSManager    *auth.JWKSManager
 	Hub            *ws.Hub
 	CORSOrigin     string
@@ -52,22 +47,16 @@ func Setup(app *fiber.App, cfg Config) {
 
 	api := app.Group("/api")
 
-	// Auth routes (rate limited)
-	authGroup := api.Group("/auth")
-	authGroup.Use(limiter.New(limiter.Config{
-		Max:        5,
-		Expiration: 15 * time.Minute,
-	}))
-	authGroup.Post("/signup", cfg.AuthHandler.Signup)
-	authGroup.Post("/login", cfg.AuthHandler.Login)
-	authGroup.Post("/refresh", cfg.AuthHandler.Refresh)
-	authGroup.Post("/logout", cfg.AuthHandler.Logout)
-
 	// Protected routes
-	protected := api.Group("", auth.DualMiddleware(cfg.JWTManager, cfg.JWKSManager))
+	protected := api.Group("", auth.Middleware(cfg.JWKSManager))
 
 	// User
-	protected.Get("/me", cfg.AuthHandler.Me)
+	protected.Get("/me", func(c fiber.Ctx) error {
+		return c.JSON(fiber.Map{
+			"user_id":  auth.GetUserID(c),
+			"username": auth.GetUsername(c),
+		})
+	})
 
 	// Servers
 	protected.Get("/servers", cfg.ServerHandler.GetUserServers)
@@ -95,5 +84,5 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
 	// WebSocket
-	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager, cfg.JWKSManager))
+	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWKSManager))
 }

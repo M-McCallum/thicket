@@ -14,7 +14,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
 
-	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/models"
 )
 
@@ -96,38 +95,27 @@ func findMigrationsDir() string {
 type TestUser struct {
 	User        models.User
 	AccessToken string
-	Password    string
 }
 
-func CreateTestUser(ctx context.Context, q *models.Queries, jwtManager *auth.JWTManager) (*TestUser, error) {
-	password := "testpassword123"
-	hash, err := auth.HashPassword(password)
-	if err != nil {
-		return nil, err
-	}
-
+func CreateTestUser(ctx context.Context, q *models.Queries, jwks *TestJWKSServer) (*TestUser, error) {
 	username := fmt.Sprintf("testuser_%s", uuid.New().String()[:8])
 	email := fmt.Sprintf("%s@test.com", username)
 
 	user, err := q.CreateUser(ctx, models.CreateUserParams{
 		Username:     username,
 		Email:        email,
-		PasswordHash: hash,
+		PasswordHash: "",
 		DisplayName:  &username,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	token, err := jwtManager.CreateAccessToken(user.ID, user.Username)
-	if err != nil {
-		return nil, err
-	}
+	token := jwks.CreateToken(user.ID, user.Username)
 
 	return &TestUser{
 		User:        user,
 		AccessToken: token,
-		Password:    password,
 	}, nil
 }
 
