@@ -145,6 +145,14 @@ func (q *Queries) GetDMMessages(ctx context.Context, arg GetDMMessagesParams) ([
 	return messages, rows.Err()
 }
 
+func (q *Queries) GetDMConversationByID(ctx context.Context, id uuid.UUID) (DMConversation, error) {
+	var c DMConversation
+	err := q.db.QueryRow(ctx,
+		`SELECT id, is_group, name, created_at FROM dm_conversations WHERE id = $1`, id,
+	).Scan(&c.ID, &c.IsGroup, &c.Name, &c.CreatedAt)
+	return c, err
+}
+
 func (q *Queries) FindExistingDMConversation(ctx context.Context, userID1, userID2 uuid.UUID) (uuid.UUID, error) {
 	var id uuid.UUID
 	err := q.db.QueryRow(ctx,

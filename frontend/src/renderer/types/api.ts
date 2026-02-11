@@ -44,6 +44,14 @@ export interface SendMessageRequest {
   content: string
 }
 
+export interface CreateDMConversationRequest {
+  participant_id: string
+}
+
+export interface SendDMRequest {
+  content: string
+}
+
 export interface ApiError {
   error: string
 }

@@ -55,7 +55,7 @@ func createUser(t *testing.T) *testutil.TestUser {
 	return u
 }
 
-// setupApp creates a Fiber app with auth middleware and all server/channel/message routes.
+// setupApp creates a Fiber app with auth middleware and all server/channel/message/DM routes.
 func setupApp() *fiber.App {
 	app := fiber.New()
 
@@ -63,11 +63,13 @@ func setupApp() *fiber.App {
 	serverSvc := service.NewServerService(q)
 	channelSvc := service.NewChannelService(q)
 	messageSvc := service.NewMessageService(q)
+	dmSvc := service.NewDMService(q)
 	hub := ws.NewHub()
 	go hub.Run()
 
 	serverHandler := NewServerHandler(serverSvc, channelSvc)
 	messageHandler := NewMessageHandler(messageSvc, hub)
+	dmHandler := NewDMHandler(dmSvc, hub)
 
 	protected := app.Group("/api", auth.Middleware(jwtMgr))
 
@@ -86,6 +88,11 @@ func setupApp() *fiber.App {
 	protected.Get("/channels/:channelId/messages", messageHandler.GetMessages)
 	protected.Put("/messages/:id", messageHandler.UpdateMessage)
 	protected.Delete("/messages/:id", messageHandler.DeleteMessage)
+
+	protected.Post("/dm/conversations", dmHandler.CreateConversation)
+	protected.Get("/dm/conversations", dmHandler.GetConversations)
+	protected.Get("/dm/conversations/:id/messages", dmHandler.GetDMMessages)
+	protected.Post("/dm/conversations/:id/messages", dmHandler.SendDM)
 
 	return app
 }

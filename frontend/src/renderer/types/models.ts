@@ -66,3 +66,15 @@ export interface DMMessage {
   author_display_name?: string | null
   author_avatar_url?: string | null
 }
+
+export interface DMParticipant {
+  id: string
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  status: string
+}
+
+export interface DMConversationWithParticipants extends DMConversation {
+  participants: DMParticipant[]
+}

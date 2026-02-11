@@ -18,6 +18,7 @@ export type WSEventType =
   | 'MEMBER_JOIN'
   | 'MEMBER_LEAVE'
   | 'VOICE_STATE_UPDATE'
+  | 'DM_MESSAGE_CREATE'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -47,6 +48,15 @@ export interface PresenceData {
 export interface MessageCreateData {
   id: string
   channel_id: string
+  author_id: string
+  content: string
+  created_at: string
+  username: string
+}
+
+export interface DMMessageCreateData {
+  id: string
+  conversation_id: string
   author_id: string
   content: string
   created_at: string

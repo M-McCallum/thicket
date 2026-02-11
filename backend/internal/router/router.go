@@ -18,6 +18,7 @@ type Config struct {
 	AuthHandler    *handler.AuthHandler
 	ServerHandler  *handler.ServerHandler
 	MessageHandler *handler.MessageHandler
+	DMHandler      *handler.DMHandler
 	JWTManager     *auth.JWTManager
 	Hub            *ws.Hub
 	CORSOrigin     string
@@ -75,6 +76,12 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Get("/channels/:channelId/messages", cfg.MessageHandler.GetMessages)
 	protected.Put("/messages/:id", cfg.MessageHandler.UpdateMessage)
 	protected.Delete("/messages/:id", cfg.MessageHandler.DeleteMessage)
+
+	// Direct Messages
+	protected.Post("/dm/conversations", cfg.DMHandler.CreateConversation)
+	protected.Get("/dm/conversations", cfg.DMHandler.GetConversations)
+	protected.Get("/dm/conversations/:id/messages", cfg.DMHandler.GetDMMessages)
+	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
 	// WebSocket
 	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager))

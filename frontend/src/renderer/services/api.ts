@@ -6,9 +6,11 @@ import type {
   CreateServerRequest,
   JoinServerRequest,
   CreateChannelRequest,
-  SendMessageRequest
+  SendMessageRequest,
+  CreateDMConversationRequest,
+  SendDMRequest
 } from '../types/api'
-import type { Server, Channel, Message, ServerMember } from '../types/models'
+import type { Server, Channel, Message, ServerMember, DMConversationWithParticipants, DMMessage } from '../types/models'
 
 const API_BASE = 'http://localhost:8080/api'
 
@@ -182,4 +184,30 @@ export const messages = {
 
   delete: (id: string) =>
     request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' })
+}
+
+// Direct Messages
+export const dm = {
+  createConversation: (data: CreateDMConversationRequest) =>
+    request<DMConversationWithParticipants>('/dm/conversations', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+
+  listConversations: () =>
+    request<DMConversationWithParticipants[]>('/dm/conversations'),
+
+  getMessages: (conversationId: string, before?: string, limit?: number) => {
+    const params = new URLSearchParams()
+    if (before) params.set('before', before)
+    if (limit) params.set('limit', String(limit))
+    const query = params.toString()
+    return request<DMMessage[]>(`/dm/conversations/${conversationId}/messages${query ? `?${query}` : ''}`)
+  },
+
+  sendMessage: (conversationId: string, data: SendDMRequest) =>
+    request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
 }

@@ -27,6 +27,7 @@ const (
 	EventMemberJoin       = "MEMBER_JOIN"
 	EventMemberLeave      = "MEMBER_LEAVE"
 	EventVoiceStateUpdate = "VOICE_STATE_UPDATE"
+	EventDMMessageCreate  = "DM_MESSAGE_CREATE"
 )
 
 type Event struct {

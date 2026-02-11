@@ -37,6 +37,7 @@ func main() {
 	serverService := service.NewServerService(queries)
 	channelService := service.NewChannelService(queries)
 	messageService := service.NewMessageService(queries)
+	dmService := service.NewDMService(queries)
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -46,6 +47,7 @@ func main() {
 	authHandler := handler.NewAuthHandler(authService)
 	serverHandler := handler.NewServerHandler(serverService, channelService)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
+	dmHandler := handler.NewDMHandler(dmService, hub)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -56,6 +58,7 @@ func main() {
 		AuthHandler:    authHandler,
 		ServerHandler:  serverHandler,
 		MessageHandler: messageHandler,
+		DMHandler:      dmHandler,
 		JWTManager:     jwtManager,
 		Hub:            hub,
 		CORSOrigin:     cfg.API.CORSOrigin,
