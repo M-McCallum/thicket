@@ -6,6 +6,7 @@ export type WSEventType =
   | 'UNSUBSCRIBE'
   | 'TYPING_START'
   | 'PRESENCE_UPDATE'
+  | 'TOKEN_REFRESH'
   // Server → Client
   | 'READY'
   | 'HEARTBEAT_ACK'
@@ -19,6 +20,7 @@ export type WSEventType =
   | 'MEMBER_LEAVE'
   | 'VOICE_STATE_UPDATE'
   | 'DM_MESSAGE_CREATE'
+  | 'SESSION_EXPIRED'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -61,4 +63,8 @@ export interface DMMessageCreateData {
   content: string
   created_at: string
   username: string
+}
+
+export interface TokenRefreshData {
+  token: string
 }

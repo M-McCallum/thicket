@@ -4,24 +4,23 @@ import LoginForm from './components/auth/LoginForm'
 import MainLayout from './components/layout/MainLayout'
 
 export default function App(): JSX.Element {
-  const { isAuthenticated, setTokensFromStorage } = useAuthStore()
+  const { isAuthenticated, initAuth, handleCallback } = useAuthStore()
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
-    const accessToken = localStorage.getItem('accessToken')
-    const refreshToken = localStorage.getItem('refreshToken')
-    const userJson = localStorage.getItem('user')
+    initAuth().finally(() => setInitialized(true))
+  }, [initAuth])
 
-    if (accessToken && refreshToken && userJson) {
-      try {
-        const user = JSON.parse(userJson)
-        setTokensFromStorage(accessToken, refreshToken, user)
-      } catch {
-        // Invalid stored data, ignore
-      }
-    }
-    setInitialized(true)
-  }, [setTokensFromStorage])
+  // Listen for OAuth callback from main process
+  useEffect(() => {
+    if (typeof window.api?.auth?.onCallback !== 'function') return
+
+    const unsubscribe = window.api.auth.onCallback((url: string) => {
+      handleCallback(url)
+    })
+
+    return () => unsubscribe()
+  }, [handleCallback])
 
   if (!initialized) {
     return (
