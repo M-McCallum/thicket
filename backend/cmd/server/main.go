@@ -31,6 +31,7 @@ func main() {
 
 	queries := models.New(pool)
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessExpiry)
+	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
 	// Services
 	authService := service.NewAuthService(queries, jwtManager, cfg.JWT.RefreshExpiry)
@@ -60,6 +61,7 @@ func main() {
 		MessageHandler: messageHandler,
 		DMHandler:      dmHandler,
 		JWTManager:     jwtManager,
+		JWKSManager:    jwksManager,
 		Hub:            hub,
 		CORSOrigin:     cfg.API.CORSOrigin,
 	})

@@ -11,7 +11,19 @@ type Config struct {
 	JWT      JWTConfig
 	API      APIConfig
 	LiveKit  LiveKitConfig
+	Ory      OryConfig
 	Env      string
+}
+
+type OryConfig struct {
+	KratosPublicURL string
+	KratosAdminURL  string
+	HydraPublicURL  string
+	HydraAdminURL   string
+}
+
+func (c OryConfig) JWKSURL() string {
+	return c.HydraPublicURL + "/.well-known/jwks.json"
 }
 
 type DBConfig struct {
@@ -80,6 +92,12 @@ func Load() (*Config, error) {
 			APIKey:    getEnv("LIVEKIT_API_KEY", "devkey"),
 			APISecret: getEnv("LIVEKIT_API_SECRET", "secret"),
 			URL:       getEnv("LIVEKIT_URL", "ws://localhost:7880"),
+		},
+		Ory: OryConfig{
+			KratosPublicURL: getEnv("KRATOS_PUBLIC_URL", "http://localhost:4433"),
+			KratosAdminURL:  getEnv("KRATOS_ADMIN_URL", "http://localhost:4434"),
+			HydraPublicURL:  getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444"),
+			HydraAdminURL:   getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
 		},
 		Env: getEnv("ENV", "development"),
 	}
