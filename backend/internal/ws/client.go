@@ -71,6 +71,7 @@ func (c *Client) ReadPump() {
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
+		recover() // Ignore panics from writes to closed connections
 		ticker.Stop()
 		c.conn.Close()
 	}()

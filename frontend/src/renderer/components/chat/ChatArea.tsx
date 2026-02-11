@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { useMessageStore } from '../../stores/messageStore'
 import { useServerStore } from '../../stores/serverStore'
 import { useAuthStore } from '../../stores/authStore'
 import { wsService } from '../../services/ws'
 import type { MessageCreateData } from '../../types/ws'
 import MessageItem from './MessageItem'
+import MessageInput from './MessageInput'
 
 export default function ChatArea(): JSX.Element {
   const { messages, fetchMessages, sendMessage, addMessage, clearMessages } = useMessageStore()
   const { activeChannelId, channels } = useServerStore()
   const { user } = useAuthStore()
-  const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const activeChannel = channels.find((c) => c.id === activeChannelId)
 
@@ -48,12 +48,9 @@ export default function ChatArea(): JSX.Element {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
-  const handleSend = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!input.trim() || !activeChannelId) return
-
-    await sendMessage(activeChannelId, input.trim())
-    setInput('')
+  const handleSend = async (content: string) => {
+    if (!activeChannelId) return
+    await sendMessage(activeChannelId, content)
   }
 
   if (!activeChannelId) {
@@ -85,26 +82,7 @@ export default function ChatArea(): JSX.Element {
       </div>
 
       {/* Message input */}
-      <form onSubmit={handleSend} className="px-4 pb-4">
-        <div className="flex items-center bg-cyber-bg-secondary rounded border border-cyber-bg-elevated focus-within:border-neon-cyan/30 transition-colors">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            className="flex-1 bg-transparent px-4 py-3 text-cyber-text-primary placeholder-cyber-text-muted focus:outline-none"
-            placeholder={`Message #${activeChannel?.name ?? 'channel'}`}
-          />
-          <button
-            type="submit"
-            disabled={!input.trim()}
-            className="px-4 py-3 text-neon-cyan/50 hover:text-neon-cyan disabled:text-cyber-text-muted transition-colors"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-            </svg>
-          </button>
-        </div>
-      </form>
+      <MessageInput channelName={activeChannel?.name ?? 'channel'} onSend={handleSend} />
     </div>
   )
 }

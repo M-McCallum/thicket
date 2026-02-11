@@ -56,12 +56,16 @@ func Handler(hub *Hub, jwtManager *auth.JWTManager) fiber.Handler {
 			client := NewClient(hub, conn, claims.UserID, claims.Username)
 			hub.Register(client)
 
+			// Send READY directly to client's send buffer to avoid race
+			// with hub registration (hub.Register is async).
 			readyEvent, _ := NewEvent(EventReady, map[string]string{
 				"user_id":  claims.UserID.String(),
 				"username": claims.Username,
 			})
 			if readyEvent != nil {
-				hub.SendToUser(claims.UserID, readyEvent)
+				if data, err := json.Marshal(readyEvent); err == nil {
+					client.send <- data
+				}
 			}
 
 			go client.WritePump()
