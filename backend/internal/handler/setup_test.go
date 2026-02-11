@@ -9,7 +9,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -21,8 +20,9 @@ import (
 )
 
 var (
-	testDB *testutil.TestDB
-	jwtMgr *auth.JWTManager
+	testDB     *testutil.TestDB
+	jwksServer *testutil.TestJWKSServer
+	jwksMgr    *auth.JWKSManager
 )
 
 func TestMain(m *testing.M) {
@@ -34,10 +34,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("setup test db: %v", err)
 	}
 
-	jwtMgr = auth.NewJWTManager("test-secret", 15*time.Minute)
+	jwksServer = testutil.NewTestJWKSServer()
+	jwksMgr = auth.NewJWKSManager(jwksServer.JWKSURL())
 
 	code := m.Run()
 
+	jwksServer.Close()
 	testDB.Cleanup(ctx)
 	os.Exit(code)
 }
@@ -48,7 +50,7 @@ func queries() *models.Queries {
 
 func createUser(t *testing.T) *testutil.TestUser {
 	t.Helper()
-	u, err := testutil.CreateTestUser(context.Background(), queries(), jwtMgr)
+	u, err := testutil.CreateTestUser(context.Background(), queries(), jwksServer)
 	if err != nil {
 		t.Fatalf("create test user: %v", err)
 	}
@@ -71,7 +73,7 @@ func setupApp() *fiber.App {
 	messageHandler := NewMessageHandler(messageSvc, hub)
 	dmHandler := NewDMHandler(dmSvc, hub)
 
-	protected := app.Group("/api", auth.Middleware(jwtMgr))
+	protected := app.Group("/api", auth.Middleware(jwksMgr))
 
 	protected.Get("/servers", serverHandler.GetUserServers)
 	protected.Post("/servers", serverHandler.CreateServer)

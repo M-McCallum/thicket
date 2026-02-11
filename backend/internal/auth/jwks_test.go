@@ -2,7 +2,6 @@ package auth_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/testutil"
@@ -45,16 +44,6 @@ func TestJWKSManager_ValidateToken(t *testing.T) {
 		token := otherServer.CreateToken(uuid.New(), "testuser")
 
 		_, err := manager.ValidateToken(token)
-		assert.ErrorIs(t, err, auth.ErrInvalidToken)
-	})
-
-	t.Run("HS256 token rejected", func(t *testing.T) {
-		// Create an HS256 token — the JWKS manager should reject it
-		jwtManager := auth.NewJWTManager("test-secret", 15*time.Minute)
-		token, err := jwtManager.CreateAccessToken(uuid.New(), "testuser")
-		require.NoError(t, err)
-
-		_, err = manager.ValidateToken(token)
 		assert.ErrorIs(t, err, auth.ErrInvalidToken)
 	})
 

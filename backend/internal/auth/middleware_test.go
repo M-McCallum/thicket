@@ -1,38 +1,41 @@
-package auth
+package auth_test
 
 import (
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
+	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/testutil"
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func setupTestApp(jwtManager *JWTManager) *fiber.App {
+func setupTestApp(jwksManager *auth.JWKSManager) *fiber.App {
 	app := fiber.New()
 
-	app.Get("/protected", Middleware(jwtManager), func(c fiber.Ctx) error {
+	app.Get("/protected", auth.Middleware(jwksManager), func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{
-			"user_id":  GetUserID(c).String(),
-			"username": GetUsername(c),
+			"user_id":  auth.GetUserID(c).String(),
+			"username": auth.GetUsername(c),
 		})
 	})
 
 	return app
 }
 
-func TestMiddleware_ValidToken(t *testing.T) {
-	manager := NewJWTManager("test-secret", 15*time.Minute)
-	app := setupTestApp(manager)
+func TestMiddleware_ValidRS256Token(t *testing.T) {
+	jwksServer := testutil.NewTestJWKSServer()
+	defer jwksServer.Close()
+
+	jwksManager := auth.NewJWKSManager(jwksServer.JWKSURL())
+	app := setupTestApp(jwksManager)
 	userID := uuid.New()
 
-	token, err := manager.CreateAccessToken(userID, "testuser")
-	require.NoError(t, err)
+	token := jwksServer.CreateToken(userID, "testuser")
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -43,8 +46,11 @@ func TestMiddleware_ValidToken(t *testing.T) {
 }
 
 func TestMiddleware_MissingHeader(t *testing.T) {
-	manager := NewJWTManager("test-secret", 15*time.Minute)
-	app := setupTestApp(manager)
+	jwksServer := testutil.NewTestJWKSServer()
+	defer jwksServer.Close()
+
+	jwksManager := auth.NewJWKSManager(jwksServer.JWKSURL())
+	app := setupTestApp(jwksManager)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 
@@ -57,8 +63,11 @@ func TestMiddleware_MissingHeader(t *testing.T) {
 }
 
 func TestMiddleware_InvalidFormat(t *testing.T) {
-	manager := NewJWTManager("test-secret", 15*time.Minute)
-	app := setupTestApp(manager)
+	jwksServer := testutil.NewTestJWKSServer()
+	defer jwksServer.Close()
+
+	jwksManager := auth.NewJWKSManager(jwksServer.JWKSURL())
+	app := setupTestApp(jwksManager)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "InvalidFormat")
@@ -72,11 +81,13 @@ func TestMiddleware_InvalidFormat(t *testing.T) {
 }
 
 func TestMiddleware_ExpiredToken(t *testing.T) {
-	manager := NewJWTManager("test-secret", -1*time.Minute)
-	app := setupTestApp(manager)
+	jwksServer := testutil.NewTestJWKSServer()
+	defer jwksServer.Close()
 
-	token, err := manager.CreateAccessToken(uuid.New(), "testuser")
-	require.NoError(t, err)
+	jwksManager := auth.NewJWKSManager(jwksServer.JWKSURL())
+	app := setupTestApp(jwksManager)
+
+	token := jwksServer.CreateExpiredToken(uuid.New(), "testuser")
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
@@ -87,8 +98,11 @@ func TestMiddleware_ExpiredToken(t *testing.T) {
 }
 
 func TestMiddleware_MalformedToken(t *testing.T) {
-	manager := NewJWTManager("test-secret", 15*time.Minute)
-	app := setupTestApp(manager)
+	jwksServer := testutil.NewTestJWKSServer()
+	defer jwksServer.Close()
+
+	jwksManager := auth.NewJWKSManager(jwksServer.JWKSURL())
+	app := setupTestApp(jwksManager)
 
 	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
 	req.Header.Set("Authorization", "Bearer not.a.jwt")
@@ -97,4 +111,3 @@ func TestMiddleware_MalformedToken(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
 }
-

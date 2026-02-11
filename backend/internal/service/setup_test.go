@@ -5,16 +5,14 @@ import (
 	"log"
 	"os"
 	"testing"
-	"time"
 
-	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/models"
 	"github.com/M-McCallum/thicket/internal/testutil"
 )
 
 var (
-	testDB *testutil.TestDB
-	jwtMgr *auth.JWTManager
+	testDB     *testutil.TestDB
+	jwksServer *testutil.TestJWKSServer
 )
 
 func TestMain(m *testing.M) {
@@ -26,10 +24,11 @@ func TestMain(m *testing.M) {
 		log.Fatalf("setup test db: %v", err)
 	}
 
-	jwtMgr = auth.NewJWTManager("test-secret", 15*time.Minute)
+	jwksServer = testutil.NewTestJWKSServer()
 
 	code := m.Run()
 
+	jwksServer.Close()
 	testDB.Cleanup(ctx)
 	os.Exit(code)
 }
@@ -40,7 +39,7 @@ func queries() *models.Queries {
 
 func createUser(t *testing.T) *testutil.TestUser {
 	t.Helper()
-	u, err := testutil.CreateTestUser(context.Background(), queries(), jwtMgr)
+	u, err := testutil.CreateTestUser(context.Background(), queries(), jwksServer)
 	if err != nil {
 		t.Fatalf("create test user: %v", err)
 	}

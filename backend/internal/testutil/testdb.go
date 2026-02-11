@@ -73,15 +73,23 @@ func (tdb *TestDB) Cleanup(ctx context.Context) {
 func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 	migrationsDir := findMigrationsDir()
 
-	upFile := filepath.Join(migrationsDir, "000001_init.up.sql")
-	sql, err := os.ReadFile(upFile)
-	if err != nil {
-		return fmt.Errorf("read migration file: %w", err)
+	migrations := []string{
+		"000001_init.up.sql",
+		"000002_add_kratos_id.up.sql",
+		"000003_remove_sessions.up.sql",
 	}
 
-	_, err = pool.Exec(ctx, string(sql))
-	if err != nil {
-		return fmt.Errorf("execute migration: %w", err)
+	for _, name := range migrations {
+		upFile := filepath.Join(migrationsDir, name)
+		sql, err := os.ReadFile(upFile)
+		if err != nil {
+			return fmt.Errorf("read migration %s: %w", name, err)
+		}
+
+		_, err = pool.Exec(ctx, string(sql))
+		if err != nil {
+			return fmt.Errorf("execute migration %s: %w", name, err)
+		}
 	}
 
 	return nil

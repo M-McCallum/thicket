@@ -25,8 +25,9 @@ import (
 )
 
 var (
-	testDB *testutil.TestDB
-	jwtMgr *auth.JWTManager
+	testDB     *testutil.TestDB
+	jwksServer *testutil.TestJWKSServer
+	jwksMgr    *auth.JWKSManager
 )
 
 func TestMain(m *testing.M) {
@@ -38,10 +39,12 @@ func TestMain(m *testing.M) {
 		log.Fatalf("setup test db: %v", err)
 	}
 
-	jwtMgr = auth.NewJWTManager("test-secret-ws-integration", 15*time.Minute)
+	jwksServer = testutil.NewTestJWKSServer()
+	jwksMgr = auth.NewJWKSManager(jwksServer.JWKSURL())
 
 	code := m.Run()
 
+	jwksServer.Close()
 	testDB.Cleanup(ctx)
 	os.Exit(code)
 }
@@ -65,11 +68,11 @@ func startTestServer(t *testing.T) *testServer {
 	app := fiber.New()
 
 	// Protected message routes
-	protected := app.Group("/api", auth.Middleware(jwtMgr))
+	protected := app.Group("/api", auth.Middleware(jwksMgr))
 	protected.Post("/channels/:channelId/messages", messageHandler.SendMessage)
 
 	// WebSocket endpoint (no auth middleware — auth is via IDENTIFY)
-	app.Get("/ws", ws.Handler(hub, jwtMgr))
+	app.Get("/ws", ws.Handler(hub, jwksMgr))
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -167,7 +170,7 @@ func postMessage(t *testing.T, addr, token, channelID, content string) {
 
 func createUser(t *testing.T) *testutil.TestUser {
 	t.Helper()
-	u, err := testutil.CreateTestUser(context.Background(), testDB.Queries, jwtMgr)
+	u, err := testutil.CreateTestUser(context.Background(), testDB.Queries, jwksServer)
 	require.NoError(t, err)
 	return u
 }
