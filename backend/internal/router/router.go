@@ -95,5 +95,5 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
 	// WebSocket
-	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager))
+	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager, cfg.JWKSManager))
 }
