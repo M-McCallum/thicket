@@ -17,6 +17,7 @@ const API_BASE = 'http://localhost:8080/api'
 let accessToken: string | null = null
 let refreshToken: string | null = null
 let onTokenRefresh: ((tokens: { accessToken: string; refreshToken: string }) => void) | null = null
+let oauthRefreshHandler: (() => Promise<boolean>) | null = null
 
 export function setTokens(access: string, refresh: string): void {
   accessToken = access
@@ -32,6 +33,10 @@ export function setOnTokenRefresh(
   cb: (tokens: { accessToken: string; refreshToken: string }) => void
 ): void {
   onTokenRefresh = cb
+}
+
+export function setOAuthRefreshHandler(handler: () => Promise<boolean>): void {
+  oauthRefreshHandler = handler
 }
 
 async function request<T>(
@@ -69,6 +74,17 @@ async function request<T>(
 }
 
 async function refreshAccessToken(): Promise<boolean> {
+  // Try OAuth refresh first
+  if (oauthRefreshHandler) {
+    try {
+      const success = await oauthRefreshHandler()
+      if (success) return true
+    } catch {
+      // Fall through to legacy refresh
+    }
+  }
+
+  // Legacy token refresh
   if (!refreshToken) return false
 
   try {
