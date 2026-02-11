@@ -101,11 +101,12 @@ func CreateTestUser(ctx context.Context, q *models.Queries, jwks *TestJWKSServer
 	username := fmt.Sprintf("testuser_%s", uuid.New().String()[:8])
 	email := fmt.Sprintf("%s@test.com", username)
 
+	kratosID := uuid.New()
 	user, err := q.CreateUser(ctx, models.CreateUserParams{
-		Username:     username,
-		Email:        email,
-		PasswordHash: "",
-		DisplayName:  &username,
+		Username:    username,
+		Email:       email,
+		KratosID:    kratosID,
+		DisplayName: &username,
 	})
 	if err != nil {
 		return nil, err

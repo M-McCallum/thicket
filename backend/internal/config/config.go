@@ -3,16 +3,14 @@ package config
 import (
 	"fmt"
 	"os"
-	"time"
 )
 
 type Config struct {
-	DB       DBConfig
-	JWT      JWTConfig
-	API      APIConfig
-	LiveKit  LiveKitConfig
-	Ory      OryConfig
-	Env      string
+	DB      DBConfig
+	API     APIConfig
+	LiveKit LiveKitConfig
+	Ory     OryConfig
+	Env     string
 }
 
 type OryConfig struct {
@@ -40,12 +38,6 @@ func (c DBConfig) URL() string {
 		c.User, c.Password, c.Host, c.Port, c.Name, c.SSLMode)
 }
 
-type JWTConfig struct {
-	Secret        string
-	AccessExpiry  time.Duration
-	RefreshExpiry time.Duration
-}
-
 type APIConfig struct {
 	Port       string
 	Host       string
@@ -59,16 +51,6 @@ type LiveKitConfig struct {
 }
 
 func Load() (*Config, error) {
-	accessExpiry, err := time.ParseDuration(getEnv("JWT_ACCESS_EXPIRY", "15m"))
-	if err != nil {
-		return nil, fmt.Errorf("invalid JWT_ACCESS_EXPIRY: %w", err)
-	}
-
-	refreshExpiry, err := time.ParseDuration(getEnv("JWT_REFRESH_EXPIRY", "720h"))
-	if err != nil {
-		return nil, fmt.Errorf("invalid JWT_REFRESH_EXPIRY: %w", err)
-	}
-
 	cfg := &Config{
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -77,11 +59,6 @@ func Load() (*Config, error) {
 			Password: getEnv("DB_PASSWORD", "thicket_dev"),
 			Name:     getEnv("DB_NAME", "thicket"),
 			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
-		},
-		JWT: JWTConfig{
-			Secret:        getEnv("JWT_SECRET", "dev-secret-change-me"),
-			AccessExpiry:  accessExpiry,
-			RefreshExpiry: refreshExpiry,
 		},
 		API: APIConfig{
 			Port:       getEnv("API_PORT", "8080"),

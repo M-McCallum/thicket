@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS sessions;
+ALTER TABLE users DROP COLUMN IF EXISTS password_hash;
+ALTER TABLE users ALTER COLUMN kratos_id SET NOT NULL;
