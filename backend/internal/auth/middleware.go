@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Middleware validates HS256 tokens only (legacy auth).
 func Middleware(jwtManager *JWTManager) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -24,6 +25,47 @@ func Middleware(jwtManager *JWTManager) fiber.Handler {
 		}
 
 		claims, err := jwtManager.ValidateToken(parts[1])
+		if err != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+
+		c.Locals("userID", claims.UserID)
+		c.Locals("username", claims.Username)
+		return c.Next()
+	}
+}
+
+// DualMiddleware tries RS256 (JWKS) validation first, then falls back to HS256.
+// This supports both Hydra-issued RS256 tokens and legacy HS256 tokens during migration.
+func DualMiddleware(jwtManager *JWTManager, jwksManager *JWKSManager) fiber.Handler {
+	return func(c fiber.Ctx) error {
+		authHeader := c.Get("Authorization")
+		if authHeader == "" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "missing authorization header",
+			})
+		}
+
+		parts := strings.SplitN(authHeader, " ", 2)
+		if len(parts) != 2 || parts[0] != "Bearer" {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"error": "invalid authorization format",
+			})
+		}
+
+		tokenString := parts[1]
+
+		// Try RS256 (Hydra JWKS) first.
+		if claims, err := jwksManager.ValidateToken(tokenString); err == nil {
+			c.Locals("userID", claims.UserID)
+			c.Locals("username", claims.Username)
+			return c.Next()
+		}
+
+		// Fall back to HS256 (legacy).
+		claims, err := jwtManager.ValidateToken(tokenString)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"error": err.Error(),
