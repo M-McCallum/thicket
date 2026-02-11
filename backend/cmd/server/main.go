@@ -6,15 +6,15 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 
+	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/config"
 	"github.com/M-McCallum/thicket/internal/database"
 	"github.com/M-McCallum/thicket/internal/handler"
 	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/ory"
 	"github.com/M-McCallum/thicket/internal/router"
 	"github.com/M-McCallum/thicket/internal/service"
 	"github.com/M-McCallum/thicket/internal/ws"
-
-	"github.com/M-McCallum/thicket/internal/auth"
 )
 
 func main() {
@@ -33,12 +33,17 @@ func main() {
 	jwtManager := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessExpiry)
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
+	// Ory clients
+	kratosClient := ory.NewKratosClient(cfg.Ory.KratosAdminURL)
+	hydraClient := ory.NewHydraClient(cfg.Ory.HydraAdminURL)
+
 	// Services
 	authService := service.NewAuthService(queries, jwtManager, cfg.JWT.RefreshExpiry)
 	serverService := service.NewServerService(queries)
 	channelService := service.NewChannelService(queries)
 	messageService := service.NewMessageService(queries)
 	dmService := service.NewDMService(queries)
+	identityService := service.NewIdentityService(queries, kratosClient)
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -49,6 +54,7 @@ func main() {
 	serverHandler := handler.NewServerHandler(serverService, channelService)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
+	oryHandler := handler.NewOryHandler(hydraClient, identityService, cfg.Ory.KratosPublicURL)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -60,6 +66,7 @@ func main() {
 		ServerHandler:  serverHandler,
 		MessageHandler: messageHandler,
 		DMHandler:      dmHandler,
+		OryHandler:     oryHandler,
 		JWTManager:     jwtManager,
 		JWKSManager:    jwksManager,
 		Hub:            hub,
