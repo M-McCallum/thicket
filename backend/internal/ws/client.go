@@ -7,6 +7,8 @@ import (
 
 	"github.com/fasthttp/websocket"
 	"github.com/google/uuid"
+
+	"github.com/M-McCallum/thicket/internal/auth"
 )
 
 const (
@@ -17,12 +19,16 @@ const (
 	sendBufferSize = 256
 )
 
+const CloseSessionExpired = 4001
+
 type Client struct {
-	Hub      *Hub
-	conn     *websocket.Conn
-	UserID   uuid.UUID
-	Username string
-	send     chan []byte
+	Hub        *Hub
+	conn       *websocket.Conn
+	UserID     uuid.UUID
+	Username   string
+	send       chan []byte
+	jwtManager  *auth.JWTManager
+	jwksManager *auth.JWKSManager
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string) *Client {
@@ -106,6 +112,26 @@ func (c *Client) WritePumpFastHTTP() {
 	c.WritePump()
 }
 
+func (c *Client) handleTokenRefresh(token string) {
+	claims, err := validateToken(token, c.jwksManager, c.jwtManager)
+	if err != nil || claims.UserID != c.UserID {
+		expiredEvent, _ := NewEvent(EventSessionExpired, map[string]string{
+			"reason": "invalid_token",
+		})
+		if expiredEvent != nil {
+			if data, err := json.Marshal(expiredEvent); err == nil {
+				c.send <- data
+			}
+		}
+		c.conn.WriteMessage(websocket.CloseMessage,
+			websocket.FormatCloseMessage(CloseSessionExpired, "session expired"))
+		return
+	}
+
+	c.Username = claims.Username
+	log.Printf("WebSocket token refreshed: %s (%s)", c.Username, c.UserID)
+}
+
 func (c *Client) handleEvent(event *Event) {
 	switch event.Type {
 	case EventHeartbeat:
@@ -143,5 +169,12 @@ func (c *Client) handleEvent(event *Event) {
 			return
 		}
 		c.Hub.BroadcastToChannel(data.ChannelID, bcastEvent, &c.UserID)
+
+	case EventTokenRefresh:
+		var data TokenRefreshData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		c.handleTokenRefresh(data.Token)
 	}
 }

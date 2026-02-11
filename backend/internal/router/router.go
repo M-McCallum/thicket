@@ -19,6 +19,7 @@ type Config struct {
 	ServerHandler  *handler.ServerHandler
 	MessageHandler *handler.MessageHandler
 	DMHandler      *handler.DMHandler
+	OryHandler     *handler.OryHandler
 	JWTManager     *auth.JWTManager
 	JWKSManager    *auth.JWKSManager
 	Hub            *ws.Hub
@@ -39,6 +40,15 @@ func Setup(app *fiber.App, cfg Config) {
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.JSON(fiber.Map{"status": "ok"})
 	})
+
+	// Ory Hydra provider endpoints (no auth middleware)
+	if cfg.OryHandler != nil {
+		oryAuth := app.Group("/auth")
+		oryAuth.Get("/login", cfg.OryHandler.GetLogin)
+		oryAuth.Post("/login", cfg.OryHandler.PostLogin)
+		oryAuth.Get("/consent", cfg.OryHandler.GetConsent)
+		oryAuth.Get("/logout", cfg.OryHandler.GetLogout)
+	}
 
 	api := app.Group("/api")
 
@@ -85,5 +95,5 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
 	// WebSocket
-	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager))
+	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWTManager, cfg.JWKSManager))
 }

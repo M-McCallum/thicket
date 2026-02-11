@@ -10,6 +10,7 @@ const (
 	EventUnsubscribe    = "UNSUBSCRIBE"
 	EventTypingStart    = "TYPING_START"
 	EventPresenceUpdate = "PRESENCE_UPDATE"
+	EventTokenRefresh   = "TOKEN_REFRESH"
 )
 
 // Server → Client event types
@@ -28,6 +29,7 @@ const (
 	EventMemberLeave      = "MEMBER_LEAVE"
 	EventVoiceStateUpdate = "VOICE_STATE_UPDATE"
 	EventDMMessageCreate  = "DM_MESSAGE_CREATE"
+	EventSessionExpired   = "SESSION_EXPIRED"
 )
 
 type Event struct {
@@ -36,6 +38,10 @@ type Event struct {
 }
 
 type IdentifyData struct {
+	Token string `json:"token"`
+}
+
+type TokenRefreshData struct {
 	Token string `json:"token"`
 }
 

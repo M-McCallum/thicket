@@ -17,7 +17,17 @@ var upgrader = websocket.FastHTTPUpgrader{
 	},
 }
 
-func Handler(hub *Hub, jwtManager *auth.JWTManager) fiber.Handler {
+// validateToken tries RS256 (JWKS) first, then falls back to HS256 (JWT).
+func validateToken(token string, jwksManager *auth.JWKSManager, jwtManager *auth.JWTManager) (*auth.Claims, error) {
+	if jwksManager != nil {
+		if claims, err := jwksManager.ValidateToken(token); err == nil {
+			return claims, nil
+		}
+	}
+	return jwtManager.ValidateToken(token)
+}
+
+func Handler(hub *Hub, jwtManager *auth.JWTManager, jwksManager *auth.JWKSManager) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		fctx, ok := c.(interface{ RequestCtx() *fasthttp.RequestCtx })
 		if !ok {
@@ -46,7 +56,7 @@ func Handler(hub *Hub, jwtManager *auth.JWTManager) fiber.Handler {
 				return
 			}
 
-			claims, err := jwtManager.ValidateToken(identify.Token)
+			claims, err := validateToken(identify.Token, jwksManager, jwtManager)
 			if err != nil {
 				return
 			}
@@ -54,6 +64,8 @@ func Handler(hub *Hub, jwtManager *auth.JWTManager) fiber.Handler {
 			log.Printf("WebSocket authenticated: %s (%s)", claims.Username, claims.UserID)
 
 			client := NewClient(hub, conn, claims.UserID, claims.Username)
+			client.jwtManager = jwtManager
+			client.jwksManager = jwksManager
 			hub.Register(client)
 
 			// Send READY directly to client's send buffer to avoid race
