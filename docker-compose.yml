@@ -99,11 +99,32 @@ services:
         condition: service_completed_successfully
     networks:
       - internal
+      - dokploy-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:4444/health/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - "traefik.enable=true"
+      # OIDC discovery + JWKS
+      - "traefik.http.routers.thicket-hydra-discovery.rule=Host(`${DOMAIN}`) && PathPrefix(`/.well-known/`)"
+      - "traefik.http.routers.thicket-hydra-discovery.entrypoints=websecure"
+      - "traefik.http.routers.thicket-hydra-discovery.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-hydra-discovery.service=thicket-hydra-svc"
+      # OAuth2 endpoints (authorize, token, revoke, userinfo, sessions)
+      - "traefik.http.routers.thicket-hydra-oauth.rule=Host(`${DOMAIN}`) && PathPrefix(`/oauth2/`)"
+      - "traefik.http.routers.thicket-hydra-oauth.entrypoints=websecure"
+      - "traefik.http.routers.thicket-hydra-oauth.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-hydra-oauth.service=thicket-hydra-svc"
+      # Userinfo endpoint
+      - "traefik.http.routers.thicket-hydra-userinfo.rule=Host(`${DOMAIN}`) && Path(`/userinfo`)"
+      - "traefik.http.routers.thicket-hydra-userinfo.entrypoints=websecure"
+      - "traefik.http.routers.thicket-hydra-userinfo.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-hydra-userinfo.service=thicket-hydra-svc"
+      # Service definition (Hydra public port)
+      - "traefik.http.services.thicket-hydra-svc.loadbalancer.server.port=4444"
+      - "traefik.docker.network=dokploy-network"
 
   hydra-init:
     image: curlimages/curl:latest
