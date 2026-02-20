@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 )
 
@@ -146,8 +147,8 @@ func NewHydraClient(adminURL string) *HydraClient {
 
 // GetLoginRequest fetches the login request for the given challenge.
 func (c *HydraClient) GetLoginRequest(ctx context.Context, challenge string) (*LoginRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/login?login_challenge=%s", c.adminURL, challenge)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/login?login_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -161,14 +162,14 @@ func (c *HydraClient) GetLoginRequest(ctx context.Context, challenge string) (*L
 
 // AcceptLogin accepts a login request and returns the redirect URL.
 func (c *HydraClient) AcceptLogin(ctx context.Context, challenge string, body AcceptLoginRequest) (*CompletedRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/login/accept?login_challenge=%s", c.adminURL, challenge)
-	return c.putJSON(ctx, url, body)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/login/accept?login_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	return c.putJSON(ctx, u, body)
 }
 
 // GetConsentRequest fetches the consent request for the given challenge.
 func (c *HydraClient) GetConsentRequest(ctx context.Context, challenge string) (*ConsentRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/consent?consent_challenge=%s", c.adminURL, challenge)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/consent?consent_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -182,14 +183,14 @@ func (c *HydraClient) GetConsentRequest(ctx context.Context, challenge string) (
 
 // AcceptConsent accepts a consent request and returns the redirect URL.
 func (c *HydraClient) AcceptConsent(ctx context.Context, challenge string, body AcceptConsentRequest) (*CompletedRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/consent/accept?consent_challenge=%s", c.adminURL, challenge)
-	return c.putJSON(ctx, url, body)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/consent/accept?consent_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	return c.putJSON(ctx, u, body)
 }
 
 // GetLogoutRequest fetches the logout request for the given challenge.
 func (c *HydraClient) GetLogoutRequest(ctx context.Context, challenge string) (*LogoutRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/logout?logout_challenge=%s", c.adminURL, challenge)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/logout?logout_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -203,8 +204,8 @@ func (c *HydraClient) GetLogoutRequest(ctx context.Context, challenge string) (*
 
 // AcceptLogout accepts a logout request and returns the redirect URL.
 func (c *HydraClient) AcceptLogout(ctx context.Context, challenge string) (*CompletedRequest, error) {
-	url := fmt.Sprintf("%s/admin/oauth2/auth/requests/logout/accept?logout_challenge=%s", c.adminURL, challenge)
-	return c.putJSON(ctx, url, nil)
+	u := fmt.Sprintf("%s/admin/oauth2/auth/requests/logout/accept?logout_challenge=%s", c.adminURL, url.QueryEscape(challenge))
+	return c.putJSON(ctx, u, nil)
 }
 
 // RevokeConsentSessions revokes all consent sessions for a subject.

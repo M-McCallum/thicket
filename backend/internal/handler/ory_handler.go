@@ -355,6 +355,7 @@ func (h *OryHandler) GetConsent(c fiber.Ctx) error {
 
 	cr, err := h.hydraClient.GetConsentRequest(c.Context(), challenge)
 	if err != nil {
+		log.Printf("GetConsentRequest failed (challenge len=%d): %v", len(challenge), err)
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to fetch consent request"})
 	}
 
