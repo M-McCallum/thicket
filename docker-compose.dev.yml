@@ -76,6 +76,7 @@ services:
       URLS_LOGIN: http://localhost:8080/auth/login
       URLS_CONSENT: http://localhost:8080/auth/consent
       URLS_LOGOUT: http://localhost:8080/auth/logout
+      URLS_POST_LOGOUT_REDIRECT: http://localhost:5173
       STRATEGIES_ACCESS_TOKEN: jwt
       OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES: public
       TTL_ACCESS_TOKEN: 15m

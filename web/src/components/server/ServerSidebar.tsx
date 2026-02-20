@@ -7,6 +7,7 @@ export default function ServerSidebar() {
   const { logout, user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [newServerName, setNewServerName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
 
@@ -90,13 +91,13 @@ export default function ServerSidebar() {
 
       <div className="flex-1" />
 
-      {/* User avatar / logout */}
+      {/* User avatar / profile */}
       <button
-        onClick={() => logout()}
+        onClick={() => setShowProfile(true)}
         className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
-                   hover:bg-sol-coral/20 hover:rounded-xl transition-all duration-200
-                   text-sol-text-secondary hover:text-sol-coral"
-        title={`${user?.username} - Click to logout`}
+                   hover:bg-sol-amber/20 hover:rounded-xl transition-all duration-200
+                   text-sol-text-secondary hover:text-sol-amber"
+        title={user?.username}
       >
         <span className="font-display text-sm font-bold">
           {user?.username?.charAt(0).toUpperCase() ?? '?'}
