@@ -101,33 +101,52 @@
       {{end}}
     {{end}}
 
-    {{/* Separator before social options */}}
-    {{$hasOidc := false}}
-    {{range .Flow.UI.Nodes}}{{if eq .Group "oidc"}}{{$hasOidc = true}}{{end}}{{end}}
-    {{if $hasOidc}}
-      <div class="flex items-center gap-3 py-2">
-        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
-        <span class="text-sol-text-secondary text-xs font-mono uppercase">or continue with</span>
-        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
-      </div>
-    {{end}}
+  </form>
 
-    {{/* OIDC group: social login buttons */}}
+  {{/* OIDC group: social login buttons in a separate form so password validation doesn't block them */}}
+  {{$hasOidc := false}}
+  {{range .Flow.UI.Nodes}}{{if eq .Group "oidc"}}{{$hasOidc = true}}{{end}}{{end}}
+  {{if $hasOidc}}
+    <div class="flex items-center gap-3 py-2">
+      <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+      <span class="text-sol-text-secondary text-xs font-mono uppercase">or continue with</span>
+      <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+    </div>
+
+    <form action="{{.Flow.UI.Action}}" method="{{.Flow.UI.Method}}" class="space-y-3">
+      {{/* Include CSRF token and other hidden fields from default group */}}
+      {{range .Flow.UI.Nodes}}
+        {{if eq .Group "default"}}
+          {{if eq .Attributes.Type "hidden"}}
+            <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
+          {{end}}
+        {{end}}
+      {{end}}
+      {{range .Flow.UI.Nodes}}
+        {{if eq .Group "oidc"}}
+          {{if eq .Attributes.Type "submit"}}
+            <button type="submit" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"
+              class="w-full py-3 bg-sol-bg-elevated text-sol-text font-display font-bold tracking-wide rounded-lg border border-sol-bg-elevated hover:border-sol-amber/50 hover:brightness-110 transition-all disabled:opacity-50"
+              {{if .Attributes.Disabled}}disabled{{end}}>
+              {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Sign In{{end}}
+            </button>
+          {{else if eq .Attributes.Type "hidden"}}
+            <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
+          {{end}}
+        {{end}}
+      {{end}}
+    </form>
+  {{end}}
+
+  {{/* WebAuthn group: scripts, hidden inputs, and trigger buttons */}}
+  <form action="{{.Flow.UI.Action}}" method="{{.Flow.UI.Method}}" class="space-y-3">
     {{range .Flow.UI.Nodes}}
-      {{if eq .Group "oidc"}}
-        {{if eq .Attributes.Type "submit"}}
-          <button type="submit" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"
-            class="w-full py-3 bg-sol-bg-elevated text-sol-text font-display font-bold tracking-wide rounded-lg border border-sol-bg-elevated hover:border-sol-amber/50 hover:brightness-110 transition-all disabled:opacity-50"
-            {{if .Attributes.Disabled}}disabled{{end}}>
-            {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Sign In{{end}}
-          </button>
-        {{else if eq .Attributes.Type "hidden"}}
+      {{if eq .Group "default"}}
+        {{if eq .Attributes.Type "hidden"}}
           <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
         {{end}}
       {{end}}
     {{end}}
-
-    {{/* WebAuthn group: scripts, hidden inputs, and trigger buttons */}}
     {{$hasWebauthn := false}}
     {{range .Flow.UI.Nodes}}{{if eq .Group "webauthn"}}{{$hasWebauthn = true}}{{end}}{{end}}
     {{if $hasWebauthn}}

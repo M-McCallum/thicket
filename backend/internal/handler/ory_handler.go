@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"html/template"
 	"log"
+	"net/url"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
@@ -140,8 +141,15 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 			MaxAge:   600, // 10 minutes — matches Kratos login flow lifespan
 		})
 
-		// No active session — redirect to Kratos self-service login, passing the challenge through.
-		return c.Redirect().To(h.kratosPublicURL + "/self-service/login/browser?login_challenge=" + challenge)
+		// No active session — redirect to Kratos self-service login.
+		// Pass login_challenge for Kratos's oauth2_provider integration, and also
+		// set return_to so that even if Kratos loses the challenge (e.g. during
+		// OIDC auto-registration), the browser comes back here with the challenge
+		// in the URL rather than the bare default_browser_return_url.
+		returnTo := h.kratosPublicURL + "/auth/login?login_challenge=" + url.QueryEscape(challenge)
+		kratosURL := h.kratosPublicURL + "/self-service/login/browser?login_challenge=" + url.QueryEscape(challenge) +
+			"&return_to=" + url.QueryEscape(returnTo)
+		return c.Redirect().To(kratosURL)
 	}
 
 	// Case 2: Kratos self-service login flow — render form
@@ -205,7 +213,22 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 		}
 	}
 
-	// No active session or no saved challenge — start a new login flow.
+	// Before redirecting to Kratos, check if the user already has an active
+	// session. If so, redirecting to Kratos would loop (Kratos sees the session
+	// and sends them back here). Show the login form instead so they can
+	// restart the OAuth flow or log in with a different method.
+	cookie := c.Get("Cookie")
+	if session, err := h.kratosClient.WhoAmI(c.Context(), cookie); err == nil && session.Active {
+		log.Printf("Active Kratos session for %s but no login_challenge — cannot complete OAuth flow, showing login page", session.Identity.ID)
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		return h.errorTmpl.ExecuteTemplate(c, "base", struct {
+			Flow     interface{}
+			Error    string
+			RetryURL string
+		}{nil, "Your login session expired before it could be completed. Please try again.", "/auth/login"})
+	}
+
+	// No active session — start a new login flow.
 	return c.Redirect().To(h.kratosPublicURL + "/self-service/login/browser")
 }
 
