@@ -1,18 +1,89 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
+import { Track } from 'livekit-client'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useServerStore } from '@/stores/serverStore'
 import VoiceSettingsModal from './VoiceSettingsModal'
 
 export default function VoiceControls() {
-  const { activeChannelId, isMuted, isDeafened, localAudioLevel, leaveVoiceChannel, toggleMute, toggleDeafen } =
+  const { room, activeChannelId, isMuted, isDeafened, leaveVoiceChannel, toggleMute, toggleDeafen } =
     useVoiceStore()
   const { channels } = useServerStore()
   const [showSettings, setShowSettings] = useState(false)
+  const meterRef = useRef<HTMLDivElement>(null)
+  const micButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Tap the local mic MediaStream directly via Web Audio AnalyserNode
+  // for near-zero-latency level detection (bypasses LiveKit's ~100ms audioLevel updates)
+  useEffect(() => {
+    if (!room) return
+    let frameId: number
+    let smoothed = 0
+    let audioCtx: AudioContext | null = null
+    let analyser: AnalyserNode | null = null
+    let source: MediaStreamAudioSourceNode | null = null
+    let dataArray: Uint8Array<ArrayBuffer> | null = null
+    const ATTACK = 0.4
+    const DECAY = 0.12
+    const GATE = 0.05  // ignore noise floor below this level
+
+    const setupAnalyser = () => {
+      const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+      const mediaStreamTrack = micTrack?.track?.mediaStreamTrack
+      if (!mediaStreamTrack) return false
+
+      audioCtx = new AudioContext()
+      analyser = audioCtx.createAnalyser()
+      analyser.fftSize = 256
+      const stream = new MediaStream([mediaStreamTrack])
+      source = audioCtx.createMediaStreamSource(stream)
+      source.connect(analyser)
+      dataArray = new Uint8Array(analyser.fftSize) as Uint8Array<ArrayBuffer>
+      return true
+    }
+
+    const getRMS = (): number => {
+      if (!analyser || !dataArray) return 0
+      analyser.getByteTimeDomainData(dataArray)
+      let sum = 0
+      for (let i = 0; i < dataArray.length; i++) {
+        const sample = (dataArray[i] - 128) / 128
+        sum += sample * sample
+      }
+      // Scale up so normal speech fills the meter nicely
+      return Math.min(Math.sqrt(sum / dataArray.length) * 4, 1)
+    }
+
+    let analyserReady = setupAnalyser()
+
+    const poll = () => {
+      // Retry setup if mic track wasn't ready on first attempt
+      if (!analyserReady) analyserReady = setupAnalyser()
+
+      const rms = analyserReady ? getRMS() : 0
+      const raw = rms < GATE ? 0 : rms
+      const alpha = raw > smoothed ? ATTACK : DECAY
+      smoothed += alpha * (raw - smoothed)
+      if (meterRef.current) {
+        meterRef.current.style.transform = `scaleX(${smoothed})`
+      }
+      if (micButtonRef.current) {
+        const active = !useVoiceStore.getState().isMuted && smoothed > 0.01
+        micButtonRef.current.dataset.micActive = active ? '1' : '0'
+      }
+      frameId = requestAnimationFrame(poll)
+    }
+    frameId = requestAnimationFrame(poll)
+
+    return () => {
+      cancelAnimationFrame(frameId)
+      source?.disconnect()
+      audioCtx?.close()
+    }
+  }, [room])
 
   if (!activeChannelId) return null
 
   const channel = channels.find((c) => c.id === activeChannelId)
-  const micActive = !isMuted && localAudioLevel > 0.01
 
   return (
     <div className="p-3 bg-sol-bg border-t border-sol-bg-elevated">
@@ -35,8 +106,9 @@ export default function VoiceControls() {
       {/* Audio level meter */}
       <div className="h-1 bg-sol-bg-elevated rounded-full mb-2 overflow-hidden">
         <div
-          className="h-full bg-sol-sage rounded-full transition-[width] duration-75"
-          style={{ width: `${Math.min(localAudioLevel * 100, 100)}%` }}
+          ref={meterRef}
+          className="h-full w-full origin-left bg-sol-sage rounded-full will-change-transform"
+          style={{ transform: 'scaleX(0)' }}
         />
       </div>
 
@@ -44,13 +116,13 @@ export default function VoiceControls() {
       <div className="flex items-center gap-2">
         {/* Mute */}
         <button
+          ref={micButtonRef}
           onClick={toggleMute}
+          data-mic-active="0"
           className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
             isMuted
               ? 'bg-sol-amber/20 text-sol-amber'
-              : micActive
-                ? 'bg-sol-bg-elevated text-sol-sage ring-1 ring-sol-sage/50'
-                : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary'
+              : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary data-[mic-active=1]:text-sol-sage data-[mic-active=1]:ring-1 data-[mic-active=1]:ring-sol-sage/50'
           }`}
           title={isMuted ? 'Unmute' : 'Mute'}
         >

@@ -17,7 +17,6 @@ interface VoiceState {
   participants: VoiceParticipant[]
   isMuted: boolean
   isDeafened: boolean
-  localAudioLevel: number
   speakingUserIds: string[]
   selectedInputDeviceId: string | null
   selectedOutputDeviceId: string | null
@@ -33,8 +32,6 @@ interface VoiceState {
   clearParticipants: () => void
 }
 
-let audioLevelFrameId: number | null = null
-
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   room: null,
   activeChannelId: null,
@@ -42,7 +39,6 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   participants: [],
   isMuted: false,
   isDeafened: false,
-  localAudioLevel: 0,
   speakingUserIds: [],
   selectedInputDeviceId: localStorage.getItem('voice:inputDeviceId'),
   selectedOutputDeviceId: localStorage.getItem('voice:outputDeviceId'),
@@ -111,16 +107,6 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       set({ speakingUserIds: speakers.map((s) => s.identity) })
     })
 
-    // Poll local audio level via rAF for smooth meter updates
-    const pollAudioLevel = () => {
-      const currentRoom = get().room
-      if (currentRoom) {
-        set({ localAudioLevel: currentRoom.localParticipant.audioLevel })
-        audioLevelFrameId = requestAnimationFrame(pollAudioLevel)
-      }
-    }
-    audioLevelFrameId = requestAnimationFrame(pollAudioLevel)
-
     // Build initial participant list from existing participants
     const existingParticipants: VoiceParticipant[] = Array.from(
       room.remoteParticipants.values()
@@ -150,11 +136,6 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   leaveVoiceChannel: () => {
     const { room, activeChannelId, activeServerId } = get()
 
-    if (audioLevelFrameId !== null) {
-      cancelAnimationFrame(audioLevelFrameId)
-      audioLevelFrameId = null
-    }
-
     if (room) {
       room.disconnect()
     }
@@ -173,7 +154,6 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       participants: [],
       isMuted: false,
       isDeafened: false,
-      localAudioLevel: 0,
       speakingUserIds: []
     })
   },
