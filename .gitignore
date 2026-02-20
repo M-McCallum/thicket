@@ -38,7 +38,5 @@ frontend/release/
 # Web
 web/dist/
 
-# Generated
-backend/internal/models/db.go
-backend/internal/models/models.go
-backend/internal/models/*.sql.go
+# Generated (sqlc pattern — currently hand-written, so tracked)
+# backend/internal/models/*.sql.go
