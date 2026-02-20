@@ -162,12 +162,13 @@ services:
       - "traefik.http.routers.thicket-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
       - "traefik.http.routers.thicket-api.entrypoints=websecure"
       - "traefik.http.routers.thicket-api.tls.certResolver=letsencrypt"
-      - "traefik.http.services.thicket-api.loadbalancer.server.port=8080"
+      - "traefik.http.routers.thicket-api.service=thicket-api-svc"
+      - "traefik.http.services.thicket-api-svc.loadbalancer.server.port=8080"
       # WebSocket route
       - "traefik.http.routers.thicket-ws.rule=Host(`${DOMAIN}`) && Path(`/ws`)"
       - "traefik.http.routers.thicket-ws.entrypoints=websecure"
       - "traefik.http.routers.thicket-ws.tls.certResolver=letsencrypt"
-      - "traefik.http.routers.thicket-ws.service=thicket-api"
+      - "traefik.http.routers.thicket-ws.service=thicket-api-svc"
       # Security headers middleware
       - "traefik.http.middlewares.thicket-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.thicket-headers.headers.stsIncludeSubdomains=true"
@@ -202,7 +203,8 @@ services:
       - "traefik.http.routers.thicket-livekit.rule=Host(`${DOMAIN}`) && PathPrefix(`/livekit`)"
       - "traefik.http.routers.thicket-livekit.entrypoints=websecure"
       - "traefik.http.routers.thicket-livekit.tls.certResolver=letsencrypt"
-      - "traefik.http.services.thicket-livekit.loadbalancer.server.port=7880"
+      - "traefik.http.routers.thicket-livekit.service=thicket-livekit-svc"
+      - "traefik.http.services.thicket-livekit-svc.loadbalancer.server.port=7880"
       - "traefik.docker.network=dokploy-network"
 
   web:
@@ -225,7 +227,8 @@ services:
       - "traefik.http.routers.thicket-web.entrypoints=websecure"
       - "traefik.http.routers.thicket-web.tls.certResolver=letsencrypt"
       - "traefik.http.routers.thicket-web.priority=1"
-      - "traefik.http.services.thicket-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.thicket-web.service=thicket-web-svc"
+      - "traefik.http.services.thicket-web-svc.loadbalancer.server.port=80"
       - "traefik.http.routers.thicket-web.middlewares=thicket-headers"
       - "traefik.docker.network=dokploy-network"
 
