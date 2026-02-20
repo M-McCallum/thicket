@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '@/types/models'
-import { auth as authApi, profile as profileApi, setTokens, clearTokens as clearApiTokens } from '@/services/api'
+import { auth as authApi, profile as profileApi, setTokens, clearTokens as clearApiTokens, setOAuthRefreshHandler } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { oauthService } from '@/services/oauth'
 import { storeTokens, getTokens, clearTokens as clearStoredTokens } from '@/services/tokenStorage'
@@ -41,6 +41,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initAuth: async () => {
     set({ isLoading: true })
+    setOAuthRefreshHandler(() => get().refreshAccessToken())
     try {
       const tokens = getTokens()
       if (tokens.access_token) {

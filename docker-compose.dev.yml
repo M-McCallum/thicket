@@ -119,7 +119,8 @@ services:
       - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
     ports:
       - "7880:7880"
-      - "7882:7882/udp"
+      - "7881:7881"
+      - "7882-7892:7882-7892/udp"
 
 volumes:
   postgres_dev_data:
