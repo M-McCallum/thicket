@@ -2,21 +2,24 @@ package handler
 
 import (
 	"errors"
+	"log"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/ws"
 )
 
 type ServerHandler struct {
 	serverService  *service.ServerService
 	channelService *service.ChannelService
+	hub            *ws.Hub
 }
 
-func NewServerHandler(ss *service.ServerService, cs *service.ChannelService) *ServerHandler {
-	return &ServerHandler{serverService: ss, channelService: cs}
+func NewServerHandler(ss *service.ServerService, cs *service.ChannelService, hub *ws.Hub) *ServerHandler {
+	return &ServerHandler{serverService: ss, channelService: cs, hub: hub}
 }
 
 func (h *ServerHandler) CreateServer(c fiber.Ctx) error {
@@ -73,9 +76,24 @@ func (h *ServerHandler) JoinServer(c fiber.Ctx) error {
 	}
 
 	userID := auth.GetUserID(c)
+	username := auth.GetUsername(c)
 	server, err := h.serverService.JoinServer(c.Context(), body.InviteCode, userID)
 	if err != nil {
 		return handleServerError(c, err)
+	}
+
+	// Broadcast MEMBER_JOIN to all server members (including the new member)
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), server.ID); err == nil {
+		event, _ := ws.NewEvent(ws.EventMemberJoin, fiber.Map{
+			"server_id": server.ID,
+			"user_id":   userID,
+			"username":  username,
+		})
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	} else {
+		log.Printf("Failed to get member IDs for MEMBER_JOIN broadcast: %v", err)
 	}
 
 	return c.JSON(server)
@@ -88,8 +106,20 @@ func (h *ServerHandler) LeaveServer(c fiber.Ctx) error {
 	}
 
 	userID := auth.GetUserID(c)
+
+	// Query member IDs BEFORE leave (user is still a member)
+	memberIDs, _ := h.serverService.GetServerMemberUserIDs(c.Context(), serverID)
+
 	if err := h.serverService.LeaveServer(c.Context(), serverID, userID); err != nil {
 		return handleServerError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventMemberLeave, fiber.Map{
+		"server_id": serverID,
+		"user_id":   userID,
+	})
+	if event != nil {
+		ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
 	}
 
 	return c.JSON(fiber.Map{"message": "left server"})
@@ -145,6 +175,14 @@ func (h *ServerHandler) CreateChannel(c fiber.Ctx) error {
 		return handleServerError(c, err)
 	}
 
+	// Broadcast CHANNEL_CREATE to all server members
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventChannelCreate, channel)
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(channel)
 }
 
@@ -161,6 +199,36 @@ func (h *ServerHandler) GetChannels(c fiber.Ctx) error {
 	}
 
 	return c.JSON(channels)
+}
+
+func (h *ServerHandler) DeleteChannel(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+
+	// Query member IDs before delete so we can broadcast
+	memberIDs, _ := h.serverService.GetServerMemberUserIDs(c.Context(), serverID)
+
+	userID := auth.GetUserID(c)
+	if err := h.channelService.DeleteChannel(c.Context(), channelID, userID); err != nil {
+		return handleServerError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventChannelDelete, fiber.Map{
+		"id":        channelID,
+		"server_id": serverID,
+	})
+	if event != nil {
+		ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "channel deleted"})
 }
 
 func handleServerError(c fiber.Ctx, err error) error {

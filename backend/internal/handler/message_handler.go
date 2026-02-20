@@ -122,9 +122,23 @@ func (h *MessageHandler) DeleteMessage(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
 	}
 
+	// Fetch channel ID before deleting so we can broadcast
+	channelID, err := h.messageService.GetMessageChannelID(c.Context(), messageID)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
 	userID := auth.GetUserID(c)
 	if err := h.messageService.DeleteMessage(c.Context(), messageID, userID); err != nil {
 		return handleMessageError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventMessageDelete, fiber.Map{
+		"id":         messageID,
+		"channel_id": channelID,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(channelID.String(), event, nil)
 	}
 
 	return c.JSON(fiber.Map{"message": "deleted"})

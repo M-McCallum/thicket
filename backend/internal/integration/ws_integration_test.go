@@ -72,7 +72,7 @@ func startTestServer(t *testing.T) *testServer {
 	protected.Post("/channels/:channelId/messages", messageHandler.SendMessage)
 
 	// WebSocket endpoint (no auth middleware — auth is via IDENTIFY)
-	app.Get("/ws", ws.Handler(hub, jwksMgr))
+	app.Get("/ws", ws.Handler(hub, jwksMgr, nil))
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -187,10 +187,11 @@ func TestConnectAndIdentify(t *testing.T) {
 	event := readWSEvent(t, conn, 2*time.Second)
 	assert.Equal(t, ws.EventReady, event.Type)
 
-	var readyData map[string]string
+	var readyData ws.ReadyData
 	require.NoError(t, json.Unmarshal(event.Data, &readyData))
-	assert.Equal(t, user.User.ID.String(), readyData["user_id"])
-	assert.Equal(t, user.User.Username, readyData["username"])
+	assert.Equal(t, user.User.ID.String(), readyData.UserID)
+	assert.Equal(t, user.User.Username, readyData.Username)
+	assert.NotNil(t, readyData.OnlineUserIDs)
 }
 
 func TestConnectWithoutIdentify(t *testing.T) {

@@ -150,6 +150,49 @@ func (q *Queries) UpdateMemberRole(ctx context.Context, serverID, userID uuid.UU
 	return err
 }
 
+func (q *Queries) GetServerMemberUserIDs(ctx context.Context, serverID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT user_id FROM server_members WHERE server_id = $1`, serverID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func (q *Queries) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT DISTINCT sm2.user_id
+		FROM server_members sm1
+		JOIN server_members sm2 ON sm1.server_id = sm2.server_id
+		WHERE sm1.user_id = $1 AND sm2.user_id != $1`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
 func scanServer(row pgx.Row) (Server, error) {
 	var s Server
 	err := row.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.CreatedAt, &s.UpdatedAt)

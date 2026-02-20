@@ -155,6 +155,14 @@ func (s *ServerService) GetMembers(ctx context.Context, serverID, userID uuid.UU
 	return s.queries.GetServerMembers(ctx, serverID)
 }
 
+func (s *ServerService) GetServerMemberUserIDs(ctx context.Context, serverID uuid.UUID) ([]uuid.UUID, error) {
+	return s.queries.GetServerMemberUserIDs(ctx, serverID)
+}
+
+func (s *ServerService) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	return s.queries.GetUserCoMemberIDs(ctx, userID)
+}
+
 func generateInviteCode() (string, error) {
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {

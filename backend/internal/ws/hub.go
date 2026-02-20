@@ -9,12 +9,23 @@ import (
 )
 
 type Hub struct {
-	clients    map[uuid.UUID]*Client
-	channels   map[string]map[uuid.UUID]bool // channelID -> set of client userIDs
-	register   chan *Client
-	unregister chan *Client
-	broadcast  chan *ChannelMessage
-	mu         sync.RWMutex
+	clients      map[uuid.UUID]*Client
+	channels     map[string]map[uuid.UUID]bool // channelID -> set of client userIDs
+	voiceStates  map[string]map[uuid.UUID]VoiceState // channelID -> userID -> state
+	register     chan *Client
+	unregister   chan *Client
+	broadcast    chan *ChannelMessage
+	mu           sync.RWMutex
+	onDisconnect func(userID uuid.UUID, username string)
+}
+
+type VoiceState struct {
+	UserID    uuid.UUID `json:"user_id"`
+	ChannelID string    `json:"channel_id"`
+	ServerID  string    `json:"server_id"`
+	Username  string    `json:"username"`
+	Muted     bool      `json:"muted"`
+	Deafened  bool      `json:"deafened"`
 }
 
 type ChannelMessage struct {
@@ -25,12 +36,17 @@ type ChannelMessage struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:    make(map[uuid.UUID]*Client),
-		channels:   make(map[string]map[uuid.UUID]bool),
-		register:   make(chan *Client, 256),
-		unregister: make(chan *Client, 256),
-		broadcast:  make(chan *ChannelMessage, 256),
+		clients:     make(map[uuid.UUID]*Client),
+		channels:    make(map[string]map[uuid.UUID]bool),
+		voiceStates: make(map[string]map[uuid.UUID]VoiceState),
+		register:    make(chan *Client, 256),
+		unregister:  make(chan *Client, 256),
+		broadcast:   make(chan *ChannelMessage, 256),
 	}
+}
+
+func (h *Hub) SetOnDisconnect(fn func(userID uuid.UUID, username string)) {
+	h.onDisconnect = fn
 }
 
 func (h *Hub) Run() {
@@ -55,9 +71,22 @@ func (h *Hub) Run() {
 						delete(h.channels, chID)
 					}
 				}
+
+				// Remove from voice channels
+				for chID, users := range h.voiceStates {
+					if _, inVoice := users[client.UserID]; inVoice {
+						delete(users, client.UserID)
+						if len(users) == 0 {
+							delete(h.voiceStates, chID)
+						}
+					}
+				}
 			}
 			h.mu.Unlock()
 			log.Printf("Client unregistered: %s (%s)", client.Username, client.UserID)
+			if h.onDisconnect != nil {
+				go h.onDisconnect(client.UserID, client.Username)
+			}
 
 		case msg := <-h.broadcast:
 			h.mu.RLock()
@@ -159,4 +188,52 @@ func (h *Hub) Register(client *Client) {
 
 func (h *Hub) Unregister(client *Client) {
 	h.unregister <- client
+}
+
+func (h *Hub) JoinVoiceChannel(state VoiceState) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	// Leave any existing voice channel first
+	for chID, users := range h.voiceStates {
+		if _, ok := users[state.UserID]; ok {
+			delete(users, state.UserID)
+			if len(users) == 0 {
+				delete(h.voiceStates, chID)
+			}
+		}
+	}
+
+	if h.voiceStates[state.ChannelID] == nil {
+		h.voiceStates[state.ChannelID] = make(map[uuid.UUID]VoiceState)
+	}
+	h.voiceStates[state.ChannelID][state.UserID] = state
+}
+
+func (h *Hub) LeaveVoiceChannel(userID uuid.UUID, channelID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if users, ok := h.voiceStates[channelID]; ok {
+		delete(users, userID)
+		if len(users) == 0 {
+			delete(h.voiceStates, channelID)
+		}
+	}
+}
+
+func (h *Hub) GetVoiceParticipants(channelID string) []VoiceState {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	users, ok := h.voiceStates[channelID]
+	if !ok {
+		return nil
+	}
+
+	states := make([]VoiceState, 0, len(users))
+	for _, s := range users {
+		states = append(states, s)
+	}
+	return states
 }

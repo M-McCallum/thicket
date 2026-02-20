@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/config"
@@ -45,10 +47,27 @@ func main() {
 
 	// WebSocket hub
 	hub := ws.NewHub()
+	hub.SetOnDisconnect(func(userID uuid.UUID, username string) {
+		ctx := context.Background()
+		_ = queries.UpdateUserStatus(ctx, userID, "offline")
+		coMemberIDs, err := queries.GetUserCoMemberIDs(ctx, userID)
+		if err != nil {
+			log.Printf("Failed to get co-member IDs for disconnect presence: %v", err)
+			return
+		}
+		presenceEvent, _ := ws.NewEvent(ws.EventPresenceUpdBcast, ws.PresenceData{
+			UserID:   userID.String(),
+			Username: username,
+			Status:   "offline",
+		})
+		if presenceEvent != nil {
+			ws.BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
+		}
+	})
 	go hub.Run()
 
 	// Handlers
-	serverHandler := handler.NewServerHandler(serverService, channelService)
+	serverHandler := handler.NewServerHandler(serverService, channelService, hub)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
 	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosPublicURL)
@@ -58,13 +77,19 @@ func main() {
 		AppName: "Thicket API",
 	})
 
+	// LiveKit handler
+	livekitHandler := handler.NewLiveKitHandler(serverService, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
+
 	router.Setup(app, router.Config{
 		ServerHandler:  serverHandler,
 		MessageHandler: messageHandler,
 		DMHandler:      dmHandler,
 		OryHandler:     oryHandler,
+		LiveKitHandler: livekitHandler,
 		JWKSManager:    jwksManager,
 		Hub:            hub,
+		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,
+		ServerMemberIDsFn:  serverService.GetServerMemberUserIDs,
 		CORSOrigin:     cfg.API.CORSOrigin,
 	})
 

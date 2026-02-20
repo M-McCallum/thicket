@@ -21,13 +21,17 @@ const (
 
 const CloseSessionExpired = 4001
 
+// GetMemberIDsFn fetches member user IDs for a given server ID.
+type GetMemberIDsFn func(serverID string) ([]uuid.UUID, error)
+
 type Client struct {
-	Hub         *Hub
-	conn        *websocket.Conn
-	UserID      uuid.UUID
-	Username    string
-	send        chan []byte
-	jwksManager *auth.JWKSManager
+	Hub            *Hub
+	conn           *websocket.Conn
+	UserID         uuid.UUID
+	Username       string
+	send           chan []byte
+	jwksManager    *auth.JWKSManager
+	GetMemberIDsFn GetMemberIDsFn
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string) *Client {
@@ -154,6 +158,59 @@ func (c *Client) handleEvent(event *Event) {
 			return
 		}
 		c.Hub.BroadcastToChannel(data.ChannelID, bcastEvent, &c.UserID)
+
+	case EventVoiceJoin:
+		var data VoiceJoinData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		state := VoiceState{
+			UserID:    c.UserID,
+			ChannelID: data.ChannelID,
+			ServerID:  data.ServerID,
+			Username:  c.Username,
+		}
+		c.Hub.JoinVoiceChannel(state)
+		log.Printf("User %s joined voice channel %s", c.Username, data.ChannelID)
+
+		// Broadcast VOICE_STATE_UPDATE to server members
+		if c.GetMemberIDsFn != nil {
+			if memberIDs, err := c.GetMemberIDsFn(data.ServerID); err == nil {
+				bcastEvent, _ := NewEvent(EventVoiceStateUpdate, VoiceStateData{
+					UserID:    c.UserID.String(),
+					Username:  c.Username,
+					ChannelID: data.ChannelID,
+					ServerID:  data.ServerID,
+					Joined:    true,
+				})
+				if bcastEvent != nil {
+					BroadcastToServerMembers(c.Hub, memberIDs, bcastEvent, nil)
+				}
+			}
+		}
+
+	case EventVoiceLeave:
+		var data VoiceLeaveData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		c.Hub.LeaveVoiceChannel(c.UserID, data.ChannelID)
+		log.Printf("User %s left voice channel %s", c.Username, data.ChannelID)
+
+		if c.GetMemberIDsFn != nil {
+			if memberIDs, err := c.GetMemberIDsFn(data.ServerID); err == nil {
+				bcastEvent, _ := NewEvent(EventVoiceStateUpdate, VoiceStateData{
+					UserID:    c.UserID.String(),
+					Username:  c.Username,
+					ChannelID: data.ChannelID,
+					ServerID:  data.ServerID,
+					Joined:    false,
+				})
+				if bcastEvent != nil {
+					BroadcastToServerMembers(c.Hub, memberIDs, bcastEvent, nil)
+				}
+			}
+		}
 
 	case EventTokenRefresh:
 		var data TokenRefreshData

@@ -1,11 +1,13 @@
 package ws
 
 import (
+	"context"
 	"encoding/json"
 	"log"
 
 	"github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/valyala/fasthttp"
 
 	"github.com/M-McCallum/thicket/internal/auth"
@@ -17,7 +19,13 @@ var upgrader = websocket.FastHTTPUpgrader{
 	},
 }
 
-func Handler(hub *Hub, jwksManager *auth.JWKSManager) fiber.Handler {
+// CoMemberIDsFn returns all distinct user IDs that share any server with the given user.
+type CoMemberIDsFn func(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
+
+// ServerMemberIDsFn returns all user IDs in a given server.
+type ServerMemberIDsFn func(ctx context.Context, serverID uuid.UUID) ([]uuid.UUID, error)
+
+func Handler(hub *Hub, jwksManager *auth.JWKSManager, coMemberIDsFn CoMemberIDsFn, serverMemberIDsFn ...ServerMemberIDsFn) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		fctx, ok := c.(interface{ RequestCtx() *fasthttp.RequestCtx })
 		if !ok {
@@ -55,18 +63,53 @@ func Handler(hub *Hub, jwksManager *auth.JWKSManager) fiber.Handler {
 
 			client := NewClient(hub, conn, claims.Ext.UserID, claims.Ext.Username)
 			client.jwksManager = jwksManager
+			if len(serverMemberIDsFn) > 0 && serverMemberIDsFn[0] != nil {
+				fn := serverMemberIDsFn[0]
+				client.GetMemberIDsFn = func(serverID string) ([]uuid.UUID, error) {
+					sid, err := uuid.Parse(serverID)
+					if err != nil {
+						return nil, err
+					}
+					return fn(context.Background(), sid)
+				}
+			}
 			hub.Register(client)
 
-			// Send READY directly to client's send buffer to avoid race
-			// with hub registration (hub.Register is async).
-			readyEvent, _ := NewEvent(EventReady, map[string]string{
-				"user_id":  claims.Ext.UserID.String(),
-				"username": claims.Ext.Username,
+			// Build READY payload with online users
+			onlineUsers := hub.GetOnlineUsers()
+			onlineIDs := make([]string, len(onlineUsers))
+			for i, id := range onlineUsers {
+				onlineIDs[i] = id.String()
+			}
+
+			readyEvent, _ := NewEvent(EventReady, ReadyData{
+				UserID:        claims.Ext.UserID.String(),
+				Username:      claims.Ext.Username,
+				OnlineUserIDs: onlineIDs,
 			})
 			if readyEvent != nil {
 				if data, err := json.Marshal(readyEvent); err == nil {
 					client.send <- data
 				}
+			}
+
+			// Broadcast presence "online" to co-members
+			if coMemberIDsFn != nil {
+				go func() {
+					coMemberIDs, err := coMemberIDsFn(context.Background(), claims.Ext.UserID)
+					if err != nil {
+						log.Printf("Failed to get co-member IDs for presence: %v", err)
+						return
+					}
+					presenceEvent, _ := NewEvent(EventPresenceUpdBcast, PresenceData{
+						UserID:   claims.Ext.UserID.String(),
+						Username: claims.Ext.Username,
+						Status:   "online",
+					})
+					if presenceEvent != nil {
+						BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
+					}
+				}()
 			}
 
 			go client.WritePump()

@@ -23,6 +23,7 @@ interface ServerState {
   removeChannel: (channelId: string) => void
   addMember: (member: ServerMember) => void
   removeMember: (userId: string) => void
+  updateMemberStatus: (userId: string, status: string) => void
   clearError: () => void
 }
 
@@ -114,6 +115,13 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   removeMember: (userId) =>
     set((state) => ({ members: state.members.filter((m) => m.id !== userId) })),
+
+  updateMemberStatus: (userId, status) =>
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === userId ? { ...m, status } : m
+      )
+    })),
 
   clearError: () => set({ error: null })
 }))

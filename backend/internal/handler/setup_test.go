@@ -69,7 +69,7 @@ func setupApp() *fiber.App {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	serverHandler := NewServerHandler(serverSvc, channelSvc)
+	serverHandler := NewServerHandler(serverSvc, channelSvc, hub)
 	messageHandler := NewMessageHandler(messageSvc, hub)
 	dmHandler := NewDMHandler(dmSvc, hub)
 
@@ -85,6 +85,7 @@ func setupApp() *fiber.App {
 
 	protected.Post("/servers/:id/channels", serverHandler.CreateChannel)
 	protected.Get("/servers/:id/channels", serverHandler.GetChannels)
+	protected.Delete("/servers/:id/channels/:channelId", serverHandler.DeleteChannel)
 
 	protected.Post("/channels/:channelId/messages", messageHandler.SendMessage)
 	protected.Get("/channels/:channelId/messages", messageHandler.GetMessages)

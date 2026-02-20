@@ -11,6 +11,8 @@ const (
 	EventTypingStart    = "TYPING_START"
 	EventPresenceUpdate = "PRESENCE_UPDATE"
 	EventTokenRefresh   = "TOKEN_REFRESH"
+	EventVoiceJoin      = "VOICE_JOIN"
+	EventVoiceLeave     = "VOICE_LEAVE"
 )
 
 // Server → Client event types
@@ -59,6 +61,32 @@ type PresenceData struct {
 	UserID   string `json:"user_id"`
 	Username string `json:"username"`
 	Status   string `json:"status"`
+}
+
+type ReadyData struct {
+	UserID        string   `json:"user_id"`
+	Username      string   `json:"username"`
+	OnlineUserIDs []string `json:"online_user_ids"`
+}
+
+type VoiceJoinData struct {
+	ChannelID string `json:"channel_id"`
+	ServerID  string `json:"server_id"`
+}
+
+type VoiceLeaveData struct {
+	ChannelID string `json:"channel_id"`
+	ServerID  string `json:"server_id"`
+}
+
+type VoiceStateData struct {
+	UserID    string `json:"user_id"`
+	Username  string `json:"username"`
+	ChannelID string `json:"channel_id"`
+	ServerID  string `json:"server_id"`
+	Joined    bool   `json:"joined"`
+	Muted     bool   `json:"muted"`
+	Deafened  bool   `json:"deafened"`
 }
 
 func NewEvent(eventType string, data any) (*Event, error) {

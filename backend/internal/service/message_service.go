@@ -117,6 +117,17 @@ func (s *MessageService) UpdateMessage(ctx context.Context, messageID, userID uu
 	return &updated, nil
 }
 
+func (s *MessageService) GetMessageChannelID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error) {
+	msg, err := s.queries.GetMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return uuid.Nil, ErrMessageNotFound
+		}
+		return uuid.Nil, err
+	}
+	return msg.ChannelID, nil
+}
+
 func (s *MessageService) DeleteMessage(ctx context.Context, messageID, userID uuid.UUID) error {
 	msg, err := s.queries.GetMessageByID(ctx, messageID)
 	if err != nil {

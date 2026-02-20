@@ -145,6 +145,23 @@ export const messages = {
     request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' })
 }
 
+// Voice
+export const voice = {
+  getToken: (serverId: string, channelId: string) =>
+    request<{ token: string; room: string }>(
+      `/servers/${serverId}/channels/${channelId}/voice-token`,
+      { method: 'POST' }
+    )
+}
+
+// Channels (extended)
+export const channelsApi = {
+  delete: (serverId: string, channelId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/channels/${channelId}`, {
+      method: 'DELETE'
+    })
+}
+
 // Direct Messages
 export const dm = {
   createConversation: (data: CreateDMConversationRequest) =>

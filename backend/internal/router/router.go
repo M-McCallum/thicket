@@ -12,13 +12,16 @@ import (
 )
 
 type Config struct {
-	ServerHandler  *handler.ServerHandler
-	MessageHandler *handler.MessageHandler
-	DMHandler      *handler.DMHandler
-	OryHandler     *handler.OryHandler
-	JWKSManager    *auth.JWKSManager
-	Hub            *ws.Hub
-	CORSOrigin     string
+	ServerHandler      *handler.ServerHandler
+	MessageHandler     *handler.MessageHandler
+	DMHandler          *handler.DMHandler
+	OryHandler         *handler.OryHandler
+	LiveKitHandler     *handler.LiveKitHandler
+	JWKSManager        *auth.JWKSManager
+	Hub                *ws.Hub
+	CoMemberIDsFn      ws.CoMemberIDsFn
+	ServerMemberIDsFn  ws.ServerMemberIDsFn
+	CORSOrigin         string
 }
 
 func Setup(app *fiber.App, cfg Config) {
@@ -71,6 +74,7 @@ func Setup(app *fiber.App, cfg Config) {
 	// Channels
 	protected.Post("/servers/:id/channels", cfg.ServerHandler.CreateChannel)
 	protected.Get("/servers/:id/channels", cfg.ServerHandler.GetChannels)
+	protected.Delete("/servers/:id/channels/:channelId", cfg.ServerHandler.DeleteChannel)
 
 	// Messages
 	protected.Post("/channels/:channelId/messages", cfg.MessageHandler.SendMessage)
@@ -84,6 +88,11 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Get("/dm/conversations/:id/messages", cfg.DMHandler.GetDMMessages)
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
+	// Voice
+	if cfg.LiveKitHandler != nil {
+		protected.Post("/servers/:serverId/channels/:channelId/voice-token", cfg.LiveKitHandler.GetVoiceToken)
+	}
+
 	// WebSocket
-	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWKSManager))
+	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWKSManager, cfg.CoMemberIDsFn, cfg.ServerMemberIDsFn))
 }
