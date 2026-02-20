@@ -99,7 +99,7 @@ func (c *Client) WritePump() {
 
 func (c *Client) handleTokenRefresh(token string) {
 	claims, err := c.jwksManager.ValidateToken(token)
-	if err != nil || claims.UserID != c.UserID {
+	if err != nil || claims.Ext.UserID != c.UserID {
 		expiredEvent, _ := NewEvent(EventSessionExpired, map[string]string{
 			"reason": "invalid_token",
 		})
@@ -113,7 +113,7 @@ func (c *Client) handleTokenRefresh(token string) {
 		return
 	}
 
-	c.Username = claims.Username
+	c.Username = claims.Ext.Username
 	log.Printf("WebSocket token refreshed: %s (%s)", c.Username, c.UserID)
 }
 

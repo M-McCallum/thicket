@@ -51,17 +51,17 @@ func Handler(hub *Hub, jwksManager *auth.JWKSManager) fiber.Handler {
 				return
 			}
 
-			log.Printf("WebSocket authenticated: %s (%s)", claims.Username, claims.UserID)
+			log.Printf("WebSocket authenticated: %s (%s)", claims.Ext.Username, claims.Ext.UserID)
 
-			client := NewClient(hub, conn, claims.UserID, claims.Username)
+			client := NewClient(hub, conn, claims.Ext.UserID, claims.Ext.Username)
 			client.jwksManager = jwksManager
 			hub.Register(client)
 
 			// Send READY directly to client's send buffer to avoid race
 			// with hub registration (hub.Register is async).
 			readyEvent, _ := NewEvent(EventReady, map[string]string{
-				"user_id":  claims.UserID.String(),
-				"username": claims.Username,
+				"user_id":  claims.Ext.UserID.String(),
+				"username": claims.Ext.Username,
 			})
 			if readyEvent != nil {
 				if data, err := json.Marshal(readyEvent); err == nil {
