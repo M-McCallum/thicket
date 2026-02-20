@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '@/types/models'
-import { auth as authApi, setTokens, clearTokens as clearApiTokens } from '@/services/api'
+import { auth as authApi, profile as profileApi, setTokens, clearTokens as clearApiTokens } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { oauthService } from '@/services/oauth'
 import { storeTokens, getTokens, clearTokens as clearStoredTokens } from '@/services/tokenStorage'
@@ -19,6 +19,11 @@ interface AuthState {
   handleCallback: () => Promise<void>
   refreshAccessToken: () => Promise<boolean>
   logout: () => Promise<void>
+  updateProfile: (data: { display_name?: string; bio?: string; pronouns?: string }) => Promise<void>
+  updateStatus: (status: string) => Promise<void>
+  updateCustomStatus: (data: { text: string; emoji: string; expires_in?: string }) => Promise<void>
+  uploadAvatar: (file: File) => Promise<void>
+  deleteAvatar: () => Promise<void>
   clearError: () => void
 }
 
@@ -41,17 +46,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       if (tokens.access_token) {
         setTokens(tokens.access_token, tokens.refresh_token ?? '')
         wsService.connect(tokens.access_token)
-        const profile = await authApi.me()
+        const user = await profileApi.get()
         set({
-          user: {
-            id: profile.user_id,
-            username: profile.username,
-            email: '',
-            avatar_url: null,
-            display_name: profile.username,
-            status: 'online',
-            created_at: ''
-          },
+          user,
           accessToken: tokens.access_token,
           refreshToken: tokens.refresh_token,
           isAuthenticated: true,
@@ -69,17 +66,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           storeTokensLocally(refreshed)
           setTokens(refreshed.access_token, refreshed.refresh_token ?? '')
           wsService.connect(refreshed.access_token)
-          const profile = await authApi.me()
+          const user = await profileApi.get()
           set({
-            user: {
-              id: profile.user_id,
-              username: profile.username,
-              email: '',
-              avatar_url: null,
-              display_name: profile.username,
-              status: 'online',
-              created_at: ''
-            },
+            user,
             accessToken: refreshed.access_token,
             refreshToken: refreshed.refresh_token,
             isAuthenticated: true,
@@ -113,17 +102,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       storeTokensLocally(tokens)
       setTokens(tokens.access_token, tokens.refresh_token ?? '')
       wsService.connect(tokens.access_token)
-      const profile = await authApi.me()
+      const user = await profileApi.get()
       set({
-        user: {
-          id: profile.user_id,
-          username: profile.username,
-          email: '',
-          avatar_url: null,
-          display_name: profile.username,
-          status: 'online',
-          created_at: ''
-        },
+        user,
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         isAuthenticated: true,
@@ -167,6 +148,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null
     })
+  },
+
+  updateProfile: async (data) => {
+    const user = await profileApi.update(data)
+    set({ user })
+  },
+
+  updateStatus: async (status) => {
+    await profileApi.updateStatus(status)
+    const { user } = get()
+    if (user) {
+      const dbStatus = status === 'invisible' ? 'offline' : status
+      set({ user: { ...user, status: dbStatus as User['status'] } })
+    }
+  },
+
+  updateCustomStatus: async (data) => {
+    const user = await profileApi.updateCustomStatus(data)
+    set({ user })
+  },
+
+  uploadAvatar: async (file) => {
+    const user = await profileApi.uploadAvatar(file)
+    set({ user })
+  },
+
+  deleteAvatar: async () => {
+    const user = await profileApi.deleteAvatar()
+    set({ user })
   },
 
   clearError: () => set({ error: null })

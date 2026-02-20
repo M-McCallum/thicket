@@ -7,15 +7,20 @@ import (
 )
 
 type User struct {
-	ID          uuid.UUID `json:"id"`
-	Username    string    `json:"username"`
-	Email       string    `json:"email"`
-	AvatarURL   *string   `json:"avatar_url"`
-	DisplayName *string   `json:"display_name"`
-	Status      string    `json:"status"`
-	KratosID    uuid.UUID `json:"kratos_id"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID                    uuid.UUID  `json:"id"`
+	Username              string     `json:"username"`
+	Email                 string     `json:"email"`
+	AvatarURL             *string    `json:"avatar_url"`
+	DisplayName           *string    `json:"display_name"`
+	Status                string     `json:"status"`
+	KratosID              uuid.UUID  `json:"kratos_id"`
+	Bio                   string     `json:"bio"`
+	Pronouns              string     `json:"pronouns"`
+	CustomStatusText      string     `json:"custom_status_text"`
+	CustomStatusEmoji     string     `json:"custom_status_emoji"`
+	CustomStatusExpiresAt *time.Time `json:"custom_status_expires_at"`
+	CreatedAt             time.Time  `json:"created_at"`
+	UpdatedAt             time.Time  `json:"updated_at"`
 }
 
 type Server struct {

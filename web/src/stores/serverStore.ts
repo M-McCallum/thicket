@@ -24,6 +24,7 @@ interface ServerState {
   addMember: (member: ServerMember) => void
   removeMember: (userId: string) => void
   updateMemberStatus: (userId: string, status: string) => void
+  updateMemberProfile: (userId: string, updates: Partial<ServerMember>) => void
   clearError: () => void
 }
 
@@ -120,6 +121,13 @@ export const useServerStore = create<ServerState>((set, get) => ({
     set((state) => ({
       members: state.members.map((m) =>
         m.id === userId ? { ...m, status } : m
+      )
+    })),
+
+  updateMemberProfile: (userId, updates) =>
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === userId ? { ...m, ...updates } : m
       )
     })),
 

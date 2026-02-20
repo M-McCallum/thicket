@@ -30,8 +30,9 @@ const (
 	EventMemberJoin       = "MEMBER_JOIN"
 	EventMemberLeave      = "MEMBER_LEAVE"
 	EventVoiceStateUpdate = "VOICE_STATE_UPDATE"
-	EventDMMessageCreate  = "DM_MESSAGE_CREATE"
-	EventSessionExpired   = "SESSION_EXPIRED"
+	EventDMMessageCreate    = "DM_MESSAGE_CREATE"
+	EventUserProfileUpdate  = "USER_PROFILE_UPDATE"
+	EventSessionExpired     = "SESSION_EXPIRED"
 )
 
 type Event struct {

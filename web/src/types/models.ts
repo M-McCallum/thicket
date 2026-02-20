@@ -5,6 +5,11 @@ export interface User {
   avatar_url: string | null
   display_name: string | null
   status: 'online' | 'idle' | 'dnd' | 'offline'
+  bio: string
+  pronouns: string
+  custom_status_text: string
+  custom_status_emoji: string
+  custom_status_expires_at: string | null
   created_at: string
 }
 

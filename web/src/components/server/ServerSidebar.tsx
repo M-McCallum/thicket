@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
+import UserAvatar from '@/components/common/UserAvatar'
+import ProfileModal from '@/components/profile/ProfileModal'
 
 export default function ServerSidebar() {
   const { servers, activeServerId, setActiveServer, createServer, joinServer } = useServerStore()
-  const { logout, user } = useAuthStore()
+  const { user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
@@ -94,14 +96,10 @@ export default function ServerSidebar() {
       {/* User avatar / profile */}
       <button
         onClick={() => setShowProfile(true)}
-        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
-                   hover:bg-sol-amber/20 hover:rounded-xl transition-all duration-200
-                   text-sol-text-secondary hover:text-sol-amber"
+        className="hover:opacity-80 transition-opacity"
         title={user?.username}
       >
-        <span className="font-display text-sm font-bold">
-          {user?.username?.charAt(0).toUpperCase() ?? '?'}
-        </span>
+        <UserAvatar avatarUrl={user?.avatar_url} username={user?.username} size="md" />
       </button>
 
       {/* Create server modal */}
@@ -136,39 +134,7 @@ export default function ServerSidebar() {
 
       {/* Profile modal */}
       {showProfile && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowProfile(false)}>
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-80 animate-grow-in flex flex-col items-center gap-4"
-          >
-            <div className="w-20 h-20 rounded-full bg-sol-amber/20 flex items-center justify-center">
-              <span className="font-display text-3xl font-bold text-sol-amber">
-                {user?.username?.charAt(0).toUpperCase() ?? '?'}
-              </span>
-            </div>
-            <div className="text-center">
-              <h3 className="font-display text-lg text-sol-text">{user?.username}</h3>
-              {user?.display_name && user.display_name !== user.username && (
-                <p className="text-sm text-sol-text-secondary">{user.display_name}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2 text-sm text-sol-text-secondary">
-              <span className={`w-2.5 h-2.5 rounded-full ${
-                user?.status === 'online' ? 'bg-sol-green' :
-                user?.status === 'idle' ? 'bg-sol-amber' :
-                user?.status === 'dnd' ? 'bg-sol-coral' :
-                'bg-sol-text-muted'
-              }`} />
-              <span className="capitalize">{user?.status ?? 'offline'}</span>
-            </div>
-            <button
-              onClick={() => { setShowProfile(false); logout() }}
-              className="btn-danger w-full mt-2"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
+        <ProfileModal onClose={() => setShowProfile(false)} />
       )}
 
       {/* Join server modal */}

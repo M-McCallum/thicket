@@ -5,6 +5,7 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/gofiber/fiber/v3/middleware/static"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/handler"
@@ -17,11 +18,13 @@ type Config struct {
 	DMHandler          *handler.DMHandler
 	OryHandler         *handler.OryHandler
 	LiveKitHandler     *handler.LiveKitHandler
+	UserHandler        *handler.UserHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
 	ServerMemberIDsFn  ws.ServerMemberIDsFn
 	CORSOrigin         string
+	UploadDir          string
 }
 
 func Setup(app *fiber.App, cfg Config) {
@@ -49,6 +52,11 @@ func Setup(app *fiber.App, cfg Config) {
 		oryAuth.Get("/error", cfg.OryHandler.GetError)
 	}
 
+	// Serve uploaded files (avatars)
+	if cfg.UploadDir != "" {
+		app.Use("/uploads", static.New(cfg.UploadDir))
+	}
+
 	api := app.Group("/api")
 
 	// Protected routes
@@ -61,6 +69,17 @@ func Setup(app *fiber.App, cfg Config) {
 			"username": auth.GetUsername(c),
 		})
 	})
+
+	// User profile
+	if cfg.UserHandler != nil {
+		protected.Get("/me/profile", cfg.UserHandler.GetMyProfile)
+		protected.Patch("/me/profile", cfg.UserHandler.UpdateProfile)
+		protected.Put("/me/status", cfg.UserHandler.UpdateStatus)
+		protected.Put("/me/custom-status", cfg.UserHandler.UpdateCustomStatus)
+		protected.Post("/me/avatar", cfg.UserHandler.UploadAvatar)
+		protected.Delete("/me/avatar", cfg.UserHandler.DeleteAvatar)
+		protected.Get("/users/:id/profile", cfg.UserHandler.GetPublicProfile)
+	}
 
 	// Servers
 	protected.Get("/servers", cfg.ServerHandler.GetUserServers)

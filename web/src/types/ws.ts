@@ -22,6 +22,7 @@ export type WSEventType =
   | 'MEMBER_LEAVE'
   | 'VOICE_STATE_UPDATE'
   | 'DM_MESSAGE_CREATE'
+  | 'USER_PROFILE_UPDATE'
   | 'SESSION_EXPIRED'
 
 export interface WSEvent<T = unknown> {
@@ -120,6 +121,19 @@ export interface DMMessageCreateData {
   content: string
   created_at: string
   username: string
+}
+
+export interface UserProfileUpdateData {
+  id: string
+  username: string
+  avatar_url: string | null
+  display_name: string | null
+  status: string
+  bio: string
+  pronouns: string
+  custom_status_text: string
+  custom_status_emoji: string
+  custom_status_expires_at: string | null
 }
 
 export interface TokenRefreshData {

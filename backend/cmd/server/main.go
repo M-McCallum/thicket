@@ -44,9 +44,14 @@ func main() {
 	messageService := service.NewMessageService(queries)
 	dmService := service.NewDMService(queries)
 	identityService := service.NewIdentityService(queries, kratosClient)
+	userService := service.NewUserService(queries)
 
 	// WebSocket hub
 	hub := ws.NewHub()
+	hub.SetOnConnect(func(userID uuid.UUID, username string) {
+		ctx := context.Background()
+		_ = queries.UpdateUserStatus(ctx, userID, "online")
+	})
 	hub.SetOnDisconnect(func(userID uuid.UUID, username string) {
 		ctx := context.Background()
 		_ = queries.UpdateUserStatus(ctx, userID, "offline")
@@ -67,10 +72,12 @@ func main() {
 	go hub.Run()
 
 	// Handlers
+	uploadDir := "./uploads/avatars"
 	serverHandler := handler.NewServerHandler(serverService, channelService, hub)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
 	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosBrowserURL)
+	userHandler := handler.NewUserHandler(userService, hub, serverService.GetUserCoMemberIDs, uploadDir)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -81,16 +88,18 @@ func main() {
 	livekitHandler := handler.NewLiveKitHandler(serverService, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
 
 	router.Setup(app, router.Config{
-		ServerHandler:  serverHandler,
-		MessageHandler: messageHandler,
-		DMHandler:      dmHandler,
-		OryHandler:     oryHandler,
-		LiveKitHandler: livekitHandler,
-		JWKSManager:    jwksManager,
-		Hub:            hub,
-		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,
-		ServerMemberIDsFn:  serverService.GetServerMemberUserIDs,
-		CORSOrigin:     cfg.API.CORSOrigin,
+		ServerHandler:     serverHandler,
+		MessageHandler:    messageHandler,
+		DMHandler:         dmHandler,
+		OryHandler:        oryHandler,
+		LiveKitHandler:    livekitHandler,
+		UserHandler:       userHandler,
+		JWKSManager:       jwksManager,
+		Hub:               hub,
+		CoMemberIDsFn:     serverService.GetUserCoMemberIDs,
+		ServerMemberIDsFn: serverService.GetServerMemberUserIDs,
+		CORSOrigin:        cfg.API.CORSOrigin,
+		UploadDir:         "./uploads",
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)

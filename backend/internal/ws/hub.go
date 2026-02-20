@@ -16,6 +16,7 @@ type Hub struct {
 	unregister   chan *Client
 	broadcast    chan *ChannelMessage
 	mu           sync.RWMutex
+	onConnect    func(userID uuid.UUID, username string)
 	onDisconnect func(userID uuid.UUID, username string)
 }
 
@@ -45,6 +46,10 @@ func NewHub() *Hub {
 	}
 }
 
+func (h *Hub) SetOnConnect(fn func(userID uuid.UUID, username string)) {
+	h.onConnect = fn
+}
+
 func (h *Hub) SetOnDisconnect(fn func(userID uuid.UUID, username string)) {
 	h.onDisconnect = fn
 }
@@ -57,6 +62,9 @@ func (h *Hub) Run() {
 			h.clients[client.UserID] = client
 			h.mu.Unlock()
 			log.Printf("Client registered: %s (%s)", client.Username, client.UserID)
+			if h.onConnect != nil {
+				go h.onConnect(client.UserID, client.Username)
+			}
 
 		case client := <-h.unregister:
 			h.mu.Lock()

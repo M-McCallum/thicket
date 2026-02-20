@@ -12,7 +12,8 @@ import type {
   ChannelDeleteData,
   MemberJoinData,
   MemberLeaveData,
-  VoiceStateData
+  VoiceStateData,
+  UserProfileUpdateData
 } from '@/types/ws'
 
 export function useWebSocketEvents() {
@@ -129,6 +130,19 @@ export function useWebSocketEvents() {
         if (member.server_id === activeServerId) {
           useServerStore.getState().removeMember(member.user_id)
         }
+      })
+    )
+
+    // USER_PROFILE_UPDATE
+    unsubs.push(
+      wsService.on('USER_PROFILE_UPDATE', (data) => {
+        const profile = data as UserProfileUpdateData
+        useServerStore.getState().updateMemberProfile(profile.id, {
+          username: profile.username,
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
+          status: profile.status
+        })
       })
     )
 
