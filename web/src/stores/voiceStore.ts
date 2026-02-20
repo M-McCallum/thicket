@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant } from 'livekit-client'
+import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client'
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
 
@@ -17,15 +17,23 @@ interface VoiceState {
   participants: VoiceParticipant[]
   isMuted: boolean
   isDeafened: boolean
+  localAudioLevel: number
+  speakingUserIds: string[]
+  selectedInputDeviceId: string | null
+  selectedOutputDeviceId: string | null
 
   joinVoiceChannel: (serverId: string, channelId: string) => Promise<void>
   leaveVoiceChannel: () => void
   toggleMute: () => void
   toggleDeafen: () => void
+  setInputDevice: (deviceId: string) => void
+  setOutputDevice: (deviceId: string) => void
   addParticipant: (participant: VoiceParticipant) => void
   removeParticipant: (userId: string) => void
   clearParticipants: () => void
 }
+
+let audioLevelFrameId: number | null = null
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   room: null,
@@ -34,6 +42,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   participants: [],
   isMuted: false,
   isDeafened: false,
+  localAudioLevel: 0,
+  speakingUserIds: [],
+  selectedInputDeviceId: localStorage.getItem('voice:inputDeviceId'),
+  selectedOutputDeviceId: localStorage.getItem('voice:outputDeviceId'),
 
   joinVoiceChannel: async (serverId, channelId) => {
     const { room: existingRoom } = get()
@@ -84,8 +96,30 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
     await room.connect(livekitUrl, token)
 
-    // Enable microphone
-    await room.localParticipant.setMicrophoneEnabled(true)
+    // Enable microphone with saved device preference
+    const savedInputId = get().selectedInputDeviceId
+    await room.localParticipant.setMicrophoneEnabled(true, savedInputId ? { deviceId: savedInputId } : undefined)
+
+    // Apply saved output device
+    const savedOutputId = get().selectedOutputDeviceId
+    if (savedOutputId) {
+      await room.switchActiveDevice('audiooutput', savedOutputId)
+    }
+
+    // Track active speakers
+    room.on(RoomEvent.ActiveSpeakersChanged, (speakers: Participant[]) => {
+      set({ speakingUserIds: speakers.map((s) => s.identity) })
+    })
+
+    // Poll local audio level via rAF for smooth meter updates
+    const pollAudioLevel = () => {
+      const currentRoom = get().room
+      if (currentRoom) {
+        set({ localAudioLevel: currentRoom.localParticipant.audioLevel })
+        audioLevelFrameId = requestAnimationFrame(pollAudioLevel)
+      }
+    }
+    audioLevelFrameId = requestAnimationFrame(pollAudioLevel)
 
     // Build initial participant list from existing participants
     const existingParticipants: VoiceParticipant[] = Array.from(
@@ -115,6 +149,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   leaveVoiceChannel: () => {
     const { room, activeChannelId, activeServerId } = get()
+
+    if (audioLevelFrameId !== null) {
+      cancelAnimationFrame(audioLevelFrameId)
+      audioLevelFrameId = null
+    }
+
     if (room) {
       room.disconnect()
     }
@@ -132,7 +172,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeServerId: null,
       participants: [],
       isMuted: false,
-      isDeafened: false
+      isDeafened: false,
+      localAudioLevel: 0,
+      speakingUserIds: []
     })
   },
 
@@ -160,6 +202,24 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         })
       })
       set({ isDeafened: !isDeafened })
+    }
+  },
+
+  setInputDevice: (deviceId) => {
+    localStorage.setItem('voice:inputDeviceId', deviceId)
+    set({ selectedInputDeviceId: deviceId })
+    const { room } = get()
+    if (room) {
+      room.switchActiveDevice('audioinput', deviceId)
+    }
+  },
+
+  setOutputDevice: (deviceId) => {
+    localStorage.setItem('voice:outputDeviceId', deviceId)
+    set({ selectedOutputDeviceId: deviceId })
+    const { room } = get()
+    if (room) {
+      room.switchActiveDevice('audiooutput', deviceId)
     }
   },
 
