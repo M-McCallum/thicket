@@ -73,13 +73,15 @@ func (t *TestJWKSServer) CreateToken(userID uuid.UUID, username string) string {
 // CreateTokenWithExpiry creates a signed RS256 JWT with a custom expiry duration.
 func (t *TestJWKSServer) CreateTokenWithExpiry(userID uuid.UUID, username string, expiry time.Duration) string {
 	claims := jwt.MapClaims{
-		"user_id":  userID.String(),
-		"username": username,
-		"sub":      userID.String(),
-		"iss":      "test-hydra",
-		"aud":      []string{"api.thicket.chat"},
-		"exp":      time.Now().Add(expiry).Unix(),
-		"iat":      time.Now().Unix(),
+		"ext": map[string]interface{}{
+			"user_id":  userID.String(),
+			"username": username,
+		},
+		"sub": userID.String(),
+		"iss": "test-hydra",
+		"aud": []string{"api.thicket.chat"},
+		"exp": time.Now().Add(expiry).Unix(),
+		"iat": time.Now().Unix(),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

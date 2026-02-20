@@ -31,8 +31,8 @@ func Middleware(jwksManager *JWKSManager) fiber.Handler {
 			})
 		}
 
-		c.Locals("userID", claims.UserID)
-		c.Locals("username", claims.Username)
+		c.Locals("userID", claims.Ext.UserID)
+		c.Locals("username", claims.Ext.Username)
 		return c.Next()
 	}
 }

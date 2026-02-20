@@ -23,8 +23,8 @@ func TestJWKSManager_ValidateToken(t *testing.T) {
 
 		claims, err := manager.ValidateToken(token)
 		require.NoError(t, err)
-		assert.Equal(t, userID, claims.UserID)
-		assert.Equal(t, username, claims.Username)
+		assert.Equal(t, userID, claims.Ext.UserID)
+		assert.Equal(t, username, claims.Ext.Username)
 	})
 
 	t.Run("expired token", func(t *testing.T) {
@@ -68,6 +68,6 @@ func TestJWKSManager_ValidateToken(t *testing.T) {
 
 		claims, err := manager2.ValidateToken(token)
 		require.NoError(t, err)
-		assert.Equal(t, kratosID, claims.UserID)
+		assert.Equal(t, kratosID, claims.Ext.UserID)
 	})
 }

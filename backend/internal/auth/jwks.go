@@ -87,11 +87,11 @@ func (m *JWKSManager) ValidateToken(tokenString string) (*Claims, error) {
 		return nil, ErrInvalidToken
 	}
 
-	// If user_id wasn't in the token claims but sub is a valid UUID,
-	// populate UserID from sub (Kratos identity UUID) for downstream lookup.
-	if claims.UserID == uuid.Nil && claims.Subject != "" {
+	// If user_id wasn't in the ext claims but sub is a valid UUID,
+	// populate UserID from sub as a fallback.
+	if claims.Ext.UserID == uuid.Nil && claims.Subject != "" {
 		if subUUID, err := uuid.Parse(claims.Subject); err == nil {
-			claims.UserID = subUUID
+			claims.Ext.UserID = subUUID
 		}
 	}
 
