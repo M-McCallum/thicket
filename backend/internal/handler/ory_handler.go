@@ -340,6 +340,7 @@ func (h *OryHandler) GetConsent(c fiber.Ctx) error {
 
 	// Phase 1: Long challenge from Hydra → store and redirect to short URL.
 	if challenge != "" {
+		log.Printf("Consent phase 1: storing challenge (len=%d, first50=%.50s)", len(challenge), challenge)
 		id := h.consentStore.put(challenge)
 		return c.Redirect().To("/auth/consent?id=" + id)
 	}
@@ -347,6 +348,7 @@ func (h *OryHandler) GetConsent(c fiber.Ctx) error {
 	// Phase 2: Short ID → look up real challenge.
 	if shortID != "" {
 		challenge = h.consentStore.take(shortID)
+		log.Printf("Consent phase 2: retrieved challenge (len=%d, first50=%.50s)", len(challenge), challenge)
 	}
 
 	if challenge == "" {
@@ -355,7 +357,7 @@ func (h *OryHandler) GetConsent(c fiber.Ctx) error {
 
 	cr, err := h.hydraClient.GetConsentRequest(c.Context(), challenge)
 	if err != nil {
-		log.Printf("GetConsentRequest failed (challenge len=%d): %v", len(challenge), err)
+		log.Printf("GetConsentRequest failed (challenge len=%d, first50=%.50s): %v", len(challenge), challenge, err)
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to fetch consent request"})
 	}
 
