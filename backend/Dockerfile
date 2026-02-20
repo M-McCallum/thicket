@@ -18,7 +18,6 @@ RUN apk add --no-cache ca-certificates tzdata && \
 USER thicket
 
 COPY --from=builder /server /server
-COPY --from=builder /app/internal/database/migrations /migrations
 
 EXPOSE 8080
 

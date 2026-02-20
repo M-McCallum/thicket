@@ -31,6 +31,11 @@ func main() {
 	}
 	defer pool.Close()
 
+	// Run pending migrations before starting the server.
+	if err := database.MigrateUp(context.Background(), pool, database.Migrations); err != nil {
+		log.Fatalf("Failed to run migrations: %v", err)
+	}
+
 	queries := models.New(pool)
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
