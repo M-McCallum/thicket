@@ -203,7 +203,7 @@ describe('ServerSidebar', () => {
 
   it('renders user avatar with first letter', () => {
     useAuthStore.setState({
-      user: { id: 'u1', username: 'testuser', email: 'test@test.com', display_name: null, avatar_url: null, status: 'online', created_at: '' }
+      user: { id: 'u1', username: 'testuser', email: 'test@test.com', display_name: null, avatar_url: null, status: 'online', bio: '', pronouns: '', custom_status_text: '', custom_status_emoji: '', custom_status_expires_at: null, created_at: '' }
     })
 
     render(<ServerSidebar />)
@@ -211,22 +211,19 @@ describe('ServerSidebar', () => {
     expect(screen.getByText('T')).toBeInTheDocument()
   })
 
-  it('clicking logout calls logout', async () => {
-    const { auth } = await import('../../../services/api')
-    vi.mocked(auth.logout).mockResolvedValue({ message: 'ok' })
-
+  it('clicking profile button opens profile modal', async () => {
     useAuthStore.setState({
-      user: { id: 'u1', username: 'testuser', email: 'test@test.com', display_name: null, avatar_url: null, status: 'online', created_at: '' },
+      user: { id: 'u1', username: 'testuser', email: 'test@test.com', display_name: null, avatar_url: null, status: 'online', bio: '', pronouns: '', custom_status_text: '', custom_status_emoji: '', custom_status_expires_at: null, created_at: '' },
       isAuthenticated: true
     })
 
     const user = userEvent.setup()
     render(<ServerSidebar />)
 
-    await user.click(screen.getByTitle('testuser - Click to logout'))
+    await user.click(screen.getByTitle('testuser'))
 
     await waitFor(() => {
-      expect(auth.logout).toHaveBeenCalled()
+      expect(screen.getByText('Edit Profile')).toBeInTheDocument()
     })
   })
 

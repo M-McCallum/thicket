@@ -4,10 +4,14 @@ import ServerSidebar from '../server/ServerSidebar'
 import ChannelSidebar from '../server/ChannelSidebar'
 import ChatArea from '../chat/ChatArea'
 import MemberList from '../server/MemberList'
+import VoiceControls from '../voice/VoiceControls'
 import { useServerStore } from '../../stores/serverStore'
+import { useWebSocketEvents } from '../../hooks/useWebSocketEvents'
 
 export default function MainLayout(): JSX.Element {
   const { activeServerId, fetchServers } = useServerStore()
+
+  useWebSocketEvents()
 
   useEffect(() => {
     fetchServers()
@@ -24,7 +28,12 @@ export default function MainLayout(): JSX.Element {
         <ServerSidebar />
         {activeServerId ? (
           <>
-            <ChannelSidebar />
+            <div className="w-60 bg-sol-bg-secondary flex flex-col border-r border-sol-bg-elevated">
+              <div className="flex-1 overflow-hidden">
+                <ChannelSidebar />
+              </div>
+              <VoiceControls />
+            </div>
             <ChatArea />
             <MemberList />
           </>

@@ -60,7 +60,10 @@ export class WebSocketService {
 
   sendTokenRefresh(newToken: string): void {
     this.token = newToken
-    this.send({ type: 'TOKEN_REFRESH', data: { token: newToken } })
+    if (this.ws?.readyState === WebSocket.OPEN) {
+      this.send({ type: 'TOKEN_REFRESH', data: { token: newToken } })
+    }
+    // If WS is closed/reconnecting, the new token will be used on next IDENTIFY
   }
 
   setOnSessionExpired(handler: () => void): void {

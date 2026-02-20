@@ -6,7 +6,7 @@ import type {
   CreateDMConversationRequest,
   SendDMRequest
 } from '../types/api'
-import type { Server, Channel, Message, ServerMember, DMConversationWithParticipants, DMMessage } from '../types/models'
+import type { Server, Channel, Message, ServerMember, DMConversationWithParticipants, DMMessage, User } from '../types/models'
 
 const API_BASE = 'http://localhost:8080/api'
 
@@ -78,6 +78,37 @@ export class ApiError extends Error {
     this.name = 'ApiError'
     this.status = status
   }
+}
+
+async function requestMultipart<T>(
+  path: string,
+  formData: FormData,
+  retry = true
+): Promise<T> {
+  const headers: Record<string, string> = {}
+  if (accessToken) {
+    headers['Authorization'] = `Bearer ${accessToken}`
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    headers,
+    body: formData
+  })
+
+  if (response.status === 401 && retry && refreshToken) {
+    const refreshed = await refreshAccessToken()
+    if (refreshed) {
+      return requestMultipart<T>(path, formData, false)
+    }
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new ApiError(error.error || 'Unknown error', response.status)
+  }
+
+  return response.json()
 }
 
 // Auth
@@ -153,6 +184,52 @@ export const messages = {
 
   delete: (id: string) =>
     request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' })
+}
+
+// Voice
+export const voice = {
+  getToken: (serverId: string, channelId: string) =>
+    request<{ token: string; room: string }>(
+      `/servers/${serverId}/channels/${channelId}/voice-token`,
+      { method: 'POST' }
+    )
+}
+
+// Channels (extended)
+export const channelsApi = {
+  delete: (serverId: string, channelId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/channels/${channelId}`, {
+      method: 'DELETE'
+    })
+}
+
+// Profile
+export const profile = {
+  get: () => request<User>('/me/profile'),
+  update: (data: { display_name?: string; bio?: string; pronouns?: string }) =>
+    request<User>('/me/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  updateStatus: (status: string) =>
+    request<{ status: string }>('/me/status', {
+      method: 'PUT',
+      body: JSON.stringify({ status })
+    }),
+  updateCustomStatus: (data: { text: string; emoji: string; expires_in?: string }) =>
+    request<User>('/me/custom-status', {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+  uploadAvatar: (file: File) => {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    return requestMultipart<User>('/me/avatar', formData)
+  },
+  deleteAvatar: () =>
+    request<User>('/me/avatar', { method: 'DELETE' }),
+  getPublic: (userId: string) =>
+    request<User>(`/users/${userId}/profile`)
 }
 
 // Direct Messages

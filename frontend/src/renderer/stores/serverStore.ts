@@ -23,6 +23,8 @@ interface ServerState {
   removeChannel: (channelId: string) => void
   addMember: (member: ServerMember) => void
   removeMember: (userId: string) => void
+  updateMemberStatus: (userId: string, status: string) => void
+  updateMemberProfile: (userId: string, updates: Partial<ServerMember>) => void
   clearError: () => void
 }
 
@@ -68,17 +70,13 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   createServer: async (name) => {
     const result = await serversApi.create({ name })
-    set((state) => ({
-      servers: [...state.servers, result.server]
-    }))
+    set((state) => ({ servers: [...state.servers, result.server] }))
     return result.server
   },
 
   joinServer: async (inviteCode) => {
     const server = await serversApi.join({ invite_code: inviteCode })
-    set((state) => ({
-      servers: [...state.servers, server]
-    }))
+    set((state) => ({ servers: [...state.servers, server] }))
   },
 
   leaveServer: async (serverId) => {
@@ -100,16 +98,15 @@ export const useServerStore = create<ServerState>((set, get) => ({
   createChannel: async (name, type) => {
     const { activeServerId } = get()
     if (!activeServerId) return
-
     const channel = await channelsApi.create(activeServerId, { name, type })
-    set((state) => ({
-      channels: [...state.channels, channel]
-    }))
+    set((state) => ({ channels: [...state.channels, channel] }))
   },
 
   addChannel: (channel) =>
     set((state) => ({
-      channels: [...state.channels, channel]
+      channels: state.channels.some((c) => c.id === channel.id)
+        ? state.channels
+        : [...state.channels, channel]
     })),
 
   removeChannel: (channelId) =>
@@ -119,13 +116,23 @@ export const useServerStore = create<ServerState>((set, get) => ({
     })),
 
   addMember: (member) =>
-    set((state) => ({
-      members: [...state.members, member]
-    })),
+    set((state) => ({ members: [...state.members, member] })),
 
   removeMember: (userId) =>
+    set((state) => ({ members: state.members.filter((m) => m.id !== userId) })),
+
+  updateMemberStatus: (userId, status) =>
     set((state) => ({
-      members: state.members.filter((m) => m.id !== userId)
+      members: state.members.map((m) =>
+        m.id === userId ? { ...m, status } : m
+      )
+    })),
+
+  updateMemberProfile: (userId, updates) =>
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === userId ? { ...m, ...updates } : m
+      )
     })),
 
   clearError: () => set({ error: null })

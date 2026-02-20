@@ -62,6 +62,11 @@ describe('DMChatArea', () => {
         avatar_url: null,
         display_name: null,
         status: 'online',
+        bio: '',
+        pronouns: '',
+        custom_status_text: '',
+        custom_status_emoji: '',
+        custom_status_expires_at: null,
         created_at: ''
       },
       accessToken: null,

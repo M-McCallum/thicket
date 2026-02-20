@@ -1,12 +1,15 @@
 import { useState } from 'react'
 import { useServerStore } from '../../stores/serverStore'
 import { useAuthStore } from '../../stores/authStore'
+import UserAvatar from '../common/UserAvatar'
+import ProfileModal from '../profile/ProfileModal'
 
 export default function ServerSidebar(): JSX.Element {
   const { servers, activeServerId, setActiveServer, createServer, joinServer } = useServerStore()
-  const { logout, user } = useAuthStore()
+  const { user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
+  const [showProfile, setShowProfile] = useState(false)
   const [newServerName, setNewServerName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
 
@@ -90,17 +93,13 @@ export default function ServerSidebar(): JSX.Element {
 
       <div className="flex-1" />
 
-      {/* User avatar / logout */}
+      {/* User avatar / profile */}
       <button
-        onClick={() => logout()}
-        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
-                   hover:bg-sol-coral/20 hover:rounded-xl transition-all duration-200
-                   text-sol-text-secondary hover:text-sol-coral"
-        title={`${user?.username} - Click to logout`}
+        onClick={() => setShowProfile(true)}
+        className="hover:opacity-80 transition-opacity"
+        title={user?.username}
       >
-        <span className="font-display text-sm font-bold">
-          {user?.username?.charAt(0).toUpperCase() ?? '?'}
-        </span>
+        <UserAvatar avatarUrl={user?.avatar_url} username={user?.username} size="md" />
       </button>
 
       {/* Create server modal */}
@@ -131,6 +130,11 @@ export default function ServerSidebar(): JSX.Element {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Profile modal */}
+      {showProfile && (
+        <ProfileModal onClose={() => setShowProfile(false)} />
       )}
 
       {/* Join server modal */}
