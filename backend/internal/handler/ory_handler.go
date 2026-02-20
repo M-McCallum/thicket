@@ -9,12 +9,75 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gofiber/fiber/v3"
 
 	"github.com/M-McCallum/thicket/internal/ory"
 	"github.com/M-McCallum/thicket/internal/service"
 )
+
+// storedChallenge holds a consent challenge mapped to a short ID with an expiry.
+type storedChallenge struct {
+	challenge string
+	expiresAt time.Time
+}
+
+// challengeStore is a short-lived in-memory map from short IDs to consent challenges.
+// It shortens the consent URL to avoid Google Safe Browsing false positives.
+type challengeStore struct {
+	mu      sync.Mutex
+	entries map[string]storedChallenge
+}
+
+func newChallengeStore() *challengeStore {
+	return &challengeStore{entries: make(map[string]storedChallenge)}
+}
+
+// put stores a challenge under a new random short ID and returns the ID.
+// It also lazily purges expired entries.
+func (s *challengeStore) put(challenge string) string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		log.Fatalf("Failed to generate random short ID: %v", err)
+	}
+	id := hex.EncodeToString(b)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Lazy cleanup of expired entries.
+	now := time.Now()
+	for k, v := range s.entries {
+		if now.After(v.expiresAt) {
+			delete(s.entries, k)
+		}
+	}
+
+	s.entries[id] = storedChallenge{
+		challenge: challenge,
+		expiresAt: now.Add(5 * time.Minute),
+	}
+	return id
+}
+
+// take retrieves and deletes a challenge by short ID. Returns "" if not found or expired.
+func (s *challengeStore) take(id string) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	entry, ok := s.entries[id]
+	if !ok {
+		return ""
+	}
+	delete(s.entries, id)
+
+	if time.Now().After(entry.expiresAt) {
+		return ""
+	}
+	return entry.challenge
+}
 
 // OryHandler handles Hydra login/consent/logout provider endpoints
 // and Kratos self-service UI rendering.
@@ -24,6 +87,7 @@ type OryHandler struct {
 	identityService  *service.IdentityService
 	kratosPublicURL  string
 	cookieHMACKey    []byte // random key generated at startup to sign challenge cookies
+	consentStore     *challengeStore
 	loginTmpl        *template.Template
 	registrationTmpl *template.Template
 	errorTmpl        *template.Template
@@ -55,6 +119,7 @@ func NewOryHandler(hydraClient *ory.HydraClient, kratosClient *ory.KratosClient,
 		identityService:  identityService,
 		kratosPublicURL:  kratosPublicURL,
 		cookieHMACKey:    hmacKey,
+		consentStore:     newChallengeStore(),
 		loginTmpl:        mustParsePages("templates/base.html", "templates/login.html"),
 		registrationTmpl: mustParsePages("templates/base.html", "templates/registration.html"),
 		errorTmpl:        mustParsePages("templates/base.html", "templates/error.html"),
@@ -264,10 +329,28 @@ func (h *OryHandler) GetRegistration(c fiber.Ctx) error {
 
 // GetConsent handles GET /auth/consent — Hydra redirects here with a consent_challenge.
 // First-party clients (metadata.is_first_party = true) are auto-accepted.
+//
+// Two-phase redirect: Hydra's consent_challenge tokens are ~1KB which triggers
+// Google Safe Browsing phishing heuristics. Phase 1 stores the challenge under
+// a short random ID and redirects to /auth/consent?id=<short>. Phase 2 looks up
+// the real challenge from the short ID and proceeds normally.
 func (h *OryHandler) GetConsent(c fiber.Ctx) error {
 	challenge := c.Query("consent_challenge")
+	shortID := c.Query("id")
+
+	// Phase 1: Long challenge from Hydra → store and redirect to short URL.
+	if challenge != "" {
+		id := h.consentStore.put(challenge)
+		return c.Redirect().To("/auth/consent?id=" + id)
+	}
+
+	// Phase 2: Short ID → look up real challenge.
+	if shortID != "" {
+		challenge = h.consentStore.take(shortID)
+	}
+
 	if challenge == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing consent_challenge"})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "missing or expired consent challenge"})
 	}
 
 	cr, err := h.hydraClient.GetConsentRequest(c.Context(), challenge)
