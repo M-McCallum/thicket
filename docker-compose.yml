@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    build:
+      context: ./ory/postgres
+      dockerfile: Dockerfile
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-thicket}
@@ -8,7 +10,6 @@ services:
       POSTGRES_DB: ${DB_NAME:-thicket}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./ory/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     networks:
       - internal
     healthcheck:
@@ -30,7 +31,9 @@ services:
       - internal
 
   kratos:
-    image: oryd/kratos:v1.3.1
+    build:
+      context: ./ory/kratos
+      dockerfile: Dockerfile
     restart: unless-stopped
     entrypoint: ["/etc/kratos/entrypoint.sh"]
     command: serve --config /etc/kratos/kratos.yml
@@ -46,11 +49,6 @@ services:
       DISCORD_OAUTH_CLIENT_SECRET: ${DISCORD_OAUTH_CLIENT_SECRET}
       APP_URL: ${APP_URL}
       SMTP_CONNECTION_URI: ${SMTP_CONNECTION_URI:-}
-    volumes:
-      - ./ory/kratos/kratos.yml:/etc/kratos/kratos.yml:ro
-      - ./ory/kratos/identity.schema.json:/etc/kratos/identity.schema.json:ro
-      - ./ory/kratos/mappers:/etc/kratos/mappers:ro
-      - ./ory/kratos/entrypoint.sh:/etc/kratos/entrypoint.sh:ro
     depends_on:
       kratos-migrate:
         condition: service_completed_successfully
@@ -137,14 +135,14 @@ services:
       - "traefik.docker.network=dokploy-network"
 
   hydra-init:
-    image: curlimages/curl:latest
+    build:
+      context: ./ory/hydra-init
+      dockerfile: Dockerfile
     restart: "no"
     entrypoint: ["/bin/sh", "/etc/hydra/register-clients.sh"]
     environment:
       HYDRA_ADMIN_URL: http://hydra:4445
       APP_URL: ${APP_URL}
-    volumes:
-      - ./ory/register-clients.sh:/etc/hydra/register-clients.sh:ro
     depends_on:
       hydra:
         condition: service_healthy
@@ -214,15 +212,15 @@ services:
       - "traefik.docker.network=dokploy-network"
 
   livekit:
-    image: livekit/livekit-server:latest
+    build:
+      context: ./livekit
+      dockerfile: Dockerfile
     restart: unless-stopped
     entrypoint: ["/bin/sh", "/etc/livekit/entrypoint.sh"]
     command: []
     environment:
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
-    volumes:
-      - ./livekit/entrypoint.sh:/etc/livekit/entrypoint.sh:ro
     networks:
       - internal
       - dokploy-network
