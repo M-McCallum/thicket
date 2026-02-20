@@ -53,8 +53,8 @@ export default function DMChatArea(): JSX.Element {
 
   if (!activeConversationId) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-cyber-bg-tertiary">
-        <p className="text-cyber-text-muted font-mono">Select a conversation</p>
+      <div className="flex-1 flex items-center justify-center bg-sol-bg-tertiary">
+        <p className="text-sol-text-muted font-mono">Select a conversation</p>
       </div>
     )
   }
@@ -73,11 +73,11 @@ export default function DMChatArea(): JSX.Element {
   }))
 
   return (
-    <div className="flex-1 flex flex-col bg-cyber-bg-tertiary">
+    <div className="flex-1 flex flex-col bg-sol-bg-tertiary">
       {/* DM header */}
-      <div className="h-12 flex items-center px-4 border-b border-cyber-bg-elevated">
-        <span className="text-cyber-text-muted mr-2">@</span>
-        <h3 className="font-medium text-cyber-text-primary">{otherName}</h3>
+      <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated">
+        <span className="text-sol-text-muted mr-2">@</span>
+        <h3 className="font-medium text-sol-text-primary">{otherName}</h3>
       </div>
 
       {/* Messages */}

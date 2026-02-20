@@ -28,12 +28,12 @@ export default function ServerSidebar(): JSX.Element {
   }
 
   return (
-    <div className="w-[72px] bg-cyber-bg flex flex-col items-center py-3 gap-2 border-r border-cyber-bg-elevated">
+    <div className="w-[72px] bg-sol-bg flex flex-col items-center py-3 gap-2 border-r border-sol-bg-elevated">
       {/* Home button */}
       <button
-        className="w-12 h-12 rounded-2xl bg-cyber-bg-secondary flex items-center justify-center
-                   hover:bg-neon-cyan/20 hover:rounded-xl transition-all duration-200
-                   text-cyber-text-secondary hover:text-neon-cyan"
+        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
+                   hover:bg-sol-amber/20 hover:rounded-xl transition-all duration-200
+                   text-sol-text-secondary hover:text-sol-amber"
         title="Direct Messages"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
@@ -41,7 +41,7 @@ export default function ServerSidebar(): JSX.Element {
         </svg>
       </button>
 
-      <div className="w-8 h-px bg-cyber-bg-elevated" />
+      <div className="w-8 h-px bg-sol-bg-elevated" />
 
       {/* Server list */}
       {servers.map((server) => (
@@ -51,8 +51,8 @@ export default function ServerSidebar(): JSX.Element {
           className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200
             ${
               activeServerId === server.id
-                ? 'bg-neon-cyan/20 rounded-xl text-neon-cyan shadow-glow-cyan'
-                : 'bg-cyber-bg-secondary text-cyber-text-secondary hover:bg-neon-cyan/10 hover:rounded-xl hover:text-neon-cyan'
+                ? 'bg-sol-amber/20 rounded-xl text-sol-amber shadow-glow-amber'
+                : 'bg-sol-bg-secondary text-sol-text-secondary hover:bg-sol-amber/10 hover:rounded-xl hover:text-sol-amber'
             }`}
           title={server.name}
         >
@@ -65,9 +65,9 @@ export default function ServerSidebar(): JSX.Element {
       {/* Add server */}
       <button
         onClick={() => setShowCreate(true)}
-        className="w-12 h-12 rounded-2xl bg-cyber-bg-secondary flex items-center justify-center
-                   hover:bg-neon-green/20 hover:rounded-xl transition-all duration-200
-                   text-neon-green/50 hover:text-neon-green"
+        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
+                   hover:bg-sol-green/20 hover:rounded-xl transition-all duration-200
+                   text-sol-green/50 hover:text-sol-green"
         title="Create Server"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -78,9 +78,9 @@ export default function ServerSidebar(): JSX.Element {
       {/* Join server */}
       <button
         onClick={() => setShowJoin(true)}
-        className="w-12 h-12 rounded-2xl bg-cyber-bg-secondary flex items-center justify-center
-                   hover:bg-neon-purple/20 hover:rounded-xl transition-all duration-200
-                   text-neon-purple/50 hover:text-neon-purple"
+        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
+                   hover:bg-sol-sage/20 hover:rounded-xl transition-all duration-200
+                   text-sol-sage/50 hover:text-sol-sage"
         title="Join Server"
       >
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
@@ -93,9 +93,9 @@ export default function ServerSidebar(): JSX.Element {
       {/* User avatar / logout */}
       <button
         onClick={() => logout()}
-        className="w-12 h-12 rounded-2xl bg-cyber-bg-secondary flex items-center justify-center
-                   hover:bg-neon-red/20 hover:rounded-xl transition-all duration-200
-                   text-cyber-text-secondary hover:text-neon-red"
+        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
+                   hover:bg-sol-coral/20 hover:rounded-xl transition-all duration-200
+                   text-sol-text-secondary hover:text-sol-coral"
         title={`${user?.username} - Click to logout`}
       >
         <span className="font-display text-sm font-bold">
@@ -109,9 +109,9 @@ export default function ServerSidebar(): JSX.Element {
           <form
             onSubmit={handleCreateServer}
             onClick={(e) => e.stopPropagation()}
-            className="bg-cyber-bg-secondary border border-cyber-bg-elevated rounded-lg p-6 w-96"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
           >
-            <h3 className="font-display text-lg text-neon-cyan mb-4">CREATE SERVER</h3>
+            <h3 className="font-display text-lg text-sol-amber mb-4">Create Server</h3>
             <input
               type="text"
               value={newServerName}
@@ -139,9 +139,9 @@ export default function ServerSidebar(): JSX.Element {
           <form
             onSubmit={handleJoinServer}
             onClick={(e) => e.stopPropagation()}
-            className="bg-cyber-bg-secondary border border-cyber-bg-elevated rounded-lg p-6 w-96"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
           >
-            <h3 className="font-display text-lg text-neon-cyan mb-4">JOIN SERVER</h3>
+            <h3 className="font-display text-lg text-sol-amber mb-4">Join Server</h3>
             <input
               type="text"
               value={inviteCode}

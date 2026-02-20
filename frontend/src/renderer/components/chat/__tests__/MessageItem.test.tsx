@@ -87,6 +87,6 @@ describe('MessageItem', () => {
   it('applies own-message styling', () => {
     render(<MessageItem message={makeMessage()} isOwn={true} />)
     const displayName = screen.getByText('Test User')
-    expect(displayName.className).toContain('text-neon-cyan')
+    expect(displayName.className).toContain('text-sol-amber')
   })
 })

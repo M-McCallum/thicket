@@ -1,4 +1,4 @@
-.PHONY: dev dev-up dev-down test test-backend test-frontend lint lint-backend lint-frontend build migrate-up migrate-down seed sec-scan
+.PHONY: dev dev-up dev-down test test-backend test-frontend test-web lint lint-backend lint-frontend build build-web migrate-up migrate-down seed sec-scan dev-web register-clients
 
 # Development
 dev-up:
@@ -13,17 +13,23 @@ dev-backend:
 dev-frontend:
 	cd frontend && npm run dev
 
+dev-web:
+	cd web && npm run dev
+
 dev: dev-up
-	@echo "Dev services started. Run 'make dev-backend' and 'make dev-frontend' in separate terminals."
+	@echo "Dev services started. Run 'make dev-backend' and 'make dev-frontend' or 'make dev-web' in separate terminals."
 
 # Testing
-test: test-backend test-frontend
+test: test-backend test-frontend test-web
 
 test-backend:
 	cd backend && go test -race -cover ./...
 
 test-frontend:
 	cd frontend && npm run test
+
+test-web:
+	cd web && npm run test
 
 # Linting
 lint: lint-backend lint-frontend
@@ -43,7 +49,10 @@ build-backend:
 build-frontend:
 	cd frontend && npm run build
 
-build: build-backend build-frontend
+build-web:
+	cd web && npm run build
+
+build: build-backend build-frontend build-web
 
 # Database
 migrate-up:
@@ -55,8 +64,13 @@ migrate-down:
 seed:
 	./scripts/seed.sh
 
+# OAuth2 clients
+register-clients:
+	./ory/register-clients.sh
+
 # Security
 sec-scan:
 	cd backend && gosec ./...
 	cd backend && govulncheck ./...
 	cd frontend && npm audit
+	cd web && npm audit

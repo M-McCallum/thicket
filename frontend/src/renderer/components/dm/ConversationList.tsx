@@ -22,7 +22,7 @@ export default function ConversationList(): JSX.Element {
   if (conversations.length === 0) {
     return (
       <div className="p-4">
-        <p className="text-cyber-text-muted text-sm font-mono">No conversations yet</p>
+        <p className="text-sol-text-muted text-sm font-mono">No conversations yet</p>
       </div>
     )
   }
@@ -33,13 +33,13 @@ export default function ConversationList(): JSX.Element {
         <button
           key={conv.id}
           onClick={() => setActiveConversation(conv.id)}
-          className={`flex items-center gap-3 px-3 py-2 text-left transition-colors ${
+          className={`flex items-center gap-3 px-3 py-2 text-left transition-colors rounded-lg ${
             conv.id === activeConversationId
-              ? 'bg-cyber-bg-elevated text-neon-cyan'
-              : 'text-cyber-text-secondary hover:bg-cyber-bg-elevated/50 hover:text-cyber-text-primary'
+              ? 'bg-sol-bg-elevated text-sol-amber'
+              : 'text-sol-text-secondary hover:bg-sol-bg-elevated/50 hover:text-sol-text-primary'
           }`}
         >
-          <div className="w-8 h-8 rounded-full bg-cyber-bg-elevated flex-shrink-0 flex items-center justify-center text-xs font-medium">
+          <div className="w-8 h-8 rounded-full bg-sol-bg-elevated flex-shrink-0 flex items-center justify-center text-xs font-medium">
             {getOtherParticipant(conv.participants).charAt(0).toUpperCase()}
           </div>
           <span className="text-sm font-medium truncate">

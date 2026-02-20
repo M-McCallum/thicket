@@ -9,11 +9,107 @@ services:
       - "5432:5432"
     volumes:
       - postgres_dev_data:/var/lib/postgresql/data
+      - ./ory/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U thicket"]
       interval: 5s
       timeout: 5s
       retries: 5
+
+  kratos-migrate:
+    image: oryd/kratos:v1.3.1
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://thicket:thicket_dev@postgres:5432/kratos?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  kratos:
+    image: oryd/kratos:v1.3.1
+    entrypoint: ["sh", "/etc/kratos/entrypoint.sh"]
+    command: serve --dev --config /etc/kratos/kratos.yml
+    environment:
+      DSN: postgres://thicket:thicket_dev@postgres:5432/kratos?sslmode=disable
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET}
+      DISCORD_OAUTH_CLIENT_ID: ${DISCORD_OAUTH_CLIENT_ID}
+      DISCORD_OAUTH_CLIENT_SECRET: ${DISCORD_OAUTH_CLIENT_SECRET}
+    ports:
+      - "4433:4433"
+      - "4434:4434"
+    volumes:
+      - ./ory/kratos/kratos.yml:/etc/kratos/kratos.yml:ro
+      - ./ory/kratos/identity.schema.json:/etc/kratos/identity.schema.json:ro
+      - ./ory/kratos/mappers:/etc/kratos/mappers:ro
+      - ./ory/kratos/entrypoint.sh:/etc/kratos/entrypoint.sh:ro
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4433/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hydra-migrate:
+    image: oryd/hydra:v2.3.0
+    command: migrate sql up -e --yes
+    environment:
+      DSN: postgres://thicket:thicket_dev@postgres:5432/hydra?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  hydra:
+    image: oryd/hydra:v2.3.0
+    command: serve all --dev
+    environment:
+      DSN: postgres://thicket:thicket_dev@postgres:5432/hydra?sslmode=disable
+      SECRETS_SYSTEM: dev-secret-thicket-hydra-32chars!
+      URLS_SELF_ISSUER: http://localhost:4444
+      URLS_SELF_PUBLIC: http://localhost:4444
+      URLS_LOGIN: http://localhost:8080/auth/login
+      URLS_CONSENT: http://localhost:8080/auth/consent
+      URLS_LOGOUT: http://localhost:8080/auth/logout
+      STRATEGIES_ACCESS_TOKEN: jwt
+      OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES: public
+      TTL_ACCESS_TOKEN: 15m
+      TTL_REFRESH_TOKEN: 720h
+      TTL_ID_TOKEN: 1h
+      OAUTH2_PKCE_ENFORCED: "true"
+      OAUTH2_PKCE_ENFORCED_FOR_PUBLIC_CLIENTS: "true"
+      SERVE_PUBLIC_CORS_ENABLED: "true"
+      SERVE_PUBLIC_CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:5174"
+      SERVE_PUBLIC_CORS_ALLOWED_METHODS: "GET,POST,PUT,DELETE,OPTIONS"
+      SERVE_PUBLIC_CORS_ALLOWED_HEADERS: "Authorization,Content-Type"
+    ports:
+      - "4444:4444"
+      - "4445:4445"
+    depends_on:
+      hydra-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4444/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hydra-init:
+    image: curlimages/curl:latest
+    depends_on:
+      hydra:
+        condition: service_healthy
+    volumes:
+      - ./ory/register-clients.sh:/register-clients.sh:ro
+    entrypoint: ["sh", "/register-clients.sh"]
+    environment:
+      HYDRA_ADMIN_URL: http://hydra:4445
+    restart: "no"
 
   livekit:
     image: livekit/livekit-server:latest

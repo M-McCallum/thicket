@@ -24,9 +24,9 @@ export default function App(): JSX.Element {
 
   if (!initialized) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-cyber-bg">
-        <div className="text-neon-cyan font-display text-2xl animate-pulse-neon">
-          THICKET
+      <div className="h-screen w-screen flex items-center justify-center bg-sol-bg">
+        <div className="text-sol-amber font-display text-2xl animate-breathe">
+          Thicket
         </div>
       </div>
     )

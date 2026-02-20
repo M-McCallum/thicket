@@ -40,9 +40,10 @@ func Setup(app *fiber.App, cfg Config) {
 	if cfg.OryHandler != nil {
 		oryAuth := app.Group("/auth")
 		oryAuth.Get("/login", cfg.OryHandler.GetLogin)
-		oryAuth.Post("/login", cfg.OryHandler.PostLogin)
+		oryAuth.Get("/registration", cfg.OryHandler.GetRegistration)
 		oryAuth.Get("/consent", cfg.OryHandler.GetConsent)
 		oryAuth.Get("/logout", cfg.OryHandler.GetLogout)
+		oryAuth.Get("/error", cfg.OryHandler.GetError)
 	}
 
 	api := app.Group("/api")

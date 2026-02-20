@@ -1,0 +1,193 @@
+{{define "title"}}Sign Up — Thicket{{end}}
+{{define "content"}}
+<div class="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6">
+  {{range .Flow.UI.Messages}}
+    <div class="bg-sol-coral/10 border border-sol-coral/30 rounded-lg px-3 py-2 text-sol-coral text-sm mb-4">
+      {{.Text}}
+    </div>
+  {{end}}
+
+  <form action="{{.Flow.UI.Action}}" method="{{.Flow.UI.Method}}" class="space-y-4">
+    {{/* Default group: CSRF token (hidden) + trait fields (text/email) */}}
+    {{range .Flow.UI.Nodes}}
+      {{if eq .Group "default"}}
+        {{if eq .Attributes.Type "hidden"}}
+          <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
+        {{else if or (eq .Attributes.Type "text") (eq .Attributes.Type "email")}}
+          <div>
+            {{if .Meta.Label}}
+              <label class="block text-sol-text-secondary text-sm mb-1 font-mono uppercase">
+                {{.Meta.Label.Text}}
+              </label>
+            {{end}}
+            <input
+              type="{{.Attributes.Type}}"
+              name="{{.Attributes.Name}}"
+              {{if .Attributes.Value}}value="{{.Attributes.Value}}"{{end}}
+              {{if .Attributes.Required}}required{{end}}
+              {{if .Attributes.Pattern}}pattern="{{.Attributes.Pattern}}"{{end}}
+              class="w-full px-3 py-2 bg-sol-bg border border-sol-bg-elevated rounded-lg text-sol-text placeholder-sol-text-secondary/50 focus:outline-none focus:border-sol-amber transition-colors"
+            >
+            {{range .Messages}}
+              <p class="text-sol-coral text-xs mt-1">{{.Text}}</p>
+            {{end}}
+          </div>
+        {{end}}
+      {{end}}
+    {{end}}
+
+    {{/* Password group: password field and submit (present when password method is active) */}}
+    {{range .Flow.UI.Nodes}}
+      {{if eq .Group "password"}}
+        {{if eq .Attributes.Type "hidden"}}
+          <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
+        {{else if eq .Attributes.Type "password"}}
+          <div>
+            {{if .Meta.Label}}
+              <label class="block text-sol-text-secondary text-sm mb-1 font-mono uppercase">
+                {{.Meta.Label.Text}}
+              </label>
+            {{end}}
+            <div class="relative">
+              <input
+                type="password"
+                name="{{.Attributes.Name}}"
+                {{if .Attributes.Value}}value="{{.Attributes.Value}}"{{end}}
+                {{if .Attributes.Required}}required{{end}}
+                class="w-full px-3 py-2 pr-10 bg-sol-bg border border-sol-bg-elevated rounded-lg text-sol-text placeholder-sol-text-secondary/50 focus:outline-none focus:border-sol-amber transition-colors"
+              >
+              <button type="button" onclick="togglePassword(this)"
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-sol-text-secondary hover:text-sol-amber transition-colors p-1"
+                aria-label="Toggle password visibility">
+                <svg class="eye-open w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path d="M2.036 12.322a1.012 1.012 0 0 1 0-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178Z"/>
+                  <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+                </svg>
+                <svg class="eye-closed w-5 h-5 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5">
+                  <path d="M3.98 8.223A10.477 10.477 0 0 0 1.934 12c1.292 4.338 5.31 7.5 10.066 7.5.993 0 1.953-.138 2.863-.395M6.228 6.228A10.451 10.451 0 0 1 12 4.5c4.756 0 8.773 3.162 10.065 7.498a10.522 10.522 0 0 1-4.293 5.774M6.228 6.228 3 3m3.228 3.228 3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 1 0-4.243-4.243m4.242 4.242L9.88 9.88"/>
+                </svg>
+              </button>
+            </div>
+            {{range .Messages}}
+              <p class="text-sol-coral text-xs mt-1">{{.Text}}</p>
+            {{end}}
+          </div>
+        {{else if eq .Attributes.Type "submit"}}
+          <button type="submit" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"
+            class="w-full py-3 bg-sol-amber text-sol-bg font-display font-bold tracking-wide rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
+            {{if .Attributes.Disabled}}disabled{{end}}>
+            {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Create Account{{end}}
+          </button>
+        {{else if or (eq .Attributes.Type "text") (eq .Attributes.Type "email")}}
+          <div>
+            {{if .Meta.Label}}
+              <label class="block text-sol-text-secondary text-sm mb-1 font-mono uppercase">
+                {{.Meta.Label.Text}}
+              </label>
+            {{end}}
+            <input
+              type="{{.Attributes.Type}}"
+              name="{{.Attributes.Name}}"
+              {{if .Attributes.Value}}value="{{.Attributes.Value}}"{{end}}
+              {{if .Attributes.Required}}required{{end}}
+              {{if .Attributes.Pattern}}pattern="{{.Attributes.Pattern}}"{{end}}
+              class="w-full px-3 py-2 bg-sol-bg border border-sol-bg-elevated rounded-lg text-sol-text placeholder-sol-text-secondary/50 focus:outline-none focus:border-sol-amber transition-colors"
+            >
+            {{range .Messages}}
+              <p class="text-sol-coral text-xs mt-1">{{.Text}}</p>
+            {{end}}
+          </div>
+        {{end}}
+      {{end}}
+    {{end}}
+
+    {{/* Profile group: submit button for profile/password registration */}}
+    {{range .Flow.UI.Nodes}}
+      {{if eq .Group "profile"}}
+        {{if eq .Attributes.Type "submit"}}
+          <button type="submit" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"
+            class="w-full py-3 bg-sol-amber text-sol-bg font-display font-bold tracking-wide rounded-lg hover:brightness-110 transition-all disabled:opacity-50"
+            {{if .Attributes.Disabled}}disabled{{end}}>
+            {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Create Account{{end}}
+          </button>
+        {{end}}
+      {{end}}
+    {{end}}
+
+    {{/* Separator before social/webauthn options */}}
+    {{$hasOidc := false}}
+    {{range .Flow.UI.Nodes}}{{if eq .Group "oidc"}}{{$hasOidc = true}}{{end}}{{end}}
+    {{if $hasOidc}}
+      <div class="flex items-center gap-3 py-2">
+        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+        <span class="text-sol-text-secondary text-xs font-mono uppercase">or continue with</span>
+        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+      </div>
+    {{end}}
+
+    {{/* OIDC group: social login buttons */}}
+    {{range .Flow.UI.Nodes}}
+      {{if eq .Group "oidc"}}
+        {{if eq .Attributes.Type "submit"}}
+          <button type="submit" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"
+            class="w-full py-3 bg-sol-bg-elevated text-sol-text font-display font-bold tracking-wide rounded-lg border border-sol-bg-elevated hover:border-sol-amber/50 hover:brightness-110 transition-all disabled:opacity-50"
+            {{if .Attributes.Disabled}}disabled{{end}}>
+            {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Sign Up{{end}}
+          </button>
+        {{else if eq .Attributes.Type "hidden"}}
+          <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}">
+        {{end}}
+      {{end}}
+    {{end}}
+
+    {{/* WebAuthn group: scripts, hidden inputs, and trigger buttons */}}
+    {{$hasWebauthn := false}}
+    {{range .Flow.UI.Nodes}}{{if eq .Group "webauthn"}}{{$hasWebauthn = true}}{{end}}{{end}}
+    {{if $hasWebauthn}}
+      <div class="flex items-center gap-3 py-2">
+        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+        <span class="text-sol-text-secondary text-xs font-mono uppercase">or</span>
+        <div class="flex-1 h-px bg-sol-bg-elevated"></div>
+      </div>
+    {{end}}
+    {{range .Flow.UI.Nodes}}
+      {{if eq .Group "webauthn"}}
+        {{if eq .Attributes.NodeType "script"}}
+          <script src="{{.Attributes.Src}}"{{if .Attributes.Async}} async{{end}}{{if .Attributes.CrossOrigin}} crossorigin="{{.Attributes.CrossOrigin}}"{{end}}{{if .Attributes.ReferrerPolicy}} referrerpolicy="{{.Attributes.ReferrerPolicy}}"{{end}}{{if .Attributes.Nonce}} nonce="{{.Attributes.Nonce}}"{{end}}{{if .Attributes.ID}} id="{{.Attributes.ID}}"{{end}}></script>
+        {{else if eq .Attributes.Type "hidden"}}
+          <input type="hidden" name="{{.Attributes.Name}}" value="{{.Attributes.Value}}"{{if .Attributes.ID}} id="{{.Attributes.ID}}"{{end}}>
+        {{else if eq .Attributes.Type "button"}}
+          <button type="button" name="{{.Attributes.Name}}"{{if .Attributes.OnClick}} onclick="{{.Attributes.OnClick}}"{{end}}{{if .Attributes.ID}} id="{{.Attributes.ID}}"{{end}}
+            class="w-full py-3 bg-sol-bg-elevated text-sol-text font-display font-bold tracking-wide rounded-lg border border-sol-bg-elevated hover:border-sol-amber/50 hover:brightness-110 transition-all disabled:opacity-50"
+            {{if .Attributes.Disabled}}disabled{{end}}>
+            {{if .Meta.Label}}{{.Meta.Label.Text}}{{else}}Register with passkey{{end}}
+          </button>
+        {{end}}
+      {{end}}
+    {{end}}
+  </form>
+
+  <div class="text-center pt-4">
+    <a href="/auth/login" class="text-sol-text-secondary hover:text-sol-amber text-sm transition-colors">
+      Already have an account? Sign in
+    </a>
+  </div>
+</div>
+
+<script>
+function togglePassword(btn) {
+  const input = btn.parentElement.querySelector('input');
+  const eyeOpen = btn.querySelector('.eye-open');
+  const eyeClosed = btn.querySelector('.eye-closed');
+  if (input.type === 'password') {
+    input.type = 'text';
+    eyeOpen.classList.add('hidden');
+    eyeClosed.classList.remove('hidden');
+  } else {
+    input.type = 'password';
+    eyeOpen.classList.remove('hidden');
+    eyeClosed.classList.add('hidden');
+  }
+}
+</script>
+{{end}}

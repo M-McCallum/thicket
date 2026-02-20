@@ -8,6 +8,7 @@ out/
 backend/bin/
 
 # Environment
+*.env
 .env
 .env.local
 .env.production
@@ -33,6 +34,9 @@ docker-compose.override.yml
 
 # Electron
 frontend/release/
+
+# Web
+web/dist/
 
 # Generated
 backend/internal/models/db.go

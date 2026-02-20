@@ -1,8 +1,4 @@
 import type {
-  AuthResponse,
-  RefreshResponse,
-  SignupRequest,
-  LoginRequest,
   CreateServerRequest,
   JoinServerRequest,
   CreateChannelRequest,
@@ -16,7 +12,6 @@ const API_BASE = 'http://localhost:8080/api'
 
 let accessToken: string | null = null
 let refreshToken: string | null = null
-let onTokenRefresh: ((tokens: { accessToken: string; refreshToken: string }) => void) | null = null
 let oauthRefreshHandler: (() => Promise<boolean>) | null = null
 
 export function setTokens(access: string, refresh: string): void {
@@ -27,12 +22,6 @@ export function setTokens(access: string, refresh: string): void {
 export function clearTokens(): void {
   accessToken = null
   refreshToken = null
-}
-
-export function setOnTokenRefresh(
-  cb: (tokens: { accessToken: string; refreshToken: string }) => void
-): void {
-  onTokenRefresh = cb
 }
 
 export function setOAuthRefreshHandler(handler: () => Promise<boolean>): void {
@@ -74,33 +63,9 @@ async function request<T>(
 }
 
 async function refreshAccessToken(): Promise<boolean> {
-  // Try OAuth refresh first
-  if (oauthRefreshHandler) {
-    try {
-      const success = await oauthRefreshHandler()
-      if (success) return true
-    } catch {
-      // Fall through to legacy refresh
-    }
-  }
-
-  // Legacy token refresh
-  if (!refreshToken) return false
-
+  if (!oauthRefreshHandler) return false
   try {
-    const response = await fetch(`${API_BASE}/auth/refresh`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refresh_token: refreshToken })
-    })
-
-    if (!response.ok) return false
-
-    const data: RefreshResponse = await response.json()
-    accessToken = data.access_token
-    refreshToken = data.refresh_token
-    onTokenRefresh?.({ accessToken: data.access_token, refreshToken: data.refresh_token })
-    return true
+    return await oauthRefreshHandler()
   } catch {
     return false
   }
@@ -117,18 +82,6 @@ export class ApiError extends Error {
 
 // Auth
 export const auth = {
-  signup: (data: SignupRequest) =>
-    request<AuthResponse>('/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
-  login: (data: LoginRequest) =>
-    request<AuthResponse>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-
   logout: () =>
     request<{ message: string }>('/auth/logout', {
       method: 'POST',

@@ -1,54 +1,39 @@
-import { useState } from 'react'
 import { useAuthStore } from '../../stores/authStore'
 
 export default function LoginForm(): JSX.Element {
-  const [showLegacy, setShowLegacy] = useState(false)
-  const [isSignup, setIsSignup] = useState(false)
-  const [username, setUsername] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const { login, signup, startLogin, isLoading, error, clearError } = useAuthStore()
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (isSignup) {
-      await signup(username, email, password)
-    } else {
-      await login(email, password)
-    }
-  }
+  const { startLogin, isLoading, error } = useAuthStore()
 
   const handleOAuthLogin = async () => {
     await startLogin()
   }
 
-  const toggleMode = () => {
-    setIsSignup(!isSignup)
-    clearError()
-  }
-
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-cyber-bg">
-      {/* Scanline overlay */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-5">
-        <div className="w-full h-[200%] bg-gradient-to-b from-transparent via-neon-cyan/10 to-transparent animate-scanline" />
-      </div>
+    <div className="h-screen w-screen flex items-center justify-center bg-sol-bg">
+      {/* Dappled sunlight overlay */}
+      <div
+        className="fixed inset-0 pointer-events-none opacity-[0.07] animate-dappled"
+        style={{
+          backgroundImage:
+            'radial-gradient(ellipse 120px 120px at 25% 30%, #e8a926, transparent), radial-gradient(ellipse 80px 100px at 70% 60%, #e8a926, transparent), radial-gradient(ellipse 100px 80px at 50% 80%, #5cba5c, transparent)',
+          backgroundSize: '200% 200%'
+        }}
+      />
 
-      <div className="w-full max-w-md mx-4 relative">
+      <div className="w-full max-w-md mx-4 relative animate-grow-in">
         {/* Logo */}
         <div className="text-center mb-8">
-          <h1 className="font-display text-4xl font-black text-neon-cyan tracking-wider">
-            THICKET
+          <h1 className="font-display text-4xl font-black text-sol-amber tracking-wide">
+            Thicket
           </h1>
-          <p className="text-cyber-text-secondary mt-2 font-mono text-sm">
-            // AUTHENTICATE
+          <p className="text-sol-text-secondary mt-2 font-mono text-sm">
+            welcome to the grove
           </p>
         </div>
 
-        {/* OAuth Login - Primary */}
-        <div className="bg-cyber-bg-secondary border border-cyber-bg-elevated rounded-lg p-6 space-y-4">
+        {/* OAuth Login */}
+        <div className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 space-y-4">
           {error && (
-            <div className="bg-neon-red/10 border border-neon-red/30 rounded px-3 py-2 text-neon-red text-sm">
+            <div className="bg-sol-coral/10 border border-sol-coral/30 rounded-lg px-3 py-2 text-sol-coral text-sm">
               {error}
             </div>
           )}
@@ -56,94 +41,10 @@ export default function LoginForm(): JSX.Element {
           <button
             onClick={handleOAuthLogin}
             disabled={isLoading}
-            className="btn-primary w-full py-3 font-display font-bold tracking-wider disabled:opacity-50"
+            className="btn-primary w-full py-3 font-display font-bold tracking-wide disabled:opacity-50"
           >
-            {isLoading ? 'CONNECTING...' : 'SIGN IN WITH THICKET'}
+            {isLoading ? 'Growing...' : 'Enter the Grove'}
           </button>
-
-          {/* Legacy form toggle */}
-          <div className="text-center pt-2">
-            <button
-              type="button"
-              onClick={() => setShowLegacy(!showLegacy)}
-              className="text-cyber-text-secondary hover:text-neon-cyan text-sm transition-colors"
-            >
-              {showLegacy ? 'Hide email login' : 'Use email & password instead'}
-            </button>
-          </div>
-
-          {/* Legacy Form - Secondary (collapsible) */}
-          {showLegacy && (
-            <form onSubmit={handleSubmit} className="space-y-4 pt-2 border-t border-cyber-bg-elevated">
-              {isSignup && (
-                <div>
-                  <label className="block text-cyber-text-secondary text-sm mb-1 font-mono">
-                    USERNAME
-                  </label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="input-field"
-                    placeholder="netrunner"
-                    required
-                    minLength={3}
-                    maxLength={32}
-                    autoComplete="username"
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-cyber-text-secondary text-sm mb-1 font-mono">
-                  EMAIL
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input-field"
-                  placeholder="runner@thicket.app"
-                  required
-                  autoComplete="email"
-                />
-              </div>
-
-              <div>
-                <label className="block text-cyber-text-secondary text-sm mb-1 font-mono">
-                  PASSWORD
-                </label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input-field"
-                  placeholder="••••••••"
-                  required
-                  minLength={8}
-                  autoComplete={isSignup ? 'new-password' : 'current-password'}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="btn-primary w-full py-3 font-display font-bold tracking-wider disabled:opacity-50"
-              >
-                {isLoading ? 'CONNECTING...' : isSignup ? 'CREATE ACCOUNT' : 'JACK IN'}
-              </button>
-
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={toggleMode}
-                  className="text-cyber-text-secondary hover:text-neon-cyan text-sm transition-colors"
-                >
-                  {isSignup ? 'Already have an account? Log in' : "Don't have an account? Sign up"}
-                </button>
-              </div>
-            </form>
-          )}
         </div>
       </div>
     </div>

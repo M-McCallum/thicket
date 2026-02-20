@@ -1,0 +1,45 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{block "title" .}}Thicket{{end}}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'sol-bg': '#1a1b1e',
+            'sol-bg-secondary': '#232528',
+            'sol-bg-elevated': '#2c2e32',
+            'sol-amber': '#e8a926',
+            'sol-text': '#e0ddd5',
+            'sol-text-secondary': '#8b8680',
+            'sol-coral': '#e06c60',
+            'sol-green': '#5cba5c',
+          },
+          fontFamily: {
+            display: ['Georgia', 'serif'],
+            mono: ['Menlo', 'monospace'],
+          },
+        },
+      },
+    }
+  </script>
+  <style>
+    body { background-color: #1a1b1e; color: #e0ddd5; }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-sol-bg">
+  <div class="w-full max-w-md mx-4">
+    <div class="text-center mb-8">
+      <h1 class="font-display text-4xl font-black text-sol-amber tracking-wide">Thicket</h1>
+      <p class="text-sol-text-secondary mt-2 font-mono text-sm">welcome to the grove</p>
+    </div>
+    {{block "content" .}}{{end}}
+  </div>
+</body>
+</html>
+{{end}}

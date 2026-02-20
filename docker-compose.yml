@@ -8,11 +8,83 @@ services:
       POSTGRES_DB: ${DB_NAME:-thicket}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./ory/init-databases.sql:/docker-entrypoint-initdb.d/init-databases.sql:ro
     networks:
       - internal
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-thicket}"]
       interval: 5s
+      timeout: 5s
+      retries: 5
+
+  kratos-migrate:
+    image: oryd/kratos:v1.3.1
+    restart: "no"
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/kratos?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+  kratos:
+    image: oryd/kratos:v1.3.1
+    restart: unless-stopped
+    command: serve --config /etc/kratos/kratos.yml
+    environment:
+      DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/kratos?sslmode=disable
+      SERVE_PUBLIC_BASE_URL: ${KRATOS_PUBLIC_URL:-http://localhost:4433}
+      SERVE_ADMIN_BASE_URL: http://kratos:4434
+      GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
+      GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
+      GITHUB_OAUTH_CLIENT_ID: ${GITHUB_OAUTH_CLIENT_ID}
+      GITHUB_OAUTH_CLIENT_SECRET: ${GITHUB_OAUTH_CLIENT_SECRET}
+      DISCORD_OAUTH_CLIENT_ID: ${DISCORD_OAUTH_CLIENT_ID}
+      DISCORD_OAUTH_CLIENT_SECRET: ${DISCORD_OAUTH_CLIENT_SECRET}
+    volumes:
+      - ./ory/kratos/kratos.yml:/etc/kratos/kratos.yml:ro
+      - ./ory/kratos/identity.schema.json:/etc/kratos/identity.schema.json:ro
+      - ./ory/kratos/mappers:/etc/kratos/mappers:ro
+    depends_on:
+      kratos-migrate:
+        condition: service_completed_successfully
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4433/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  hydra:
+    image: oryd/hydra:v2.3.0
+    restart: unless-stopped
+    command: serve all --config /dev/null
+    environment:
+      DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/hydra?sslmode=disable
+      URLS_SELF_ISSUER: ${HYDRA_PUBLIC_URL:-http://localhost:4444}
+      URLS_SELF_PUBLIC: ${HYDRA_PUBLIC_URL:-http://localhost:4444}
+      URLS_LOGIN: ${APP_URL:-http://localhost:8080}/auth/login
+      URLS_CONSENT: ${APP_URL:-http://localhost:8080}/auth/consent
+      URLS_LOGOUT: ${APP_URL:-http://localhost:8080}/auth/logout
+      STRATEGIES_ACCESS_TOKEN: jwt
+      OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES: public
+      TTL_ACCESS_TOKEN: 15m
+      TTL_REFRESH_TOKEN: 720h
+      TTL_ID_TOKEN: 1h
+      SECRETS_SYSTEM: ${HYDRA_SECRETS_SYSTEM}
+      OAUTH2_PKCE_ENFORCED: "true"
+      OAUTH2_PKCE_ENFORCED_FOR_PUBLIC_CLIENTS: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:4444/health/ready || exit 1"]
+      interval: 10s
       timeout: 5s
       retries: 5
 
@@ -36,9 +108,17 @@ services:
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
+      - KRATOS_PUBLIC_URL=http://kratos:4433
+      - KRATOS_ADMIN_URL=http://kratos:4434
+      - HYDRA_PUBLIC_URL=http://hydra:4444
+      - HYDRA_ADMIN_URL=http://hydra:4445
       - ENV=production
     depends_on:
       postgres:
+        condition: service_healthy
+      kratos:
+        condition: service_healthy
+      hydra:
         condition: service_healthy
     networks:
       - internal
@@ -54,6 +134,14 @@ services:
     ports:
       - "7882:7882/udp"
 
+  web:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    networks:
+      - internal
+
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
@@ -67,6 +155,7 @@ services:
     depends_on:
       - backend
       - livekit
+      - web
     networks:
       - internal
 

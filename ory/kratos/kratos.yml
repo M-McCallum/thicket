@@ -1,0 +1,99 @@
+version: v1.3.0
+
+dsn: postgres://thicket:thicket_dev@postgres:5432/kratos?sslmode=disable
+
+serve:
+  public:
+    base_url: http://localhost:4433/
+    cors:
+      enabled: true
+      allowed_origins:
+        - http://localhost:5173
+        - http://localhost:8080
+  admin:
+    base_url: http://kratos:4434/
+
+oauth2_provider:
+  url: http://hydra:4445
+
+selfservice:
+  default_browser_return_url: http://localhost:8080/auth/login
+  allowed_return_urls:
+    - http://localhost:8080/auth/login
+    - thicket://auth/callback
+
+  methods:
+    password:
+      enabled: true
+      config:
+        haveibeenpwned_enabled: true
+        min_password_length: 8
+    # OIDC providers are injected by the entrypoint script into /tmp/kratos.yml
+    # based on which provider env vars are set. See ory/kratos/entrypoint.sh.
+    webauthn:
+      enabled: true
+      config:
+        passwordless: true
+        rp:
+          display_name: Thicket
+          id: localhost
+          origins:
+            - http://localhost:8080
+            - http://localhost:5173
+    totp:
+      enabled: true
+      config:
+        issuer: Thicket
+    lookup_secret:
+      enabled: true
+
+  flows:
+    error:
+      ui_url: http://localhost:8080/auth/error
+    login:
+      ui_url: http://localhost:8080/auth/login
+      lifespan: 10m
+    registration:
+      ui_url: http://localhost:8080/auth/registration
+      lifespan: 10m
+      after:
+        password:
+          hooks:
+            - hook: session
+        oidc:
+          hooks:
+            - hook: session
+    recovery:
+      enabled: true
+      ui_url: http://localhost:8080/auth/recovery
+      lifespan: 15m
+    verification:
+      enabled: true
+      ui_url: http://localhost:8080/auth/verification
+      lifespan: 1h
+    settings:
+      ui_url: http://localhost:8080/auth/settings
+      lifespan: 10m
+      required_aal: aal1
+
+log:
+  level: info
+  format: json
+
+hashers:
+  argon2:
+    memory: 128KB
+    iterations: 3
+    parallelism: 4
+    salt_length: 16
+    key_length: 32
+
+identity:
+  default_schema_id: thicket
+  schemas:
+    - id: thicket
+      url: file:///etc/kratos/identity.schema.json
+
+courier:
+  smtp:
+    connection_uri: smtp://mailhog:1025/?disable_starttls=true

@@ -1,0 +1,3 @@
+[     228ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://localhost:5173/favicon.ico:0
+[    3740ms] [ERROR] Access to fetch at 'http://localhost:4444/.well-known/openid-configuration' from origin 'http://localhost:5173' has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource. @ http://localhost:5173/:0
+[    3741ms] [ERROR] Failed to load resource: net::ERR_FAILED @ http://localhost:4444/.well-known/openid-configuration:0

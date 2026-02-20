@@ -9,7 +9,7 @@
 
   body {
     @apply m-0 overflow-hidden select-none;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Nunito', sans-serif;
   }
 
   ::-webkit-scrollbar {
@@ -17,44 +17,44 @@
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-cyber-bg-secondary;
+    @apply bg-sol-bg-secondary;
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-cyber-bg-elevated rounded-full;
+    @apply bg-sol-bg-elevated rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-neon-cyan-dim;
+    @apply bg-sol-amber-dim;
   }
 }
 
 @layer components {
   .neon-border {
-    @apply border border-neon-cyan/30;
+    @apply border border-sol-amber/30;
   }
 
   .neon-border-active {
-    @apply border border-neon-cyan shadow-glow-cyan;
+    @apply border border-sol-amber shadow-glow-amber;
   }
 
   .btn-primary {
-    @apply px-4 py-2 bg-neon-cyan/20 text-neon-cyan border border-neon-cyan/50
-           hover:bg-neon-cyan/30 hover:shadow-glow-cyan
-           transition-all duration-200 rounded font-medium;
+    @apply px-4 py-2 bg-sol-amber/20 text-sol-amber border border-sol-amber/50
+           hover:bg-sol-amber/30 hover:shadow-glow-amber
+           transition-all duration-200 rounded-lg font-medium;
   }
 
   .btn-danger {
-    @apply px-4 py-2 bg-neon-red/20 text-neon-red border border-neon-red/50
-           hover:bg-neon-red/30
-           transition-all duration-200 rounded font-medium;
+    @apply px-4 py-2 bg-sol-coral/20 text-sol-coral border border-sol-coral/50
+           hover:bg-sol-coral/30
+           transition-all duration-200 rounded-lg font-medium;
   }
 
   .input-field {
-    @apply w-full px-3 py-2 bg-cyber-bg-secondary border border-cyber-bg-elevated
-           text-cyber-text-primary placeholder-cyber-text-muted
-           focus:border-neon-cyan/50 focus:outline-none focus:shadow-glow-cyan
-           transition-all duration-200 rounded;
+    @apply w-full px-3 py-2 bg-sol-bg-secondary border border-sol-bg-elevated
+           text-sol-text-primary placeholder-sol-text-muted
+           focus:border-sol-amber/50 focus:outline-none focus:shadow-glow-amber
+           transition-all duration-200 rounded-lg;
   }
 
   .titlebar-drag {

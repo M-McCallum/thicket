@@ -1,0 +1,12 @@
+{{define "title"}}Error — Thicket{{end}}
+{{define "content"}}
+<div class="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 text-center space-y-4">
+  <div class="bg-sol-coral/10 border border-sol-coral/30 rounded-lg px-3 py-3 text-sol-coral text-sm">
+    {{.Error}}
+  </div>
+  <a href="{{.RetryURL}}"
+    class="inline-block w-full py-3 bg-sol-amber text-sol-bg font-display font-bold tracking-wide rounded-lg hover:brightness-110 transition-all text-center">
+    Try Again
+  </a>
+</div>
+{{end}}

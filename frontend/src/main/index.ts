@@ -32,7 +32,7 @@ function createWindow(): void {
     minHeight: 600,
     frame: false,
     titleBarStyle: 'hidden',
-    backgroundColor: '#0a0a0f',
+    backgroundColor: '#141e13',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: true,
@@ -120,6 +120,10 @@ app.whenReady().then(() => {
 
   ipcMain.handle('auth:clear-tokens', () => {
     store.clear()
+  })
+
+  ipcMain.handle('open-external', (_event, url: string) => {
+    return shell.openExternal(url)
   })
 
   createWindow()

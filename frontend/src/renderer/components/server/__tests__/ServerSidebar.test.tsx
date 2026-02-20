@@ -90,8 +90,8 @@ describe('ServerSidebar', () => {
     render(<ServerSidebar />)
 
     const activeButton = screen.getByTitle('Alpha')
-    expect(activeButton.className).toContain('bg-neon-cyan/20')
-    expect(activeButton.className).toContain('shadow-glow-cyan')
+    expect(activeButton.className).toContain('bg-sol-amber/20')
+    expect(activeButton.className).toContain('shadow-glow-amber')
   })
 
   it('clicking server calls setActiveServer', async () => {
@@ -127,7 +127,7 @@ describe('ServerSidebar', () => {
 
     await user.click(screen.getByTitle('Create Server'))
 
-    expect(screen.getByText('CREATE SERVER')).toBeInTheDocument()
+    expect(screen.getByText('Create Server')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Server name')).toBeInTheDocument()
   })
 
@@ -151,7 +151,7 @@ describe('ServerSidebar', () => {
     })
 
     await waitFor(() => {
-      expect(screen.queryByText('CREATE SERVER')).not.toBeInTheDocument()
+      expect(screen.queryByText('Create Server')).not.toBeInTheDocument()
     })
   })
 
@@ -160,10 +160,10 @@ describe('ServerSidebar', () => {
     render(<ServerSidebar />)
 
     await user.click(screen.getByTitle('Create Server'))
-    expect(screen.getByText('CREATE SERVER')).toBeInTheDocument()
+    expect(screen.getByText('Create Server')).toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
-    expect(screen.queryByText('CREATE SERVER')).not.toBeInTheDocument()
+    expect(screen.queryByText('Create Server')).not.toBeInTheDocument()
   })
 
   it('empty name does not submit', async () => {
@@ -191,7 +191,7 @@ describe('ServerSidebar', () => {
     render(<ServerSidebar />)
 
     await user.click(screen.getByTitle('Join Server'))
-    expect(screen.getByText('JOIN SERVER')).toBeInTheDocument()
+    expect(screen.getByText('Join Server')).toBeInTheDocument()
 
     await user.type(screen.getByPlaceholderText('Invite code'), 'code123')
     await user.click(screen.getByRole('button', { name: 'Join' }))

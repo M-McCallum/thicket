@@ -14,11 +14,11 @@ export default function MainLayout(): JSX.Element {
   }, [fetchServers])
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-cyber-bg overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-sol-bg overflow-hidden">
       <TitleBar />
 
-      {/* Neon accent line under title bar */}
-      <div className="h-px bg-gradient-to-r from-transparent via-neon-cyan/50 to-transparent" />
+      {/* Warm accent line under title bar */}
+      <div className="h-px bg-gradient-to-r from-transparent via-sol-amber/50 to-transparent" />
 
       <div className="flex flex-1 overflow-hidden">
         <ServerSidebar />
@@ -31,9 +31,9 @@ export default function MainLayout(): JSX.Element {
         ) : (
           <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <h2 className="font-display text-2xl text-neon-cyan mb-2">NO SERVER SELECTED</h2>
-              <p className="text-cyber-text-secondary font-mono text-sm">
-                Select or create a server to begin
+              <h2 className="font-display text-2xl text-sol-amber mb-2">Find Your Grove</h2>
+              <p className="text-sol-text-secondary font-mono text-sm">
+                Join a community or start something new
               </p>
             </div>
           </div>

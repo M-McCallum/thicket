@@ -1,20 +1,21 @@
 # Thicket
 
-A self-hosted Discord clone with a cyberpunk aesthetic, built as an Electron desktop app.
+A self-hosted Discord clone with a solarpunk aesthetic. Available as an Electron desktop app and a standalone web client.
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
 | Desktop App | Electron + React 19 + TypeScript |
-| Build Tool | electron-vite 5 |
+| Web Client | React 19 + Vite + TypeScript |
+| Build Tool | electron-vite 5 (desktop), Vite 5 (web) |
 | Styling | Tailwind CSS |
 | State Management | Zustand 5 |
 | Backend API | Go 1.25 + Fiber v3 |
 | Database | PostgreSQL 16 + pgx v5 |
 | Real-time | WebSocket (fasthttp/websocket) |
 | Voice/Video | LiveKit (self-hosted) |
-| Auth | JWT (access tokens) + refresh tokens in DB |
+| Auth | Ory Kratos + Hydra (OAuth2 PKCE) |
 
 ## Prerequisites
 
@@ -48,6 +49,48 @@ make dev-backend
 make dev-frontend
 ```
 
+### Web Client
+
+The web client is a standalone browser-based frontend that shares the same components, stores, and services as the Electron app. It replaces the Electron-specific pieces (custom protocol OAuth, safeStorage, window chrome) with browser equivalents (redirect-based OAuth, localStorage, standard Vite SPA).
+
+```bash
+# 1. Start dev services (Postgres, Kratos, Hydra, LiveKit)
+make dev-up
+
+# 2. Start the Go API server
+make dev-backend
+
+# 3. Install web dependencies and start dev server
+cd web && npm install
+make dev-web
+```
+
+Open `http://localhost:5173` in your browser. The web client uses Vite's dev server with HMR.
+
+#### Environment Configuration
+
+Copy `web/.env.example` to `web/.env` to customize:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `VITE_API_URL` | `http://localhost:8080/api` | Backend API base URL |
+| `VITE_WS_URL` | `ws://localhost:8080/ws` | WebSocket endpoint |
+| `VITE_OIDC_AUTHORITY` | `http://localhost:4444` | Ory Hydra public URL |
+| `VITE_OIDC_CLIENT_ID` | `thicket-web` | OAuth2 client ID |
+| `VITE_OIDC_REDIRECT_URI` | `http://localhost:5173/auth/callback` | OAuth2 redirect URI |
+
+#### How It Differs from the Electron Client
+
+| Concern | Electron (`frontend/`) | Web (`web/`) |
+|---------|----------------------|-------------|
+| OAuth flow | Custom `thicket://` protocol + `OidcClient` | Browser redirect + `UserManager` |
+| Token storage | OS keychain via `safeStorage` | `localStorage` |
+| Window chrome | Custom frameless titlebar | Removed (uses browser chrome) |
+| Entry point | `electron-vite` multi-process | Standard Vite SPA |
+| Build output | Electron distributable | Static files (served by Caddy) |
+
+Components, stores, services, types, and Tailwind theme are identical between both clients.
+
 Or use the all-in-one dev script which handles steps 3-4:
 
 ```bash
@@ -63,16 +106,19 @@ Or use the all-in-one dev script which handles steps 3-4:
 | `make dev-down` | Stop Docker services |
 | `make dev-backend` | Run Go API server |
 | `make dev-frontend` | Run Electron app in dev mode |
+| `make dev-web` | Run web client dev server on :5173 |
 | `make dev` | Start Docker services and print next steps |
-| `make test` | Run all tests (backend + frontend) |
+| `make test` | Run all tests (backend + frontend + web) |
 | `make test-backend` | Run Go tests with race detector + coverage |
-| `make test-frontend` | Run Vitest |
+| `make test-frontend` | Run Vitest (Electron frontend) |
+| `make test-web` | Run Vitest (web client) |
 | `make lint` | Run all linters |
 | `make lint-backend` | Run `go vet` + `gosec` |
 | `make lint-frontend` | Run ESLint + TypeScript type-check |
-| `make build` | Build backend binary + frontend bundle |
+| `make build` | Build backend binary + frontend + web bundles |
 | `make build-backend` | Build Go binary to `backend/bin/server` |
 | `make build-frontend` | Build Electron app |
+| `make build-web` | Build web client to `web/dist/` |
 | `make migrate-up` | Run database migrations |
 | `make migrate-down` | Roll back database migrations |
 | `make seed` | Seed the database with test data |
@@ -122,17 +168,24 @@ discord_clone/
 │       ├── router/             # Route registration
 │       ├── ws/                 # WebSocket hub, client, events
 │       └── testutil/           # Test helpers (testcontainers)
-├── frontend/
+├── frontend/                      # Electron desktop client
 │   └── src/
 │       ├── main/               # Electron main process
 │       ├── preload/            # Context bridge (IPC)
 │       └── renderer/           # React app
-│           ├── components/     # layout, chat, voice, server, dm, auth, ui
-│           ├── hooks/          # useWebSocket, useAuth, etc.
+│           ├── components/     # layout, chat, server, dm, auth
 │           ├── stores/         # Zustand stores
-│           ├── services/       # API client, WS service
-│           ├── styles/         # Tailwind + cyberpunk theme
+│           ├── services/       # API client, WS service, OAuth
+│           ├── styles/         # Tailwind + solarpunk theme
 │           └── types/          # TypeScript type definitions
+├── web/                           # Standalone web client
+│   ├── Dockerfile              # Multi-stage build (Node + Caddy)
+│   └── src/
+│       ├── components/         # Same components (no TitleBar)
+│       ├── stores/             # Same Zustand stores
+│       ├── services/           # Adapted: localStorage, browser OAuth
+│       ├── styles/             # Same Tailwind theme
+│       └── types/              # Same type definitions
 ├── livekit/
 │   └── livekit.yaml            # LiveKit server config
 └── scripts/
@@ -152,7 +205,7 @@ make test-backend
 
 Uses real PostgreSQL via testcontainers-go — no mocks for the database. Tests spin up ephemeral Postgres containers per suite.
 
-### Frontend
+### Frontend (Electron)
 
 ```bash
 make test-frontend
@@ -160,6 +213,15 @@ make test-frontend
 ```
 
 Uses Vitest with jsdom for Zustand store and component tests.
+
+### Web Client
+
+```bash
+make test-web
+# Runs: vitest run
+```
+
+Same test setup as the Electron frontend (135 tests across 15 test files), adapted to mock `localStorage` instead of `window.api`.
 
 ### All tests
 
@@ -170,19 +232,24 @@ make test
 ## Architecture
 
 ```
-  Electron Client (React + Zustand)
-    │           │              \
-    │ HTTPS     │ WSS           \ WebRTC (UDP)
-    │           │                \
-  Go API Server                  LiveKit Server
-  (Fiber v3)                     (self-hosted SFU)
-  ├─ REST API                    └─ Voice/Video rooms
-  ├─ WebSocket Hub
-  ├─ JWT Auth
-  └─ LiveKit token generation
-    │
-  PostgreSQL 16
+  Electron Client          Web Client
+  (React + Zustand)        (React + Zustand)
+    │           │              │           │
+    │ HTTPS     │ WSS          │ HTTPS     │ WSS
+    │           │              │           │
+    └───────────┴──────┬───────┘           │
+                       │                   │
+                 Go API Server          LiveKit Server
+                 (Fiber v3)             (self-hosted SFU)
+                 ├─ REST API            └─ Voice/Video rooms
+                 ├─ WebSocket Hub
+                 ├─ Ory Hydra/Kratos Auth
+                 └─ LiveKit token generation
+                   │
+                 PostgreSQL 16
 ```
+
+In production, Caddy serves the web client's static files and reverse-proxies `/api/*`, `/ws`, and `/livekit/*` to the backend and LiveKit services.
 
 - **REST** for CRUD operations, **WebSocket** for real-time events (messages, presence, typing)
 - Go generates scoped LiveKit tokens; clients connect directly to LiveKit for media

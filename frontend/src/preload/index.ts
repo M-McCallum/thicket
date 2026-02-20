@@ -6,6 +6,7 @@ const api = {
   minimizeWindow: (): void => ipcRenderer.send('minimize-window'),
   maximizeWindow: (): void => ipcRenderer.send('maximize-window'),
   closeWindow: (): void => ipcRenderer.send('close-window'),
+  openExternal: (url: string): Promise<void> => ipcRenderer.invoke('open-external', url),
 
   auth: {
     canEncrypt: (): Promise<boolean> => ipcRenderer.invoke('auth:can-encrypt'),

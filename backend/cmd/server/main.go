@@ -33,7 +33,7 @@ func main() {
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
 	// Ory clients
-	kratosClient := ory.NewKratosClient(cfg.Ory.KratosAdminURL)
+	kratosClient := ory.NewKratosClient(cfg.Ory.KratosAdminURL, cfg.Ory.KratosPublicURL)
 	hydraClient := ory.NewHydraClient(cfg.Ory.HydraAdminURL)
 
 	// Services
@@ -51,7 +51,7 @@ func main() {
 	serverHandler := handler.NewServerHandler(serverService, channelService)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
-	oryHandler := handler.NewOryHandler(hydraClient, identityService, cfg.Ory.KratosPublicURL)
+	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosPublicURL)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{

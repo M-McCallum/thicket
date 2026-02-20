@@ -19,18 +19,18 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
 
   return (
     <form onSubmit={handleSubmit} className="px-4 pb-4">
-      <div className="flex items-center bg-cyber-bg-secondary rounded border border-cyber-bg-elevated focus-within:border-neon-cyan/30 transition-colors">
+      <div className="flex items-center bg-sol-bg-secondary rounded-lg border border-sol-bg-elevated focus-within:border-sol-amber/30 transition-colors">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          className="flex-1 bg-transparent px-4 py-3 text-cyber-text-primary placeholder-cyber-text-muted focus:outline-none"
+          className="flex-1 bg-transparent px-4 py-3 text-sol-text-primary placeholder-sol-text-muted focus:outline-none"
           placeholder={`Message #${channelName}`}
         />
         <button
           type="submit"
           disabled={!input.trim()}
-          className="px-4 py-3 text-neon-cyan/50 hover:text-neon-cyan disabled:text-cyber-text-muted transition-colors"
+          className="px-4 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
             <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />

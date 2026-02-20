@@ -122,3 +122,85 @@ type RejectRequest struct {
 	ErrorHint        string `json:"error_hint,omitempty"`
 	StatusCode       int    `json:"status_code,omitempty"`
 }
+
+// KratosSession represents a Kratos session from GET /sessions/whoami.
+type KratosSession struct {
+	ID       string   `json:"id"`
+	Active   bool     `json:"active"`
+	Identity Identity `json:"identity"`
+}
+
+// Kratos Self-Service Flow types
+
+// SelfServiceFlow represents a Kratos self-service login or registration flow.
+type SelfServiceFlow struct {
+	ID        string  `json:"id"`
+	Type      string  `json:"type"`
+	ExpiresAt string  `json:"expires_at"`
+	IssuedAt  string  `json:"issued_at"`
+	RequestURL string `json:"request_url"`
+	UI        FlowUI  `json:"ui"`
+	State     string  `json:"state,omitempty"`
+}
+
+// SelfServiceError represents a Kratos self-service error container.
+type SelfServiceError struct {
+	ID     string        `json:"id"`
+	Error  ErrorDetail   `json:"error"`
+}
+
+// ErrorDetail contains the error information from a self-service error.
+type ErrorDetail struct {
+	Code    int    `json:"code,omitempty"`
+	Status  string `json:"status,omitempty"`
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+// FlowUI contains the UI rendering data for a self-service flow.
+type FlowUI struct {
+	Action   string       `json:"action"`
+	Method   string       `json:"method"`
+	Nodes    []FlowNode   `json:"nodes"`
+	Messages []FlowMessage `json:"messages,omitempty"`
+}
+
+// FlowNode represents a single UI element in a flow (input, button, etc).
+type FlowNode struct {
+	Type       string         `json:"type"`
+	Group      string         `json:"group"`
+	Attributes FlowAttributes `json:"attributes"`
+	Messages   []FlowMessage  `json:"messages,omitempty"`
+	Meta       FlowNodeMeta   `json:"meta"`
+}
+
+// FlowAttributes contains the HTML attributes for a flow node.
+type FlowAttributes struct {
+	Name           string      `json:"name,omitempty"`
+	Type           string      `json:"type,omitempty"`
+	Value          interface{} `json:"value,omitempty"`
+	Required       bool        `json:"required,omitempty"`
+	Disabled       bool        `json:"disabled,omitempty"`
+	NodeType       string      `json:"node_type"`
+	Pattern        string      `json:"pattern,omitempty"`
+	OnClick        string      `json:"onclick,omitempty"`
+	ID             string      `json:"id,omitempty"`
+	Src            string      `json:"src,omitempty"`
+	Async          bool        `json:"async,omitempty"`
+	CrossOrigin    string      `json:"crossorigin,omitempty"`
+	ReferrerPolicy string      `json:"referrerpolicy,omitempty"`
+	Nonce          string      `json:"nonce,omitempty"`
+}
+
+// FlowMessage represents a validation or info message attached to a node or the flow.
+type FlowMessage struct {
+	ID      int    `json:"id"`
+	Text    string `json:"text"`
+	Type    string `json:"type"`
+	Context map[string]interface{} `json:"context,omitempty"`
+}
+
+// FlowNodeMeta contains metadata for a flow node (e.g. label).
+type FlowNodeMeta struct {
+	Label *FlowMessage `json:"label,omitempty"`
+}

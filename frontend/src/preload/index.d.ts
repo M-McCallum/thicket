@@ -8,6 +8,7 @@ declare global {
       minimizeWindow: () => void
       maximizeWindow: () => void
       closeWindow: () => void
+      openExternal: (url: string) => Promise<void>
       auth: {
         canEncrypt: () => Promise<boolean>
         getStorageBackend: () => Promise<string>

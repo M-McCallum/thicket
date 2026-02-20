@@ -1,0 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply box-border;
+  }
+
+  body {
+    @apply m-0 overflow-hidden;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  ::-webkit-scrollbar {
+    @apply w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-sol-bg-secondary;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-sol-bg-elevated rounded-full;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-sol-amber-dim;
+  }
+}
+
+@layer components {
+  .neon-border {
+    @apply border border-sol-amber/30;
+  }
+
+  .neon-border-active {
+    @apply border border-sol-amber shadow-glow-amber;
+  }
+
+  .btn-primary {
+    @apply px-4 py-2 bg-sol-amber/20 text-sol-amber border border-sol-amber/50
+           hover:bg-sol-amber/30 hover:shadow-glow-amber
+           transition-all duration-200 rounded-lg font-medium;
+  }
+
+  .btn-danger {
+    @apply px-4 py-2 bg-sol-coral/20 text-sol-coral border border-sol-coral/50
+           hover:bg-sol-coral/30
+           transition-all duration-200 rounded-lg font-medium;
+  }
+
+  .input-field {
+    @apply w-full px-3 py-2 bg-sol-bg-secondary border border-sol-bg-elevated
+           text-sol-text-primary placeholder-sol-text-muted
+           focus:border-sol-amber/50 focus:outline-none focus:shadow-glow-amber
+           transition-all duration-200 rounded-lg;
+  }
+}

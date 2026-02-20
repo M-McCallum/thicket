@@ -12,17 +12,19 @@ import (
 
 const defaultTimeout = 10 * time.Second
 
-// KratosClient is an HTTP client for the Kratos Admin API.
+// KratosClient is an HTTP client for the Kratos Admin and Public APIs.
 type KratosClient struct {
-	adminURL string
-	http     *http.Client
+	adminURL  string
+	publicURL string
+	http      *http.Client
 }
 
-// NewKratosClient creates a KratosClient pointing at the given Kratos Admin URL.
-func NewKratosClient(adminURL string) *KratosClient {
+// NewKratosClient creates a KratosClient pointing at the given Kratos Admin and Public URLs.
+func NewKratosClient(adminURL, publicURL string) *KratosClient {
 	return &KratosClient{
-		adminURL: adminURL,
-		http:     &http.Client{Timeout: defaultTimeout},
+		adminURL:  adminURL,
+		publicURL: publicURL,
+		http:      &http.Client{Timeout: defaultTimeout},
 	}
 }
 
@@ -39,6 +41,77 @@ func (c *KratosClient) GetIdentity(ctx context.Context, id string) (*Identity, e
 		return nil, fmt.Errorf("get identity %s: %w", id, err)
 	}
 	return &identity, nil
+}
+
+// WhoAmI checks for an active Kratos session using the browser's cookies.
+// Returns the session if active, or an error if no session exists.
+func (c *KratosClient) WhoAmI(ctx context.Context, cookie string) (*KratosSession, error) {
+	url := fmt.Sprintf("%s/sessions/whoami", c.publicURL)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+
+	var session KratosSession
+	if err := c.doJSON(req, &session); err != nil {
+		return nil, err
+	}
+	return &session, nil
+}
+
+// GetLoginFlow fetches a login flow from the Kratos public API.
+// The cookie header is forwarded so Kratos can validate the CSRF token.
+func (c *KratosClient) GetLoginFlow(ctx context.Context, flowID, cookie string) (*SelfServiceFlow, error) {
+	url := fmt.Sprintf("%s/self-service/login/flows?id=%s", c.publicURL, flowID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+
+	var flow SelfServiceFlow
+	if err := c.doJSON(req, &flow); err != nil {
+		return nil, fmt.Errorf("get login flow %s: %w", flowID, err)
+	}
+	return &flow, nil
+}
+
+// GetRegistrationFlow fetches a registration flow from the Kratos public API.
+func (c *KratosClient) GetRegistrationFlow(ctx context.Context, flowID, cookie string) (*SelfServiceFlow, error) {
+	url := fmt.Sprintf("%s/self-service/registration/flows?id=%s", c.publicURL, flowID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+
+	var flow SelfServiceFlow
+	if err := c.doJSON(req, &flow); err != nil {
+		return nil, fmt.Errorf("get registration flow %s: %w", flowID, err)
+	}
+	return &flow, nil
+}
+
+// GetSelfServiceError fetches a self-service error container by its ID.
+func (c *KratosClient) GetSelfServiceError(ctx context.Context, errorID string) (*SelfServiceError, error) {
+	url := fmt.Sprintf("%s/self-service/errors?id=%s", c.publicURL, errorID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	var sseErr SelfServiceError
+	if err := c.doJSON(req, &sseErr); err != nil {
+		return nil, fmt.Errorf("get self-service error %s: %w", errorID, err)
+	}
+	return &sseErr, nil
 }
 
 func (c *KratosClient) doJSON(req *http.Request, out interface{}) error {
