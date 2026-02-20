@@ -126,6 +126,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const tokens = await oauthService.refreshToken(refreshToken)
       storeTokensLocally(tokens)
       setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken)
+      wsService.sendTokenRefresh(tokens.access_token)
       set({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token ?? refreshToken
@@ -138,7 +139,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   logout: async () => {
     try { await authApi.logout() } catch { /* Ignore */ }
-    try { await oauthService.logout() } catch { /* Ignore */ }
+    const idToken = getTokens().id_token ?? undefined
+    try { await oauthService.logout(idToken) } catch { /* Ignore */ }
     wsService.disconnect()
     clearApiTokens()
     clearStoredTokens()

@@ -69,9 +69,11 @@ export class OAuthService {
     }
   }
 
-  async logout(): Promise<void> {
+  async logout(idTokenHint?: string): Promise<void> {
     try {
-      await this.userManager.signoutRedirect()
+      await this.userManager.signoutRedirect({
+        id_token_hint: idTokenHint
+      })
     } catch {
       await this.userManager.clearStaleState()
     }
