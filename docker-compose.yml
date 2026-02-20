@@ -244,6 +244,7 @@ services:
       args:
         - VITE_API_URL=https://${DOMAIN}/api
         - VITE_WS_URL=wss://${DOMAIN}/ws
+        - VITE_LIVEKIT_URL=wss://${DOMAIN}/livekit
         - VITE_OIDC_AUTHORITY=${HYDRA_PUBLIC_URL}
         - VITE_OIDC_CLIENT_ID=thicket-web
         - VITE_OIDC_REDIRECT_URI=https://${DOMAIN}/auth/callback
