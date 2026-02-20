@@ -134,6 +134,43 @@ export default function ServerSidebar() {
         </div>
       )}
 
+      {/* Profile modal */}
+      {showProfile && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowProfile(false)}>
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-80 animate-grow-in flex flex-col items-center gap-4"
+          >
+            <div className="w-20 h-20 rounded-full bg-sol-amber/20 flex items-center justify-center">
+              <span className="font-display text-3xl font-bold text-sol-amber">
+                {user?.username?.charAt(0).toUpperCase() ?? '?'}
+              </span>
+            </div>
+            <div className="text-center">
+              <h3 className="font-display text-lg text-sol-text">{user?.username}</h3>
+              {user?.display_name && user.display_name !== user.username && (
+                <p className="text-sm text-sol-text-secondary">{user.display_name}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2 text-sm text-sol-text-secondary">
+              <span className={`w-2.5 h-2.5 rounded-full ${
+                user?.status === 'online' ? 'bg-sol-green' :
+                user?.status === 'idle' ? 'bg-sol-amber' :
+                user?.status === 'dnd' ? 'bg-sol-coral' :
+                'bg-sol-text-muted'
+              }`} />
+              <span className="capitalize">{user?.status ?? 'offline'}</span>
+            </div>
+            <button
+              onClick={() => { setShowProfile(false); logout() }}
+              className="btn-danger w-full mt-2"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Join server modal */}
       {showJoin && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setShowJoin(false)}>
