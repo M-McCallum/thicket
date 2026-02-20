@@ -191,7 +191,7 @@ services:
     labels:
       - "traefik.enable=true"
       # API routes
-      - "traefik.http.routers.thicket-api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/auth`) || Path(`/health`))"
+      - "traefik.http.routers.thicket-api.rule=Host(`${DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/uploads`) || Path(`/auth/login`) || Path(`/auth/registration`) || Path(`/auth/consent`) || Path(`/auth/logout`) || Path(`/auth/error`) || Path(`/health`))"
       - "traefik.http.routers.thicket-api.entrypoints=websecure"
       - "traefik.http.routers.thicket-api.tls.certResolver=letsencrypt"
       - "traefik.http.routers.thicket-api.service=thicket-api-svc"
