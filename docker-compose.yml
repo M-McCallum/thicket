@@ -149,6 +149,23 @@ services:
     networks:
       - internal
 
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+    volumes:
+      - minio_data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
@@ -175,6 +192,11 @@ services:
       - KRATOS_ADMIN_URL=http://kratos:4434
       - HYDRA_PUBLIC_URL=http://hydra:4444
       - HYDRA_ADMIN_URL=http://hydra:4445
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_BUCKET=${MINIO_BUCKET:-thicket}
+      - MINIO_USE_SSL=false
       - ENV=production
     depends_on:
       postgres:
@@ -265,6 +287,7 @@ services:
 
 volumes:
   postgres_data:
+  minio_data:
 
 networks:
   internal:

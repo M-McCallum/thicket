@@ -112,6 +112,23 @@ services:
       HYDRA_ADMIN_URL: http://hydra:4445
     restart: "no"
 
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: thicket_dev
+      MINIO_ROOT_PASSWORD: thicket_dev_secret
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_dev_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   livekit:
     image: livekit/livekit-server:latest
     command: --config /etc/livekit.yaml --dev
@@ -124,3 +141,4 @@ services:
 
 volumes:
   postgres_dev_data:
+  minio_dev_data:

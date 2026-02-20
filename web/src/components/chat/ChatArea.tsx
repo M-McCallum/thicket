@@ -31,9 +31,11 @@ export default function ChatArea() {
           channel_id: msgData.channel_id,
           author_id: msgData.author_id,
           content: msgData.content,
+          type: msgData.type as 'text' | 'sticker' | undefined,
           created_at: msgData.created_at,
           updated_at: msgData.created_at,
-          author_username: msgData.username
+          author_username: msgData.username,
+          attachments: msgData.attachments
         })
       }
     })
@@ -48,9 +50,9 @@ export default function ChatArea() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
 
-  const handleSend = async (content: string) => {
+  const handleSend = async (content: string, files?: File[], msgType?: string) => {
     if (!activeChannelId) return
-    await sendMessage(activeChannelId, content)
+    await sendMessage(activeChannelId, content, files, msgType)
   }
 
   if (!activeChannelId) {

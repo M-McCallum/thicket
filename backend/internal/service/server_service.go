@@ -163,6 +163,25 @@ func (s *ServerService) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID
 	return s.queries.GetUserCoMemberIDs(ctx, userID)
 }
 
+type ServerPreview struct {
+	Name        string `json:"name"`
+	MemberCount int64  `json:"member_count"`
+	IconURL     *string `json:"icon_url"`
+}
+
+func (s *ServerService) GetServerPreview(ctx context.Context, inviteCode string) (*ServerPreview, error) {
+	server, err := s.queries.GetServerByInviteCode(ctx, inviteCode)
+	if err != nil {
+		return nil, ErrServerNotFound
+	}
+	count, _ := s.queries.GetServerMemberCount(ctx, server.ID)
+	return &ServerPreview{
+		Name:        server.Name,
+		MemberCount: count,
+		IconURL:     server.IconURL,
+	}, nil
+}
+
 func generateInviteCode() (string, error) {
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {

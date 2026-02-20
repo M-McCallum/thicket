@@ -13,26 +13,35 @@ const (
 	EventTokenRefresh   = "TOKEN_REFRESH"
 	EventVoiceJoin      = "VOICE_JOIN"
 	EventVoiceLeave     = "VOICE_LEAVE"
+	EventDMCallStart    = "DM_CALL_START"
+	EventDMCallAccept   = "DM_CALL_ACCEPT"
+	EventDMCallEnd      = "DM_CALL_END"
 )
 
 // Server → Client event types
 const (
-	EventReady            = "READY"
-	EventHeartbeatAck     = "HEARTBEAT_ACK"
-	EventMessageCreate    = "MESSAGE_CREATE"
-	EventMessageUpdate    = "MESSAGE_UPDATE"
-	EventMessageDelete    = "MESSAGE_DELETE"
-	EventTypingStartBcast = "TYPING_START"
-	EventPresenceUpdBcast = "PRESENCE_UPDATE"
-	EventChannelCreate    = "CHANNEL_CREATE"
-	EventChannelUpdate    = "CHANNEL_UPDATE"
-	EventChannelDelete    = "CHANNEL_DELETE"
-	EventMemberJoin       = "MEMBER_JOIN"
-	EventMemberLeave      = "MEMBER_LEAVE"
-	EventVoiceStateUpdate = "VOICE_STATE_UPDATE"
+	EventReady              = "READY"
+	EventHeartbeatAck       = "HEARTBEAT_ACK"
+	EventMessageCreate      = "MESSAGE_CREATE"
+	EventMessageUpdate      = "MESSAGE_UPDATE"
+	EventMessageDelete      = "MESSAGE_DELETE"
+	EventTypingStartBcast   = "TYPING_START"
+	EventPresenceUpdBcast   = "PRESENCE_UPDATE"
+	EventChannelCreate      = "CHANNEL_CREATE"
+	EventChannelUpdate      = "CHANNEL_UPDATE"
+	EventChannelDelete      = "CHANNEL_DELETE"
+	EventMemberJoin         = "MEMBER_JOIN"
+	EventMemberLeave        = "MEMBER_LEAVE"
+	EventVoiceStateUpdate   = "VOICE_STATE_UPDATE"
 	EventDMMessageCreate    = "DM_MESSAGE_CREATE"
 	EventUserProfileUpdate  = "USER_PROFILE_UPDATE"
 	EventSessionExpired     = "SESSION_EXPIRED"
+	EventFriendRequestCreate = "FRIEND_REQUEST_CREATE"
+	EventFriendRequestAccept = "FRIEND_REQUEST_ACCEPT"
+	EventFriendRemove        = "FRIEND_REMOVE"
+	EventDMCallRing          = "DM_CALL_RING"
+	EventDMCallAcceptBcast   = "DM_CALL_ACCEPT"
+	EventDMCallEndBcast      = "DM_CALL_END"
 )
 
 type Event struct {
@@ -88,6 +97,10 @@ type VoiceStateData struct {
 	Joined    bool   `json:"joined"`
 	Muted     bool   `json:"muted"`
 	Deafened  bool   `json:"deafened"`
+}
+
+type DMCallData struct {
+	ConversationID string `json:"conversation_id"`
 }
 
 func NewEvent(eventType string, data any) (*Event, error) {

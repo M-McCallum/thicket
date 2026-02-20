@@ -1,0 +1,4 @@
+ALTER TABLE dm_messages DROP COLUMN IF EXISTS type;
+ALTER TABLE messages DROP COLUMN IF EXISTS type;
+DROP TABLE IF EXISTS stickers;
+DROP TABLE IF EXISTS sticker_packs;

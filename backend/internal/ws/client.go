@@ -24,14 +24,18 @@ const CloseSessionExpired = 4001
 // GetMemberIDsFn fetches member user IDs for a given server ID.
 type GetMemberIDsFn func(serverID string) ([]uuid.UUID, error)
 
+// GetDMParticipantsFn fetches participant user IDs for a DM conversation.
+type GetDMParticipantsFn func(conversationID string) ([]uuid.UUID, error)
+
 type Client struct {
-	Hub            *Hub
-	conn           *websocket.Conn
-	UserID         uuid.UUID
-	Username       string
-	send           chan []byte
-	jwksManager    *auth.JWKSManager
-	GetMemberIDsFn GetMemberIDsFn
+	Hub                  *Hub
+	conn                 *websocket.Conn
+	UserID               uuid.UUID
+	Username             string
+	send                 chan []byte
+	jwksManager          *auth.JWKSManager
+	GetMemberIDsFn       GetMemberIDsFn
+	GetDMParticipantsFn  GetDMParticipantsFn
 }
 
 func NewClient(hub *Hub, conn *websocket.Conn, userID uuid.UUID, username string) *Client {
@@ -218,5 +222,71 @@ func (c *Client) handleEvent(event *Event) {
 			return
 		}
 		c.handleTokenRefresh(data.Token)
+
+	case EventDMCallStart:
+		var data DMCallData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		// Get DM participants and send ring event to the other participant(s)
+		if c.GetDMParticipantsFn != nil {
+			if participantIDs, err := c.GetDMParticipantsFn(data.ConversationID); err == nil {
+				ringEvent, _ := NewEvent(EventDMCallRing, map[string]string{
+					"conversation_id": data.ConversationID,
+					"caller_id":       c.UserID.String(),
+					"caller_username": c.Username,
+				})
+				if ringEvent != nil {
+					for _, pid := range participantIDs {
+						if pid != c.UserID {
+							c.Hub.SendToUser(pid, ringEvent)
+						}
+					}
+				}
+			}
+		}
+
+	case EventDMCallAccept:
+		var data DMCallData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		if c.GetDMParticipantsFn != nil {
+			if participantIDs, err := c.GetDMParticipantsFn(data.ConversationID); err == nil {
+				acceptEvent, _ := NewEvent(EventDMCallAcceptBcast, map[string]string{
+					"conversation_id": data.ConversationID,
+					"user_id":         c.UserID.String(),
+					"username":        c.Username,
+				})
+				if acceptEvent != nil {
+					for _, pid := range participantIDs {
+						if pid != c.UserID {
+							c.Hub.SendToUser(pid, acceptEvent)
+						}
+					}
+				}
+			}
+		}
+
+	case EventDMCallEnd:
+		var data DMCallData
+		if err := json.Unmarshal(event.Data, &data); err != nil {
+			return
+		}
+		if c.GetDMParticipantsFn != nil {
+			if participantIDs, err := c.GetDMParticipantsFn(data.ConversationID); err == nil {
+				endEvent, _ := NewEvent(EventDMCallEndBcast, map[string]string{
+					"conversation_id": data.ConversationID,
+					"user_id":         c.UserID.String(),
+				})
+				if endEvent != nil {
+					for _, pid := range participantIDs {
+						if pid != c.UserID {
+							c.Hub.SendToUser(pid, endEvent)
+						}
+					}
+				}
+			}
+		}
 	}
 }

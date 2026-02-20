@@ -16,6 +16,7 @@ import (
 	"github.com/M-McCallum/thicket/internal/ory"
 	"github.com/M-McCallum/thicket/internal/router"
 	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
 )
 
@@ -36,6 +37,18 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
+	// Object storage
+	storageClient, err := storage.NewClient(
+		cfg.MinIO.Endpoint, cfg.MinIO.AccessKey, cfg.MinIO.SecretKey,
+		cfg.MinIO.Bucket, cfg.MinIO.UseSSL,
+	)
+	if err != nil {
+		log.Fatalf("Failed to create storage client: %v", err)
+	}
+	if err := storageClient.EnsureBucket(context.Background()); err != nil {
+		log.Fatalf("Failed to ensure storage bucket: %v", err)
+	}
+
 	queries := models.New(pool)
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())
 
@@ -50,6 +63,9 @@ func main() {
 	dmService := service.NewDMService(queries)
 	identityService := service.NewIdentityService(queries, kratosClient)
 	userService := service.NewUserService(queries)
+	emojiService := service.NewEmojiService(queries, storageClient)
+	stickerService := service.NewStickerService(queries, storageClient)
+	friendService := service.NewFriendService(queries)
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -74,15 +90,21 @@ func main() {
 			ws.BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
 		}
 	})
+
+	// Wire DM participants function for WS DM call events
+	ws.HandlerDMParticipantsFn = dmService.GetParticipantIDs
+
 	go hub.Run()
 
 	// Handlers
-	uploadDir := "./uploads/avatars"
 	serverHandler := handler.NewServerHandler(serverService, channelService, hub)
-	messageHandler := handler.NewMessageHandler(messageService, hub)
-	dmHandler := handler.NewDMHandler(dmService, hub)
+	messageHandler := handler.NewMessageHandler(messageService, hub, storageClient)
+	dmHandler := handler.NewDMHandler(dmService, hub, storageClient)
 	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosBrowserURL)
-	userHandler := handler.NewUserHandler(userService, hub, serverService.GetUserCoMemberIDs, uploadDir)
+	userHandler := handler.NewUserHandler(userService, hub, serverService.GetUserCoMemberIDs, storageClient)
+	emojiHandler := handler.NewEmojiHandler(emojiService, serverService)
+	stickerHandler := handler.NewStickerHandler(stickerService, serverService)
+	friendHandler := handler.NewFriendHandler(friendService, hub)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -91,7 +113,13 @@ func main() {
 	})
 
 	// LiveKit handler
-	livekitHandler := handler.NewLiveKitHandler(serverService, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
+	livekitHandler := handler.NewLiveKitHandler(serverService, dmService, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
+
+	// GIF handler (only if Tenor API key configured)
+	var gifHandler *handler.GifHandler
+	if cfg.Tenor.APIKey != "" {
+		gifHandler = handler.NewGifHandler(cfg.Tenor.APIKey)
+	}
 
 	router.Setup(app, router.Config{
 		ServerHandler:     serverHandler,
@@ -100,12 +128,16 @@ func main() {
 		OryHandler:        oryHandler,
 		LiveKitHandler:    livekitHandler,
 		UserHandler:       userHandler,
+		EmojiHandler:      emojiHandler,
+		GifHandler:        gifHandler,
+		StickerHandler:    stickerHandler,
+		FriendHandler:     friendHandler,
 		JWKSManager:       jwksManager,
 		Hub:               hub,
 		CoMemberIDsFn:     serverService.GetUserCoMemberIDs,
 		ServerMemberIDsFn: serverService.GetServerMemberUserIDs,
 		CORSOrigin:        cfg.API.CORSOrigin,
-		UploadDir:         "./uploads",
+		StorageClient:     storageClient,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)

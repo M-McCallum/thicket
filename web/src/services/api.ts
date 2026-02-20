@@ -6,7 +6,11 @@ import type {
   CreateDMConversationRequest,
   SendDMRequest
 } from '@/types/api'
-import type { Server, Channel, Message, ServerMember, DMConversationWithParticipants, DMMessage, User } from '@/types/models'
+import type {
+  Server, Channel, Message, ServerMember,
+  DMConversationWithParticipants, DMMessage, User,
+  CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview
+} from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
@@ -162,11 +166,19 @@ export const messages = {
     const query = params.toString()
     return request<Message[]>(`/channels/${channelId}/messages${query ? `?${query}` : ''}`)
   },
-  send: (channelId: string, data: SendMessageRequest) =>
-    request<Message>(`/channels/${channelId}/messages`, {
+  send: (channelId: string, content: string, files?: File[], msgType?: string) => {
+    if (files && files.length > 0) {
+      const fd = new FormData()
+      fd.append('content', content)
+      if (msgType) fd.append('type', msgType)
+      files.forEach((f) => fd.append('files', f))
+      return requestMultipart<Message>(`/channels/${channelId}/messages`, fd)
+    }
+    return request<Message>(`/channels/${channelId}/messages`, {
       method: 'POST',
-      body: JSON.stringify(data)
-    }),
+      body: JSON.stringify({ content, type: msgType })
+    })
+  },
   update: (id: string, content: string) =>
     request<Message>(`/messages/${id}`, {
       method: 'PUT',
@@ -238,9 +250,104 @@ export const dm = {
     const query = params.toString()
     return request<DMMessage[]>(`/dm/conversations/${conversationId}/messages${query ? `?${query}` : ''}`)
   },
-  sendMessage: (conversationId: string, data: SendDMRequest) =>
-    request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
+  sendMessage: (conversationId: string, content: string, files?: File[], msgType?: string) => {
+    if (files && files.length > 0) {
+      const fd = new FormData()
+      fd.append('content', content)
+      if (msgType) fd.append('type', msgType)
+      files.forEach((f) => fd.append('files', f))
+      return requestMultipart<DMMessage>(`/dm/conversations/${conversationId}/messages`, fd)
+    }
+    return request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
       method: 'POST',
-      body: JSON.stringify(data)
+      body: JSON.stringify({ content, type: msgType })
     })
+  },
+  getVoiceToken: (conversationId: string) =>
+    request<{ token: string; room: string }>(
+      `/dm/conversations/${conversationId}/voice-token`,
+      { method: 'POST' }
+    )
+}
+
+// Custom Emojis
+export const emojis = {
+  list: (serverId: string) =>
+    request<CustomEmoji[]>(`/servers/${serverId}/emojis`),
+  create: (serverId: string, name: string, file: File) => {
+    const fd = new FormData()
+    fd.append('name', name)
+    fd.append('image', file)
+    return requestMultipart<CustomEmoji>(`/servers/${serverId}/emojis`, fd)
+  },
+  delete: (serverId: string, emojiId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/emojis/${emojiId}`, {
+      method: 'DELETE'
+    })
+}
+
+// GIFs
+export const gifs = {
+  search: (q: string, limit = 20, pos?: string) => {
+    const params = new URLSearchParams({ q, limit: String(limit) })
+    if (pos) params.set('pos', pos)
+    return request<{ results: GifResult[]; next: string }>(`/gifs/search?${params}`)
+  },
+  trending: (limit = 20, pos?: string) => {
+    const params = new URLSearchParams({ limit: String(limit) })
+    if (pos) params.set('pos', pos)
+    return request<{ results: GifResult[]; next: string }>(`/gifs/trending?${params}`)
+  }
+}
+
+export interface GifResult {
+  id: string
+  title: string
+  media_formats: {
+    gif: { url: string; dims: [number, number] }
+    tinygif: { url: string; dims: [number, number] }
+  }
+}
+
+// Stickers
+export const stickers = {
+  getPacks: () => request<StickerPack[]>('/sticker-packs'),
+  getStickers: (packId: string) =>
+    request<Sticker[]>(`/sticker-packs/${packId}/stickers`),
+  createPack: (serverId: string, name: string, description?: string) =>
+    request<StickerPack>(`/servers/${serverId}/sticker-packs`, {
+      method: 'POST',
+      body: JSON.stringify({ name, description })
+    }),
+  createSticker: (packId: string, name: string, file: File) => {
+    const fd = new FormData()
+    fd.append('name', name)
+    fd.append('image', file)
+    return requestMultipart<Sticker>(`/sticker-packs/${packId}/stickers`, fd)
+  },
+  delete: (stickerId: string) =>
+    request<{ message: string }>(`/stickers/${stickerId}`, { method: 'DELETE' })
+}
+
+// Friends
+export const friends = {
+  list: () => request<Friendship[]>('/friends'),
+  requests: () => request<Friendship[]>('/friends/requests'),
+  sendRequest: (username: string) =>
+    request<Friendship>('/friends/request', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    }),
+  accept: (id: string) =>
+    request<{ message: string }>(`/friends/${id}/accept`, { method: 'POST' }),
+  decline: (id: string) =>
+    request<{ message: string }>(`/friends/${id}/decline`, { method: 'POST' }),
+  remove: (id: string) =>
+    request<{ message: string }>(`/friends/${id}`, { method: 'DELETE' })
+}
+
+// Server invite preview (public)
+export const invites = {
+  preview: (code: string) =>
+    request<ServerPreview>(`/servers/invite/${code}/preview`)
 }

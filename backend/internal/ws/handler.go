@@ -25,6 +25,12 @@ type CoMemberIDsFn func(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, err
 // ServerMemberIDsFn returns all user IDs in a given server.
 type ServerMemberIDsFn func(ctx context.Context, serverID uuid.UUID) ([]uuid.UUID, error)
 
+// DMParticipantIDsFn returns user IDs for a DM conversation.
+type DMParticipantIDsFn func(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error)
+
+// HandlerOpts are optional dependencies for the WS handler.
+var HandlerDMParticipantsFn DMParticipantIDsFn
+
 func Handler(hub *Hub, jwksManager *auth.JWKSManager, coMemberIDsFn CoMemberIDsFn, serverMemberIDsFn ...ServerMemberIDsFn) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		fctx, ok := c.(interface{ RequestCtx() *fasthttp.RequestCtx })
@@ -71,6 +77,16 @@ func Handler(hub *Hub, jwksManager *auth.JWKSManager, coMemberIDsFn CoMemberIDsF
 						return nil, err
 					}
 					return fn(context.Background(), sid)
+				}
+			}
+			if HandlerDMParticipantsFn != nil {
+				dmFn := HandlerDMParticipantsFn
+				client.GetDMParticipantsFn = func(conversationID string) ([]uuid.UUID, error) {
+					cid, err := uuid.Parse(conversationID)
+					if err != nil {
+						return nil, err
+					}
+					return dmFn(context.Background(), cid)
 				}
 			}
 			hub.Register(client)

@@ -5,26 +5,31 @@ import (
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
-	"github.com/gofiber/fiber/v3/middleware/static"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/handler"
+	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
 )
 
 type Config struct {
-	ServerHandler      *handler.ServerHandler
-	MessageHandler     *handler.MessageHandler
-	DMHandler          *handler.DMHandler
-	OryHandler         *handler.OryHandler
-	LiveKitHandler     *handler.LiveKitHandler
-	UserHandler        *handler.UserHandler
-	JWKSManager        *auth.JWKSManager
-	Hub                *ws.Hub
-	CoMemberIDsFn      ws.CoMemberIDsFn
-	ServerMemberIDsFn  ws.ServerMemberIDsFn
-	CORSOrigin         string
-	UploadDir          string
+	ServerHandler     *handler.ServerHandler
+	MessageHandler    *handler.MessageHandler
+	DMHandler         *handler.DMHandler
+	OryHandler        *handler.OryHandler
+	LiveKitHandler    *handler.LiveKitHandler
+	UserHandler       *handler.UserHandler
+	EmojiHandler      *handler.EmojiHandler
+	GifHandler        *handler.GifHandler
+	StickerHandler    *handler.StickerHandler
+	FriendHandler     *handler.FriendHandler
+	JWKSManager       *auth.JWKSManager
+	Hub               *ws.Hub
+	CoMemberIDsFn     ws.CoMemberIDsFn
+	ServerMemberIDsFn ws.ServerMemberIDsFn
+	CORSOrigin        string
+	StorageClient     *storage.Client
+	TenorAPIKey       string
 }
 
 func Setup(app *fiber.App, cfg Config) {
@@ -52,12 +57,12 @@ func Setup(app *fiber.App, cfg Config) {
 		oryAuth.Get("/error", cfg.OryHandler.GetError)
 	}
 
-	// Serve uploaded files (avatars)
-	if cfg.UploadDir != "" {
-		app.Use("/uploads", static.New(cfg.UploadDir))
-	}
-
 	api := app.Group("/api")
+
+	// Public routes (no auth)
+	if cfg.ServerHandler != nil {
+		api.Get("/servers/invite/:code/preview", cfg.ServerHandler.GetServerPreview)
+	}
 
 	// Protected routes
 	protected := api.Group("", auth.Middleware(cfg.JWKSManager))
@@ -110,6 +115,41 @@ func Setup(app *fiber.App, cfg Config) {
 	// Voice
 	if cfg.LiveKitHandler != nil {
 		protected.Post("/servers/:serverId/channels/:channelId/voice-token", cfg.LiveKitHandler.GetVoiceToken)
+		protected.Post("/dm/conversations/:id/voice-token", cfg.LiveKitHandler.GetDMVoiceToken)
+	}
+
+	// Custom Emojis
+	if cfg.EmojiHandler != nil {
+		protected.Get("/servers/:id/emojis", cfg.EmojiHandler.GetServerEmojis)
+		protected.Post("/servers/:id/emojis", cfg.EmojiHandler.CreateEmoji)
+		protected.Delete("/servers/:id/emojis/:emojiId", cfg.EmojiHandler.DeleteEmoji)
+	}
+
+	// GIFs
+	if cfg.GifHandler != nil {
+		protected.Get("/gifs/search", cfg.GifHandler.Search)
+		protected.Get("/gifs/trending", cfg.GifHandler.Trending)
+	}
+
+	// Stickers
+	if cfg.StickerHandler != nil {
+		protected.Get("/sticker-packs", cfg.StickerHandler.GetPacks)
+		protected.Get("/sticker-packs/:id/stickers", cfg.StickerHandler.GetStickers)
+		protected.Post("/servers/:id/sticker-packs", cfg.StickerHandler.CreatePack)
+		protected.Post("/sticker-packs/:id/stickers", cfg.StickerHandler.CreateSticker)
+		protected.Delete("/stickers/:id", cfg.StickerHandler.DeleteSticker)
+	}
+
+	// Friends
+	if cfg.FriendHandler != nil {
+		protected.Get("/friends", cfg.FriendHandler.GetFriends)
+		protected.Get("/friends/requests", cfg.FriendHandler.GetPendingRequests)
+		protected.Post("/friends/request", cfg.FriendHandler.SendRequest)
+		protected.Post("/friends/:id/accept", cfg.FriendHandler.AcceptRequest)
+		protected.Post("/friends/:id/decline", cfg.FriendHandler.DeclineRequest)
+		protected.Delete("/friends/:id", cfg.FriendHandler.RemoveFriend)
+		protected.Post("/users/:id/block", cfg.FriendHandler.BlockUser)
+		protected.Delete("/users/:id/block", cfg.FriendHandler.UnblockUser)
 	}
 
 	// WebSocket

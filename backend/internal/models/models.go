@@ -56,15 +56,17 @@ type Message struct {
 	ChannelID uuid.UUID `json:"channel_id"`
 	AuthorID  uuid.UUID `json:"author_id"`
 	Content   string    `json:"content"`
+	Type      string    `json:"type"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type MessageWithAuthor struct {
 	Message
-	AuthorUsername    string  `json:"author_username"`
-	AuthorDisplayName *string `json:"author_display_name"`
-	AuthorAvatarURL  *string `json:"author_avatar_url"`
+	AuthorUsername    string        `json:"author_username"`
+	AuthorDisplayName *string       `json:"author_display_name"`
+	AuthorAvatarURL  *string        `json:"author_avatar_url"`
+	Attachments      []Attachment   `json:"attachments"`
 }
 
 type DMConversation struct {
@@ -85,15 +87,17 @@ type DMMessage struct {
 	ConversationID uuid.UUID `json:"conversation_id"`
 	AuthorID       uuid.UUID `json:"author_id"`
 	Content        string    `json:"content"`
+	Type           string    `json:"type"`
 	CreatedAt      time.Time `json:"created_at"`
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 type DMMessageWithAuthor struct {
 	DMMessage
-	AuthorUsername    string  `json:"author_username"`
-	AuthorDisplayName *string `json:"author_display_name"`
-	AuthorAvatarURL  *string `json:"author_avatar_url"`
+	AuthorUsername    string       `json:"author_username"`
+	AuthorDisplayName *string      `json:"author_display_name"`
+	AuthorAvatarURL  *string       `json:"author_avatar_url"`
+	Attachments      []Attachment  `json:"attachments"`
 }
 
 type ServerMemberWithUser struct {
@@ -112,4 +116,71 @@ type DMParticipantUser struct {
 	DisplayName *string   `json:"display_name"`
 	AvatarURL   *string   `json:"avatar_url"`
 	Status      string    `json:"status"`
+}
+
+// Attachment represents a file attached to a message.
+type Attachment struct {
+	ID               uuid.UUID  `json:"id"`
+	MessageID        *uuid.UUID `json:"message_id,omitempty"`
+	DMMessageID      *uuid.UUID `json:"dm_message_id,omitempty"`
+	Filename         string     `json:"filename"`
+	OriginalFilename string     `json:"original_filename"`
+	ContentType      string     `json:"content_type"`
+	Size             int64      `json:"size"`
+	Width            *int       `json:"width,omitempty"`
+	Height           *int       `json:"height,omitempty"`
+	ObjectKey        string     `json:"object_key"`
+	URL              string     `json:"url"`
+	IsExternal       bool       `json:"is_external"`
+	CreatedAt        time.Time  `json:"created_at"`
+}
+
+// CustomEmoji represents a server custom emoji.
+type CustomEmoji struct {
+	ID        uuid.UUID `json:"id"`
+	ServerID  uuid.UUID `json:"server_id"`
+	Name      string    `json:"name"`
+	ObjectKey string    `json:"object_key"`
+	URL       string    `json:"url"`
+	CreatorID uuid.UUID `json:"creator_id"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// StickerPack is a collection of stickers.
+type StickerPack struct {
+	ID          uuid.UUID  `json:"id"`
+	Name        string     `json:"name"`
+	Description *string    `json:"description,omitempty"`
+	ServerID    *uuid.UUID `json:"server_id,omitempty"`
+	CreatorID   uuid.UUID  `json:"creator_id"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// Sticker is a single sticker in a pack.
+type Sticker struct {
+	ID        uuid.UUID `json:"id"`
+	PackID    uuid.UUID `json:"pack_id"`
+	Name      string    `json:"name"`
+	ObjectKey string    `json:"object_key"`
+	URL       string    `json:"url"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// Friendship represents a friend/block relationship.
+type Friendship struct {
+	ID          uuid.UUID `json:"id"`
+	RequesterID uuid.UUID `json:"requester_id"`
+	AddresseeID uuid.UUID `json:"addressee_id"`
+	Status      string    `json:"status"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// FriendshipWithUser includes user details.
+type FriendshipWithUser struct {
+	Friendship
+	Username    string  `json:"username"`
+	DisplayName *string `json:"display_name"`
+	AvatarURL   *string `json:"avatar_url"`
+	UserStatus  string  `json:"user_status"`
 }

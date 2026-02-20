@@ -25,6 +25,7 @@ interface ServerState {
   removeMember: (userId: string) => void
   updateMemberStatus: (userId: string, status: string) => void
   updateMemberProfile: (userId: string, updates: Partial<ServerMember>) => void
+  setActiveServerNull: () => void
   clearError: () => void
 }
 
@@ -134,6 +135,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
         m.id === userId ? { ...m, ...updates } : m
       )
     })),
+
+  setActiveServerNull: () => set({ activeServerId: null, channels: [], activeChannelId: null, members: [] }),
 
   clearError: () => set({ error: null })
 }))

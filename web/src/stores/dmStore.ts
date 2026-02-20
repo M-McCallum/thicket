@@ -13,7 +13,7 @@ interface DMState {
   createConversation: (participantId: string) => Promise<DMConversationWithParticipants>
   setActiveConversation: (id: string | null) => void
   fetchMessages: (conversationId: string, before?: string) => Promise<void>
-  sendMessage: (conversationId: string, content: string) => Promise<void>
+  sendMessage: (conversationId: string, content: string, files?: File[], msgType?: string) => Promise<void>
   addMessage: (message: DMMessage) => void
   clearMessages: () => void
 }
@@ -61,8 +61,8 @@ export const useDMStore = create<DMState>((set, get) => ({
     }
   },
 
-  sendMessage: async (conversationId, content) => {
-    await dmApi.sendMessage(conversationId, { content })
+  sendMessage: async (conversationId, content, files, msgType) => {
+    await dmApi.sendMessage(conversationId, content, files, msgType)
   },
 
   addMessage: (message) =>

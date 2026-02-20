@@ -95,16 +95,21 @@ type CreateDMMessageParams struct {
 	ConversationID uuid.UUID
 	AuthorID       uuid.UUID
 	Content        string
+	Type           string
 }
 
 func (q *Queries) CreateDMMessage(ctx context.Context, arg CreateDMMessageParams) (DMMessage, error) {
+	msgType := arg.Type
+	if msgType == "" {
+		msgType = "text"
+	}
 	var m DMMessage
 	err := q.db.QueryRow(ctx,
-		`INSERT INTO dm_messages (conversation_id, author_id, content)
-		VALUES ($1, $2, $3)
-		RETURNING id, conversation_id, author_id, content, created_at, updated_at`,
-		arg.ConversationID, arg.AuthorID, arg.Content,
-	).Scan(&m.ID, &m.ConversationID, &m.AuthorID, &m.Content, &m.CreatedAt, &m.UpdatedAt)
+		`INSERT INTO dm_messages (conversation_id, author_id, content, type)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, conversation_id, author_id, content, type, created_at, updated_at`,
+		arg.ConversationID, arg.AuthorID, arg.Content, msgType,
+	).Scan(&m.ID, &m.ConversationID, &m.AuthorID, &m.Content, &m.Type, &m.CreatedAt, &m.UpdatedAt)
 	return m, err
 }
 
@@ -116,7 +121,7 @@ type GetDMMessagesParams struct {
 
 func (q *Queries) GetDMMessages(ctx context.Context, arg GetDMMessagesParams) ([]DMMessageWithAuthor, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT dm.id, dm.conversation_id, dm.author_id, dm.content, dm.created_at, dm.updated_at,
+		`SELECT dm.id, dm.conversation_id, dm.author_id, dm.content, dm.type, dm.created_at, dm.updated_at,
 		        u.username, u.display_name, u.avatar_url
 		FROM dm_messages dm JOIN users u ON dm.author_id = u.id
 		WHERE dm.conversation_id = $1 AND ($2::timestamptz IS NULL OR dm.created_at < $2)
@@ -132,11 +137,12 @@ func (q *Queries) GetDMMessages(ctx context.Context, arg GetDMMessagesParams) ([
 	for rows.Next() {
 		var m DMMessageWithAuthor
 		if err := rows.Scan(
-			&m.ID, &m.ConversationID, &m.AuthorID, &m.Content, &m.CreatedAt, &m.UpdatedAt,
+			&m.ID, &m.ConversationID, &m.AuthorID, &m.Content, &m.Type, &m.CreatedAt, &m.UpdatedAt,
 			&m.AuthorUsername, &m.AuthorDisplayName, &m.AuthorAvatarURL,
 		); err != nil {
 			return nil, err
 		}
+		m.Attachments = []Attachment{}
 		messages = append(messages, m)
 	}
 	if messages == nil {

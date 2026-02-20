@@ -31,9 +31,20 @@ func NewMessageService(q *models.Queries) *MessageService {
 	}
 }
 
-func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uuid.UUID, content string) (*models.Message, error) {
+func (s *MessageService) Queries() *models.Queries {
+	return s.queries
+}
+
+func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uuid.UUID, content string, msgType ...string) (*models.Message, error) {
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
-	if content == "" {
+
+	mt := "text"
+	if len(msgType) > 0 && msgType[0] != "" {
+		mt = msgType[0]
+	}
+
+	// Allow empty content for sticker messages or messages with attachments
+	if content == "" && mt == "text" {
 		return nil, ErrEmptyMessage
 	}
 
@@ -56,6 +67,7 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 		ChannelID: channelID,
 		AuthorID:  authorID,
 		Content:   content,
+		Type:      mt,
 	})
 	if err != nil {
 		return nil, err

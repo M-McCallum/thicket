@@ -31,16 +31,30 @@ export interface Channel {
   created_at: string
 }
 
+export interface Attachment {
+  id: string
+  filename: string
+  original_filename: string
+  content_type: string
+  size: number
+  width?: number
+  height?: number
+  url: string
+  is_external: boolean
+}
+
 export interface Message {
   id: string
   channel_id: string
   author_id: string
   content: string
+  type?: 'text' | 'sticker'
   created_at: string
   updated_at: string
   author_username?: string
   author_display_name?: string | null
   author_avatar_url?: string | null
+  attachments?: Attachment[]
 }
 
 export interface ServerMember {
@@ -65,11 +79,13 @@ export interface DMMessage {
   conversation_id: string
   author_id: string
   content: string
+  type?: 'text' | 'sticker'
   created_at: string
   updated_at: string
   author_username?: string
   author_display_name?: string | null
   author_avatar_url?: string | null
+  attachments?: Attachment[]
 }
 
 export interface DMParticipant {
@@ -82,4 +98,49 @@ export interface DMParticipant {
 
 export interface DMConversationWithParticipants extends DMConversation {
   participants: DMParticipant[]
+}
+
+export interface CustomEmoji {
+  id: string
+  server_id: string
+  name: string
+  url: string
+  creator_id: string
+  created_at: string
+}
+
+export interface StickerPack {
+  id: string
+  name: string
+  description?: string
+  server_id?: string
+  creator_id: string
+  created_at: string
+}
+
+export interface Sticker {
+  id: string
+  pack_id: string
+  name: string
+  url: string
+  created_at: string
+}
+
+export interface Friendship {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: 'pending' | 'accepted' | 'declined' | 'blocked'
+  username: string
+  display_name: string | null
+  avatar_url: string | null
+  user_status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface ServerPreview {
+  name: string
+  member_count: number
+  icon_url: string | null
 }

@@ -3,6 +3,8 @@ import { wsService } from '@/services/ws'
 import { useServerStore } from '@/stores/serverStore'
 import { useMessageStore } from '@/stores/messageStore'
 import { useVoiceStore } from '@/stores/voiceStore'
+import { useFriendStore } from '@/stores/friendStore'
+import { useDMCallStore } from '@/stores/dmCallStore'
 import type {
   ReadyData,
   PresenceData,
@@ -13,7 +15,13 @@ import type {
   MemberJoinData,
   MemberLeaveData,
   VoiceStateData,
-  UserProfileUpdateData
+  UserProfileUpdateData,
+  FriendRequestCreateData,
+  FriendRequestAcceptData,
+  FriendRemoveData,
+  DMCallRingData,
+  DMCallAcceptData,
+  DMCallEndData
 } from '@/types/ws'
 
 export function useWebSocketEvents() {
@@ -160,6 +168,85 @@ export function useWebSocketEvents() {
           })
         } else {
           voiceStore.removeParticipant(state.user_id)
+        }
+      })
+    )
+
+    // FRIEND_REQUEST_CREATE
+    unsubs.push(
+      wsService.on('FRIEND_REQUEST_CREATE', (data) => {
+        const req = data as FriendRequestCreateData
+        useFriendStore.getState().addFriendRequest({
+          id: req.id,
+          requester_id: req.requester_id,
+          addressee_id: req.addressee_id,
+          status: req.status as 'pending' | 'accepted' | 'declined' | 'blocked',
+          username: req.username,
+          display_name: null,
+          avatar_url: null,
+          user_status: 'online',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      })
+    )
+
+    // FRIEND_REQUEST_ACCEPT
+    unsubs.push(
+      wsService.on('FRIEND_REQUEST_ACCEPT', (data) => {
+        const accept = data as FriendRequestAcceptData
+        useFriendStore.getState().movePendingToFriends(accept.id, {
+          id: accept.id,
+          requester_id: '',
+          addressee_id: '',
+          status: 'accepted' as const,
+          username: accept.username,
+          display_name: null,
+          avatar_url: null,
+          user_status: 'online',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+      })
+    )
+
+    // FRIEND_REMOVE
+    unsubs.push(
+      wsService.on('FRIEND_REMOVE', (data) => {
+        const remove = data as FriendRemoveData
+        useFriendStore.getState().removeFriendById(remove.user_id)
+      })
+    )
+
+    // DM_CALL_RING
+    unsubs.push(
+      wsService.on('DM_CALL_RING', (data) => {
+        const ring = data as DMCallRingData
+        useDMCallStore.getState().setIncomingCall({
+          conversationId: ring.conversation_id,
+          callerId: ring.caller_id,
+          callerUsername: ring.caller_username
+        })
+      })
+    )
+
+    // DM_CALL_ACCEPT (someone accepted)
+    unsubs.push(
+      wsService.on('DM_CALL_ACCEPT', (_data) => {
+        // Call was accepted — no action needed, LiveKit handles the connection
+      })
+    )
+
+    // DM_CALL_END
+    unsubs.push(
+      wsService.on('DM_CALL_END', (data) => {
+        const end = data as DMCallEndData
+        const callStore = useDMCallStore.getState()
+        if (callStore.activeConversationId === end.conversation_id) {
+          callStore.endCall()
+        }
+        if (callStore.incomingCall?.conversationId === end.conversation_id) {
+          callStore.setIncomingCall(null)
         }
       })
     )

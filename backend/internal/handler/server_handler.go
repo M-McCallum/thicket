@@ -231,6 +231,20 @@ func (h *ServerHandler) DeleteChannel(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "channel deleted"})
 }
 
+func (h *ServerHandler) GetServerPreview(c fiber.Ctx) error {
+	inviteCode := c.Params("code")
+	if inviteCode == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invite code required"})
+	}
+
+	preview, err := h.serverService.GetServerPreview(c.Context(), inviteCode)
+	if err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "invalid invite code"})
+	}
+
+	return c.JSON(preview)
+}
+
 func handleServerError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrServerNotFound):

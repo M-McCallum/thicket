@@ -36,6 +36,10 @@ func NewDMService(q *models.Queries) *DMService {
 	}
 }
 
+func (s *DMService) Queries() *models.Queries {
+	return s.queries
+}
+
 func (s *DMService) CreateConversation(ctx context.Context, creatorID, participantID uuid.UUID) (*ConversationWithParticipants, error) {
 	if creatorID == participantID {
 		return nil, ErrCannotDMSelf
@@ -88,9 +92,15 @@ func (s *DMService) CreateConversation(ctx context.Context, creatorID, participa
 	}, nil
 }
 
-func (s *DMService) SendDM(ctx context.Context, conversationID, authorID uuid.UUID, content string) (*models.DMMessage, error) {
+func (s *DMService) SendDM(ctx context.Context, conversationID, authorID uuid.UUID, content string, msgType ...string) (*models.DMMessage, error) {
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
-	if content == "" {
+
+	mt := "text"
+	if len(msgType) > 0 && msgType[0] != "" {
+		mt = msgType[0]
+	}
+
+	if content == "" && mt == "text" {
 		return nil, ErrEmptyMessage
 	}
 
@@ -116,6 +126,7 @@ func (s *DMService) SendDM(ctx context.Context, conversationID, authorID uuid.UU
 		ConversationID: conversationID,
 		AuthorID:       authorID,
 		Content:        content,
+		Type:           mt,
 	})
 	if err != nil {
 		return nil, err

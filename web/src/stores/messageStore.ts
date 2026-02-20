@@ -8,7 +8,7 @@ interface MessageState {
   hasMore: boolean
 
   fetchMessages: (channelId: string, before?: string) => Promise<void>
-  sendMessage: (channelId: string, content: string) => Promise<void>
+  sendMessage: (channelId: string, content: string, files?: File[], msgType?: string) => Promise<void>
   addMessage: (message: Message) => void
   updateMessage: (message: Message) => void
   removeMessage: (messageId: string) => void
@@ -34,8 +34,8 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  sendMessage: async (channelId, content) => {
-    await messagesApi.send(channelId, { content })
+  sendMessage: async (channelId, content, files, msgType) => {
+    await messagesApi.send(channelId, content, files, msgType)
   },
 
   addMessage: (message) =>

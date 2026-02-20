@@ -34,9 +34,12 @@ export default function ServerSidebar() {
     <div className="w-[72px] bg-sol-bg flex flex-col items-center py-3 gap-2 border-r border-sol-bg-elevated">
       {/* Home button */}
       <button
-        className="w-12 h-12 rounded-2xl bg-sol-bg-secondary flex items-center justify-center
-                   hover:bg-sol-amber/20 hover:rounded-xl transition-all duration-200
-                   text-sol-text-secondary hover:text-sol-amber"
+        onClick={() => useServerStore.getState().setActiveServerNull()}
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-200
+          ${!activeServerId
+            ? 'bg-sol-amber/20 rounded-xl text-sol-amber shadow-glow-amber'
+            : 'bg-sol-bg-secondary text-sol-text-secondary hover:bg-sol-amber/20 hover:rounded-xl hover:text-sol-amber'
+          }`}
         title="Direct Messages"
       >
         <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">

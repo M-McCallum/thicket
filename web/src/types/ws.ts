@@ -1,3 +1,5 @@
+import type { Attachment } from './models'
+
 export type WSEventType =
   // Client -> Server
   | 'IDENTIFY'
@@ -9,6 +11,9 @@ export type WSEventType =
   | 'TOKEN_REFRESH'
   | 'VOICE_JOIN'
   | 'VOICE_LEAVE'
+  | 'DM_CALL_START'
+  | 'DM_CALL_ACCEPT'
+  | 'DM_CALL_END'
   // Server -> Client
   | 'READY'
   | 'HEARTBEAT_ACK'
@@ -24,6 +29,12 @@ export type WSEventType =
   | 'DM_MESSAGE_CREATE'
   | 'USER_PROFILE_UPDATE'
   | 'SESSION_EXPIRED'
+  | 'FRIEND_REQUEST_CREATE'
+  | 'FRIEND_REQUEST_ACCEPT'
+  | 'FRIEND_REMOVE'
+  | 'DM_CALL_RING'
+  | 'DM_CALL_ACCEPT'
+  | 'DM_CALL_END'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -55,8 +66,10 @@ export interface MessageCreateData {
   channel_id: string
   author_id: string
   content: string
+  type?: string
   created_at: string
   username: string
+  attachments?: Attachment[]
 }
 
 export interface MessageDeleteData {
@@ -119,8 +132,10 @@ export interface DMMessageCreateData {
   conversation_id: string
   author_id: string
   content: string
+  type?: string
   created_at: string
   username: string
+  attachments?: Attachment[]
 }
 
 export interface UserProfileUpdateData {
@@ -138,4 +153,40 @@ export interface UserProfileUpdateData {
 
 export interface TokenRefreshData {
   token: string
+}
+
+export interface FriendRequestCreateData {
+  id: string
+  requester_id: string
+  addressee_id: string
+  status: string
+  username: string
+}
+
+export interface FriendRequestAcceptData {
+  id: string
+  user_id: string
+  username: string
+}
+
+export interface FriendRemoveData {
+  id: string
+  user_id: string
+}
+
+export interface DMCallRingData {
+  conversation_id: string
+  caller_id: string
+  caller_username: string
+}
+
+export interface DMCallAcceptData {
+  conversation_id: string
+  user_id: string
+  username: string
+}
+
+export interface DMCallEndData {
+  conversation_id: string
+  user_id: string
 }

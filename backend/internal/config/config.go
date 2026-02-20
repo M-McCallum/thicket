@@ -10,7 +10,21 @@ type Config struct {
 	API     APIConfig
 	LiveKit LiveKitConfig
 	Ory     OryConfig
+	MinIO   MinIOConfig
+	Tenor   TenorConfig
 	Env     string
+}
+
+type TenorConfig struct {
+	APIKey string
+}
+
+type MinIOConfig struct {
+	Endpoint  string
+	AccessKey string
+	SecretKey string
+	Bucket    string
+	UseSSL    bool
 }
 
 type OryConfig struct {
@@ -77,6 +91,16 @@ func Load() (*Config, error) {
 			KratosAdminURL:   getEnv("KRATOS_ADMIN_URL", "http://localhost:4434"),
 			HydraPublicURL:   getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444"),
 			HydraAdminURL:    getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
+		},
+		MinIO: MinIOConfig{
+			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
+			AccessKey: getEnv("MINIO_ACCESS_KEY", "thicket_dev"),
+			SecretKey: getEnv("MINIO_SECRET_KEY", "thicket_dev_secret"),
+			Bucket:    getEnv("MINIO_BUCKET", "thicket"),
+			UseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+		},
+		Tenor: TenorConfig{
+			APIKey: getEnv("TENOR_API_KEY", ""),
 		},
 		Env: getEnv("ENV", "development"),
 	}

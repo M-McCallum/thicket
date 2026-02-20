@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
 import LoginForm from '@/components/auth/LoginForm'
 import MainLayout from '@/components/layout/MainLayout'
+import InviteRedirect from '@/components/server/InviteRedirect'
+import NotFound from '@/components/NotFound'
 
 function AuthCallback() {
   const { handleCallback, error } = useAuthStore()
@@ -63,7 +65,9 @@ function AppRoutes() {
   return (
     <Routes>
       <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="*" element={isAuthenticated ? <MainLayout /> : <LoginForm />} />
+      <Route path="/invite/:code" element={<InviteRedirect />} />
+      <Route path="/" element={isAuthenticated ? <MainLayout /> : <LoginForm />} />
+      <Route path="*" element={isAuthenticated ? <NotFound /> : <LoginForm />} />
     </Routes>
   )
 }

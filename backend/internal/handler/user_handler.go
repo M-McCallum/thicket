@@ -2,9 +2,7 @@ package handler
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"path/filepath"
 	"strings"
 
@@ -14,6 +12,7 @@ import (
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/models"
 	"github.com/M-McCallum/thicket/internal/service"
+	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
 )
 
@@ -21,11 +20,11 @@ type UserHandler struct {
 	userService   *service.UserService
 	hub           *ws.Hub
 	coMemberIDsFn ws.CoMemberIDsFn
-	uploadDir     string
+	storage       *storage.Client
 }
 
-func NewUserHandler(us *service.UserService, hub *ws.Hub, coMemberIDsFn ws.CoMemberIDsFn, uploadDir string) *UserHandler {
-	return &UserHandler{userService: us, hub: hub, coMemberIDsFn: coMemberIDsFn, uploadDir: uploadDir}
+func NewUserHandler(us *service.UserService, hub *ws.Hub, coMemberIDsFn ws.CoMemberIDsFn, sc *storage.Client) *UserHandler {
+	return &UserHandler{userService: us, hub: hub, coMemberIDsFn: coMemberIDsFn, storage: sc}
 }
 
 // publicUser strips sensitive fields for public profile viewing.
@@ -67,6 +66,7 @@ func (h *UserHandler) GetMyProfile(c fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get profile"})
 	}
+	h.resolveAvatarURL(c, &user)
 	return c.JSON(user)
 }
 
@@ -82,6 +82,7 @@ func (h *UserHandler) UpdateProfile(c fiber.Ctx) error {
 		return handleUserError(c, err)
 	}
 
+	h.resolveAvatarURL(c, &user)
 	h.broadcastProfileUpdate(c, userID, user)
 	return c.JSON(user)
 }
@@ -127,6 +128,7 @@ func (h *UserHandler) UpdateCustomStatus(c fiber.Ctx) error {
 		return handleUserError(c, err)
 	}
 
+	h.resolveAvatarURL(c, &user)
 	h.broadcastProfileUpdate(c, userID, user)
 	return c.JSON(user)
 }
@@ -152,42 +154,28 @@ func (h *UserHandler) UploadAvatar(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "unsupported file type (jpg, png, gif, webp only)"})
 	}
 
-	// Ensure upload directory exists
-	if err := os.MkdirAll(h.uploadDir, 0755); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create upload directory"})
-	}
-
-	filename := fmt.Sprintf("%s%s", userID.String(), ext)
-	destPath := filepath.Join(h.uploadDir, filename)
-
-	// Remove any existing avatar with different extension
-	matches, _ := filepath.Glob(filepath.Join(h.uploadDir, userID.String()+".*"))
-	for _, m := range matches {
-		os.Remove(m)
-	}
-
 	src, err := file.Open()
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read upload"})
 	}
 	defer src.Close()
 
-	dst, err := os.Create(destPath)
-	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save file"})
-	}
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, src); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to save file"})
+	objectKey := fmt.Sprintf("avatars/%s%s", userID.String(), ext)
+	contentType := file.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
 
-	avatarURL := fmt.Sprintf("/uploads/avatars/%s", filename)
-	user, err := h.userService.SetAvatarURL(c.Context(), userID, avatarURL)
+	if err := h.storage.Upload(c.Context(), objectKey, contentType, src, file.Size); err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to upload avatar"})
+	}
+
+	user, err := h.userService.SetAvatarURL(c.Context(), userID, objectKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to update avatar"})
 	}
 
+	h.resolveAvatarURL(c, &user)
 	h.broadcastProfileUpdate(c, userID, user)
 	return c.JSON(user)
 }
@@ -195,10 +183,10 @@ func (h *UserHandler) UploadAvatar(c fiber.Ctx) error {
 func (h *UserHandler) DeleteAvatar(c fiber.Ctx) error {
 	userID := auth.GetUserID(c)
 
-	// Remove files
-	matches, _ := filepath.Glob(filepath.Join(h.uploadDir, userID.String()+".*"))
-	for _, m := range matches {
-		os.Remove(m)
+	// Get current avatar key to delete from storage
+	currentUser, err := h.userService.GetProfile(c.Context(), userID)
+	if err == nil && currentUser.AvatarURL != nil {
+		_ = h.storage.Delete(c.Context(), *currentUser.AvatarURL)
 	}
 
 	user, err := h.userService.ClearAvatar(c.Context(), userID)
@@ -221,7 +209,25 @@ func (h *UserHandler) GetPublicProfile(c fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found"})
 	}
 
+	h.resolveAvatarURL(c, &user)
 	return c.JSON(toPublicUser(user))
+}
+
+// resolveAvatarURL converts a storage object key to a presigned URL.
+func (h *UserHandler) resolveAvatarURL(c fiber.Ctx, user *models.User) {
+	if user.AvatarURL == nil || *user.AvatarURL == "" {
+		return
+	}
+	// Skip if it's already an absolute URL (legacy /uploads/ path or external)
+	if strings.HasPrefix(*user.AvatarURL, "http") || strings.HasPrefix(*user.AvatarURL, "/uploads/") {
+		return
+	}
+	presigned, err := h.storage.GetPresignedURL(c.Context(), *user.AvatarURL)
+	if err != nil {
+		log.Printf("Failed to get presigned URL for avatar %s: %v", *user.AvatarURL, err)
+		return
+	}
+	user.AvatarURL = &presigned
 }
 
 func (h *UserHandler) broadcastProfileUpdate(c fiber.Ctx, userID uuid.UUID, user models.User) {
