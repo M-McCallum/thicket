@@ -86,7 +86,8 @@ func main() {
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
-		AppName: "Thicket API",
+		AppName:        "Thicket API",
+		ReadBufferSize: 16384, // 16KB — OAuth flows carry large cookies + challenge params
 	})
 
 	// LiveKit handler

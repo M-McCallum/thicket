@@ -134,7 +134,7 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 		c.Cookie(&fiber.Cookie{
 			Name:     "hydra_login_challenge",
 			Value:    h.signChallenge(challenge),
-			Path:     "/auth",
+			Path:     "/auth/login",
 			HTTPOnly: true,
 			Secure:   strings.HasPrefix(h.kratosPublicURL, "https"),
 			SameSite: "Lax",
@@ -184,7 +184,7 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 			c.Cookie(&fiber.Cookie{
 				Name:     "hydra_login_challenge",
 				Value:    "",
-				Path:     "/auth",
+				Path:     "/auth/login",
 				HTTPOnly: true,
 				Secure:   strings.HasPrefix(h.kratosPublicURL, "https"),
 				SameSite: "Lax",
