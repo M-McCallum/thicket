@@ -77,7 +77,7 @@ services:
   hydra:
     image: oryd/hydra:v2.3.0
     restart: unless-stopped
-    command: serve all --config /dev/null
+    command: serve all
     environment:
       DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/hydra?sslmode=disable
       URLS_SELF_ISSUER: ${HYDRA_PUBLIC_URL}
