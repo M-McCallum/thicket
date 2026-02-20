@@ -4,7 +4,7 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${DB_USER:-thicket}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-change_me_in_production}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${DB_NAME:-thicket}
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -32,6 +32,7 @@ services:
   kratos:
     image: oryd/kratos:v1.3.1
     restart: unless-stopped
+    entrypoint: ["/etc/kratos/entrypoint.sh"]
     command: serve --config /etc/kratos/kratos.yml
     environment:
       DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/kratos?sslmode=disable
@@ -47,6 +48,7 @@ services:
       - ./ory/kratos/kratos.yml:/etc/kratos/kratos.yml:ro
       - ./ory/kratos/identity.schema.json:/etc/kratos/identity.schema.json:ro
       - ./ory/kratos/mappers:/etc/kratos/mappers:ro
+      - ./ory/kratos/entrypoint.sh:/etc/kratos/entrypoint.sh:ro
     depends_on:
       kratos-migrate:
         condition: service_completed_successfully
@@ -58,17 +60,29 @@ services:
       timeout: 5s
       retries: 5
 
+  hydra-migrate:
+    image: oryd/hydra:v2.3.0
+    restart: "no"
+    command: migrate sql -e --yes
+    environment:
+      DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/hydra?sslmode=disable
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
   hydra:
     image: oryd/hydra:v2.3.0
     restart: unless-stopped
     command: serve all --config /dev/null
     environment:
       DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/hydra?sslmode=disable
-      URLS_SELF_ISSUER: ${HYDRA_PUBLIC_URL:-http://localhost:4444}
-      URLS_SELF_PUBLIC: ${HYDRA_PUBLIC_URL:-http://localhost:4444}
-      URLS_LOGIN: ${APP_URL:-http://localhost:8080}/auth/login
-      URLS_CONSENT: ${APP_URL:-http://localhost:8080}/auth/consent
-      URLS_LOGOUT: ${APP_URL:-http://localhost:8080}/auth/logout
+      URLS_SELF_ISSUER: ${HYDRA_PUBLIC_URL}
+      URLS_SELF_PUBLIC: ${HYDRA_PUBLIC_URL}
+      URLS_LOGIN: ${APP_URL}/auth/login
+      URLS_CONSENT: ${APP_URL}/auth/consent
+      URLS_LOGOUT: ${APP_URL}/auth/logout
       STRATEGIES_ACCESS_TOKEN: jwt
       OIDC_SUBJECT_IDENTIFIERS_SUPPORTED_TYPES: public
       TTL_ACCESS_TOKEN: 15m
@@ -78,8 +92,8 @@ services:
       OAUTH2_PKCE_ENFORCED: "true"
       OAUTH2_PKCE_ENFORCED_FOR_PUBLIC_CLIENTS: "true"
     depends_on:
-      postgres:
-        condition: service_healthy
+      hydra-migrate:
+        condition: service_completed_successfully
     networks:
       - internal
     healthcheck:
@@ -87,6 +101,21 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  hydra-init:
+    image: curlimages/curl:latest
+    restart: "no"
+    entrypoint: ["/bin/sh", "/etc/hydra/register-clients.sh"]
+    environment:
+      HYDRA_ADMIN_URL: http://hydra:4445
+      APP_URL: ${APP_URL}
+    volumes:
+      - ./ory/register-clients.sh:/etc/hydra/register-clients.sh:ro
+    depends_on:
+      hydra:
+        condition: service_healthy
+    networks:
+      - internal
 
   backend:
     build:
@@ -105,9 +134,10 @@ services:
       - JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY:-720h}
       - API_PORT=8080
       - API_HOST=0.0.0.0
+      - CORS_ORIGIN=${APP_URL}
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
-      - LIVEKIT_URL=${LIVEKIT_URL:-ws://livekit:7880}
+      - LIVEKIT_URL=ws://livekit:7880
       - KRATOS_PUBLIC_URL=http://kratos:4433
       - KRATOS_ADMIN_URL=http://kratos:4434
       - HYDRA_PUBLIC_URL=http://hydra:4444
@@ -122,48 +152,85 @@ services:
         condition: service_healthy
     networks:
       - internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      # API routes
+      - "traefik.http.routers.thicket-api.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.thicket-api.entrypoints=websecure"
+      - "traefik.http.routers.thicket-api.tls.certResolver=letsencrypt"
+      - "traefik.http.services.thicket-api.loadbalancer.server.port=8080"
+      # WebSocket route
+      - "traefik.http.routers.thicket-ws.rule=Host(`${DOMAIN}`) && Path(`/ws`)"
+      - "traefik.http.routers.thicket-ws.entrypoints=websecure"
+      - "traefik.http.routers.thicket-ws.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-ws.service=thicket-api"
+      # Security headers middleware
+      - "traefik.http.middlewares.thicket-headers.headers.stsSeconds=31536000"
+      - "traefik.http.middlewares.thicket-headers.headers.stsIncludeSubdomains=true"
+      - "traefik.http.middlewares.thicket-headers.headers.stsPreload=true"
+      - "traefik.http.middlewares.thicket-headers.headers.contentTypeNosniff=true"
+      - "traefik.http.middlewares.thicket-headers.headers.frameDeny=true"
+      - "traefik.http.middlewares.thicket-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
+      - "traefik.http.middlewares.thicket-headers.headers.customResponseHeaders.Server="
+      - "traefik.http.routers.thicket-api.middlewares=thicket-headers"
+      - "traefik.http.routers.thicket-ws.middlewares=thicket-headers"
+      - "traefik.docker.network=dokploy-network"
 
   livekit:
     image: livekit/livekit-server:latest
     restart: unless-stopped
-    command: --config /etc/livekit.yaml
+    entrypoint: ["/bin/sh", "/etc/livekit/entrypoint.sh"]
+    command: []
+    environment:
+      - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
+      - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
     volumes:
-      - ./livekit/livekit.yaml:/etc/livekit.yaml:ro
+      - ./livekit/entrypoint.sh:/etc/livekit/entrypoint.sh:ro
     networks:
       - internal
+      - dokploy-network
     ports:
-      - "7882:7882/udp"
+      # UDP media ports must bypass Traefik — direct host binding
+      - "7882-7892:7882-7892/udp"
+    labels:
+      # LiveKit signaling (HTTP/WebSocket) goes through Traefik
+      - "traefik.enable=true"
+      - "traefik.http.routers.thicket-livekit.rule=Host(`${DOMAIN}`) && PathPrefix(`/livekit`)"
+      - "traefik.http.routers.thicket-livekit.entrypoints=websecure"
+      - "traefik.http.routers.thicket-livekit.tls.certResolver=letsencrypt"
+      - "traefik.http.services.thicket-livekit.loadbalancer.server.port=7880"
+      - "traefik.docker.network=dokploy-network"
 
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=https://${DOMAIN}/api
+        - VITE_WS_URL=wss://${DOMAIN}/ws
+        - VITE_OIDC_AUTHORITY=${HYDRA_PUBLIC_URL}
+        - VITE_OIDC_CLIENT_ID=thicket-web
+        - VITE_OIDC_REDIRECT_URI=https://${DOMAIN}/auth/callback
     restart: unless-stopped
     networks:
-      - internal
-
-  caddy:
-    image: caddy:2-alpine
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    depends_on:
-      - backend
-      - livekit
-      - web
-    networks:
-      - internal
+      - dokploy-network
+    labels:
+      - "traefik.enable=true"
+      # Catch-all for the domain — lowest priority (no PathPrefix)
+      - "traefik.http.routers.thicket-web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.thicket-web.entrypoints=websecure"
+      - "traefik.http.routers.thicket-web.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-web.priority=1"
+      - "traefik.http.services.thicket-web.loadbalancer.server.port=80"
+      - "traefik.http.routers.thicket-web.middlewares=thicket-headers"
+      - "traefik.docker.network=dokploy-network"
 
 volumes:
   postgres_data:
-  caddy_data:
-  caddy_config:
 
 networks:
   internal:
     driver: bridge
+  dokploy-network:
+    external: true

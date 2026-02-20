@@ -3,6 +3,13 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 RUN npm ci
 COPY . .
+
+ARG VITE_API_URL
+ARG VITE_WS_URL
+ARG VITE_OIDC_AUTHORITY
+ARG VITE_OIDC_CLIENT_ID
+ARG VITE_OIDC_REDIRECT_URI
+
 RUN npm run build
 
 FROM caddy:2-alpine
