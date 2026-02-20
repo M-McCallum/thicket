@@ -1,8 +1,13 @@
 package handler
 
 import (
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"html/template"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 
@@ -13,13 +18,14 @@ import (
 // OryHandler handles Hydra login/consent/logout provider endpoints
 // and Kratos self-service UI rendering.
 type OryHandler struct {
-	hydraClient     *ory.HydraClient
-	kratosClient    *ory.KratosClient
-	identityService *service.IdentityService
-	kratosPublicURL string
-	loginTmpl       *template.Template
+	hydraClient      *ory.HydraClient
+	kratosClient     *ory.KratosClient
+	identityService  *service.IdentityService
+	kratosPublicURL  string
+	cookieHMACKey    []byte // random key generated at startup to sign challenge cookies
+	loginTmpl        *template.Template
 	registrationTmpl *template.Template
-	errorTmpl       *template.Template
+	errorTmpl        *template.Template
 }
 
 // mustParsePages parses the base template together with a specific page template
@@ -34,15 +40,49 @@ func mustParsePages(base, page string) *template.Template {
 
 // NewOryHandler creates an OryHandler.
 func NewOryHandler(hydraClient *ory.HydraClient, kratosClient *ory.KratosClient, identityService *service.IdentityService, kratosPublicURL string) *OryHandler {
+	// Generate a random 32-byte HMAC key for signing the login challenge cookie.
+	// This key lives only in memory — any in-flight challenges are invalidated on
+	// restart, which is acceptable since the cookie TTL is only 10 minutes.
+	hmacKey := make([]byte, 32)
+	if _, err := rand.Read(hmacKey); err != nil {
+		log.Fatalf("Failed to generate HMAC key: %v", err)
+	}
+
 	return &OryHandler{
 		hydraClient:      hydraClient,
 		kratosClient:     kratosClient,
 		identityService:  identityService,
 		kratosPublicURL:  kratosPublicURL,
+		cookieHMACKey:    hmacKey,
 		loginTmpl:        mustParsePages("templates/base.html", "templates/login.html"),
 		registrationTmpl: mustParsePages("templates/base.html", "templates/registration.html"),
 		errorTmpl:        mustParsePages("templates/base.html", "templates/error.html"),
 	}
+}
+
+// signChallenge returns "challenge.hex(hmac)" so the cookie value is tamper-proof.
+func (h *OryHandler) signChallenge(challenge string) string {
+	mac := hmac.New(sha256.New, h.cookieHMACKey)
+	mac.Write([]byte(challenge))
+	sig := hex.EncodeToString(mac.Sum(nil))
+	return challenge + "." + sig
+}
+
+// verifyChallenge splits the signed cookie value and verifies the HMAC.
+// Returns the original challenge if valid, or "" if tampered/malformed.
+func (h *OryHandler) verifyChallenge(signed string) string {
+	parts := strings.SplitN(signed, ".", 2)
+	if len(parts) != 2 {
+		return ""
+	}
+	challenge, sig := parts[0], parts[1]
+	mac := hmac.New(sha256.New, h.cookieHMACKey)
+	mac.Write([]byte(challenge))
+	expected := hex.EncodeToString(mac.Sum(nil))
+	if !hmac.Equal([]byte(sig), []byte(expected)) {
+		return ""
+	}
+	return challenge
 }
 
 // GetLogin handles GET /auth/login.
@@ -50,7 +90,8 @@ func NewOryHandler(hydraClient *ory.HydraClient, kratosClient *ory.KratosClient,
 // Three cases:
 //  1. login_challenge param → Hydra OAuth flow (redirect to Kratos with challenge)
 //  2. flow param → Kratos self-service login, fetch flow and render form
-//  3. Neither → redirect to Kratos to create a new login flow
+//  3. Neither → check for saved challenge cookie (OIDC roundtrip recovery),
+//     otherwise redirect to Kratos to create a new login flow
 func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 	challenge := c.Query("login_challenge")
 	flowID := c.Query("flow")
@@ -87,6 +128,18 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 			return c.Redirect().To(completed.RedirectTo)
 		}
 
+		// Save the HMAC-signed challenge in a cookie so we can recover it after
+		// OIDC roundtrips where Kratos may redirect back without the login_challenge.
+		c.Cookie(&fiber.Cookie{
+			Name:     "hydra_login_challenge",
+			Value:    h.signChallenge(challenge),
+			Path:     "/auth",
+			HTTPOnly: true,
+			Secure:   strings.HasPrefix(h.kratosPublicURL, "https"),
+			SameSite: "Lax",
+			MaxAge:   600, // 10 minutes — matches Kratos login flow lifespan
+		})
+
 		// No active session — redirect to Kratos self-service login, passing the challenge through.
 		return c.Redirect().To(h.kratosPublicURL + "/self-service/login/browser?login_challenge=" + challenge)
 	}
@@ -110,7 +163,49 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 		}{flow})
 	}
 
-	// Case 3: No params — start a new login flow
+	// Case 3: No params — recover from OIDC roundtrip if possible.
+	// After OIDC (e.g. Discord) completes, Kratos may redirect here without
+	// the login_challenge. If the user now has an active Kratos session and
+	// we saved the challenge in a signed cookie, we can complete the Hydra login.
+	signedChallenge := c.Cookies("hydra_login_challenge")
+	savedChallenge := h.verifyChallenge(signedChallenge)
+	if savedChallenge != "" {
+		cookie := c.Get("Cookie")
+		if session, err := h.kratosClient.WhoAmI(c.Context(), cookie); err == nil && session.Active {
+			// Clear the cookie immediately — one attempt only.
+			c.Cookie(&fiber.Cookie{
+				Name:     "hydra_login_challenge",
+				Value:    "",
+				Path:     "/auth",
+				HTTPOnly: true,
+				Secure:   strings.HasPrefix(h.kratosPublicURL, "https"),
+				SameSite: "Lax",
+				MaxAge:   -1,
+			})
+
+			// Verify the challenge is still a pending login request in Hydra
+			// before accepting. This prevents replay of expired/used challenges.
+			lr, err := h.hydraClient.GetLoginRequest(c.Context(), savedChallenge)
+			if err != nil {
+				log.Printf("Saved login challenge is no longer valid: %v", err)
+				// Fall through to start a fresh login flow.
+			} else {
+				completed, err := h.hydraClient.AcceptLogin(c.Context(), savedChallenge, ory.AcceptLoginRequest{
+					Subject:     session.Identity.ID,
+					Remember:    true,
+					RememberFor: 2592000,
+				})
+				if err != nil {
+					log.Printf("Failed to accept Hydra login with saved challenge (client=%s): %v", lr.Client.ClientID, err)
+					// Fall through to start a fresh login flow.
+				} else {
+					return c.Redirect().To(completed.RedirectTo)
+				}
+			}
+		}
+	}
+
+	// No active session or no saved challenge — start a new login flow.
 	return c.Redirect().To(h.kratosPublicURL + "/self-service/login/browser")
 }
 
