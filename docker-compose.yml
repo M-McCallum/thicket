@@ -36,7 +36,7 @@ services:
     command: serve --config /etc/kratos/kratos.yml
     environment:
       DSN: postgres://${DB_USER:-thicket}:${DB_PASSWORD}@postgres:5432/kratos?sslmode=disable
-      SERVE_PUBLIC_BASE_URL: ${KRATOS_PUBLIC_URL:-http://localhost:4433}
+      SERVE_PUBLIC_BASE_URL: https://${DOMAIN:-localhost:4433}
       SERVE_ADMIN_BASE_URL: http://kratos:4434
       GOOGLE_OAUTH_CLIENT_ID: ${GOOGLE_OAUTH_CLIENT_ID}
       GOOGLE_OAUTH_CLIENT_SECRET: ${GOOGLE_OAUTH_CLIENT_SECRET}
@@ -56,11 +56,21 @@ services:
         condition: service_completed_successfully
     networks:
       - internal
+      - dokploy-network
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:4433/health/ready || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - "traefik.enable=true"
+      # Kratos self-service browser flows (login, registration, recovery, etc.)
+      - "traefik.http.routers.thicket-kratos.rule=Host(`${DOMAIN}`) && PathPrefix(`/self-service/`)"
+      - "traefik.http.routers.thicket-kratos.entrypoints=websecure"
+      - "traefik.http.routers.thicket-kratos.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-kratos.service=thicket-kratos-svc"
+      - "traefik.http.services.thicket-kratos-svc.loadbalancer.server.port=4433"
+      - "traefik.docker.network=dokploy-network"
 
   hydra-migrate:
     image: oryd/hydra:v2.3.0
@@ -163,6 +173,7 @@ services:
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
       - LIVEKIT_URL=ws://livekit:7880
       - KRATOS_PUBLIC_URL=http://kratos:4433
+      - KRATOS_BROWSER_URL=https://${DOMAIN}
       - KRATOS_ADMIN_URL=http://kratos:4434
       - HYDRA_PUBLIC_URL=http://hydra:4444
       - HYDRA_ADMIN_URL=http://hydra:4445

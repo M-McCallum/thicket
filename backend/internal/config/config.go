@@ -14,10 +14,11 @@ type Config struct {
 }
 
 type OryConfig struct {
-	KratosPublicURL string
-	KratosAdminURL  string
-	HydraPublicURL  string
-	HydraAdminURL   string
+	KratosPublicURL  string
+	KratosBrowserURL string // URL the browser uses to reach Kratos (may differ from internal)
+	KratosAdminURL   string
+	HydraPublicURL   string
+	HydraAdminURL    string
 }
 
 func (c OryConfig) JWKSURL() string {
@@ -71,10 +72,11 @@ func Load() (*Config, error) {
 			URL:       getEnv("LIVEKIT_URL", "ws://localhost:7880"),
 		},
 		Ory: OryConfig{
-			KratosPublicURL: getEnv("KRATOS_PUBLIC_URL", "http://localhost:4433"),
-			KratosAdminURL:  getEnv("KRATOS_ADMIN_URL", "http://localhost:4434"),
-			HydraPublicURL:  getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444"),
-			HydraAdminURL:   getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
+			KratosPublicURL:  getEnv("KRATOS_PUBLIC_URL", "http://localhost:4433"),
+			KratosBrowserURL: getEnv("KRATOS_BROWSER_URL", getEnv("KRATOS_PUBLIC_URL", "http://localhost:4433")),
+			KratosAdminURL:   getEnv("KRATOS_ADMIN_URL", "http://localhost:4434"),
+			HydraPublicURL:   getEnv("HYDRA_PUBLIC_URL", "http://localhost:4444"),
+			HydraAdminURL:    getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
 		},
 		Env: getEnv("ENV", "development"),
 	}

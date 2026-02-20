@@ -70,7 +70,7 @@ func main() {
 	serverHandler := handler.NewServerHandler(serverService, channelService, hub)
 	messageHandler := handler.NewMessageHandler(messageService, hub)
 	dmHandler := handler.NewDMHandler(dmService, hub)
-	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosPublicURL)
+	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosBrowserURL)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
