@@ -58,3 +58,7 @@ func (c *Client) GetPresignedURL(ctx context.Context, objectKey string) (string,
 	}
 	return u.String(), nil
 }
+
+func (c *Client) GetObject(ctx context.Context, objectKey string) (*minio.Object, error) {
+	return c.client.GetObject(ctx, c.bucket, objectKey, minio.GetObjectOptions{})
+}

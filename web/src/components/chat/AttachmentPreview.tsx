@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Attachment } from '@/types/models'
+import { resolveAttachmentUrl } from '@/services/api'
 
 interface AttachmentPreviewProps {
   attachments: Attachment[]
@@ -26,9 +27,9 @@ export default function AttachmentPreview({ attachments }: AttachmentPreviewProp
 
           if (isImage) {
             return (
-              <button key={att.id} onClick={() => setLightboxUrl(att.url)} className="block text-left">
+              <button key={att.id} onClick={() => setLightboxUrl(resolveAttachmentUrl(att.url))} className="block text-left">
                 <img
-                  src={att.url}
+                  src={resolveAttachmentUrl(att.url)}
                   alt={att.original_filename}
                   className="max-w-xs max-h-64 rounded-lg border border-sol-bg-elevated object-contain hover:opacity-90 transition-opacity"
                   loading="lazy"
@@ -42,7 +43,7 @@ export default function AttachmentPreview({ attachments }: AttachmentPreviewProp
             return (
               <div key={att.id}>
                 <video
-                  src={att.url}
+                  src={resolveAttachmentUrl(att.url)}
                   controls
                   className="max-w-sm max-h-64 rounded-lg border border-sol-bg-elevated"
                 />
@@ -62,7 +63,7 @@ export default function AttachmentPreview({ attachments }: AttachmentPreviewProp
                 <div className="flex-1 min-w-0">
                   <div className="text-sm text-sol-text-primary truncate">{att.original_filename}</div>
                   <div className="text-xs text-sol-text-muted">{formatSize(att.size)}</div>
-                  <audio src={att.url} controls className="w-full mt-1 h-8" />
+                  <audio src={resolveAttachmentUrl(att.url)} controls className="w-full mt-1 h-8" />
                 </div>
               </div>
             )
@@ -71,7 +72,7 @@ export default function AttachmentPreview({ attachments }: AttachmentPreviewProp
           return (
             <a
               key={att.id}
-              href={att.url}
+              href={resolveAttachmentUrl(att.url)}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-3 py-2 bg-sol-bg-elevated rounded-lg border border-sol-bg-elevated hover:border-sol-amber/30 transition-colors"

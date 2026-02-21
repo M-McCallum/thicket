@@ -25,6 +25,7 @@ type Config struct {
 	FriendHandler      *handler.FriendHandler
 	RoleHandler        *handler.RoleHandler
 	LinkPreviewHandler *handler.LinkPreviewHandler
+	AttachmentHandler  *handler.AttachmentHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -64,6 +65,11 @@ func Setup(app *fiber.App, cfg Config) {
 	// Public routes (no auth)
 	if cfg.ServerHandler != nil {
 		api.Get("/servers/invite/:code/preview", cfg.ServerHandler.GetServerPreview)
+	}
+
+	// Attachment file proxy (public — URL acts as capability)
+	if cfg.AttachmentHandler != nil {
+		api.Get("/attachments/:id/:filename", cfg.AttachmentHandler.ServeAttachment)
 	}
 
 	// Protected routes

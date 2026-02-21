@@ -16,6 +16,14 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 
+// Resolve attachment URLs — backend returns paths like /api/attachments/...
+// In prod these resolve relative to the same origin; in dev we need the API host.
+const API_ORIGIN = API_BASE.replace(/\/api$/, '')
+export function resolveAttachmentUrl(url: string): string {
+  if (url.startsWith('http')) return url
+  return API_ORIGIN + url
+}
+
 let accessToken: string | null = null
 let refreshToken: string | null = null
 let oauthRefreshHandler: (() => Promise<boolean>) | null = null

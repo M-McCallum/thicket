@@ -100,10 +100,8 @@ func (s *AttachmentService) ResolveURLs(ctx context.Context, attachments []model
 		if attachments[i].IsExternal {
 			attachments[i].URL = attachments[i].ObjectKey
 		} else {
-			url, err := s.storage.GetPresignedURL(ctx, attachments[i].ObjectKey)
-			if err == nil {
-				attachments[i].URL = url
-			}
+			// Proxy through backend so browsers don't need direct MinIO access
+			attachments[i].URL = "/api/attachments/" + attachments[i].ID.String() + "/" + attachments[i].OriginalFilename
 		}
 	}
 }

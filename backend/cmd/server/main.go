@@ -136,6 +136,7 @@ func main() {
 	friendHandler := handler.NewFriendHandler(friendService, hub)
 	roleHandler := handler.NewRoleHandler(roleService, serverService, hub)
 	linkPreviewHandler := handler.NewLinkPreviewHandler(linkPreviewService)
+	attachmentHandler := handler.NewAttachmentHandler(queries, storageClient)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -165,6 +166,7 @@ func main() {
 		FriendHandler:      friendHandler,
 		RoleHandler:        roleHandler,
 		LinkPreviewHandler: linkPreviewHandler,
+		AttachmentHandler:  attachmentHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,

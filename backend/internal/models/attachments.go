@@ -87,3 +87,13 @@ func (q *Queries) GetAttachmentsByDMMessageIDs(ctx context.Context, messageIDs [
 func (q *Queries) GetAttachmentsByMessageID(ctx context.Context, messageID uuid.UUID) ([]Attachment, error) {
 	return q.GetAttachmentsByMessageIDs(ctx, []uuid.UUID{messageID})
 }
+
+func (q *Queries) GetAttachmentByID(ctx context.Context, id uuid.UUID) (Attachment, error) {
+	var a Attachment
+	err := q.db.QueryRow(ctx,
+		`SELECT id, message_id, dm_message_id, filename, original_filename, content_type, size, width, height, object_key, is_external, created_at
+		FROM attachments WHERE id = $1`, id,
+	).Scan(&a.ID, &a.MessageID, &a.DMMessageID, &a.Filename, &a.OriginalFilename,
+		&a.ContentType, &a.Size, &a.Width, &a.Height, &a.ObjectKey, &a.IsExternal, &a.CreatedAt)
+	return a, err
+}
