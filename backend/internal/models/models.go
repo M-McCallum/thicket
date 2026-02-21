@@ -24,16 +24,18 @@ type User struct {
 }
 
 type Server struct {
-	ID          uuid.UUID `json:"id"`
-	Name        string    `json:"name"`
-	IconURL     *string   `json:"icon_url"`
-	OwnerID     uuid.UUID `json:"owner_id"`
-	InviteCode  string    `json:"invite_code"`
-	IsPublic    bool      `json:"is_public"`
-	Description string    `json:"description"`
-	GifsEnabled bool      `json:"gifs_enabled"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID              uuid.UUID   `json:"id"`
+	Name            string      `json:"name"`
+	IconURL         *string     `json:"icon_url"`
+	OwnerID         uuid.UUID   `json:"owner_id"`
+	InviteCode      string      `json:"invite_code"`
+	IsPublic        bool        `json:"is_public"`
+	Description     string      `json:"description"`
+	GifsEnabled     bool        `json:"gifs_enabled"`
+	WelcomeMessage  string      `json:"welcome_message"`
+	WelcomeChannels []uuid.UUID `json:"welcome_channels"`
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 type ServerMember struct {
@@ -53,8 +55,19 @@ type Channel struct {
 	Topic            string     `json:"topic"`
 	CategoryID       *uuid.UUID `json:"category_id"`
 	SlowModeInterval int        `json:"slow_mode_interval"`
+	VoiceStatus      string     `json:"voice_status"`
+	IsAnnouncement   bool       `json:"is_announcement"`
 	CreatedAt        time.Time  `json:"created_at"`
 	UpdatedAt        time.Time  `json:"updated_at"`
+}
+
+// ChannelFollow represents a follow relationship between an announcement channel and a target channel.
+type ChannelFollow struct {
+	ID              uuid.UUID `json:"id"`
+	SourceChannelID uuid.UUID `json:"source_channel_id"`
+	TargetChannelID uuid.UUID `json:"target_channel_id"`
+	CreatedBy       uuid.UUID `json:"created_by"`
+	CreatedAt       time.Time `json:"created_at"`
 }
 
 type Message struct {

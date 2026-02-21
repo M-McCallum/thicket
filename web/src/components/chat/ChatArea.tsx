@@ -9,12 +9,14 @@ import type { MessageCreateData } from '@/types/ws'
 import MessageItem from './MessageItem'
 import MessageInput from './MessageInput'
 import PollCreator from './PollCreator'
+import ForumChannelView from '@/components/forum/ForumChannelView'
 import { useSearchStore } from '@/stores/searchStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { readState } from '@/services/api'
 
 const PinnedMessagesPanel = lazy(() => import('./PinnedMessagesPanel'))
 const ThreadPanel = lazy(() => import('./ThreadPanel'))
+const FollowChannelModal = lazy(() => import('@/components/server/FollowChannelModal'))
 
 export default function ChatArea() {
   const fetchMessages = useMessageStore((s) => s.fetchMessages)
@@ -48,6 +50,7 @@ export default function ChatArea() {
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dateInput, setDateInput] = useState('')
   const [showPollCreator, setShowPollCreator] = useState(false)
+  const [showFollowModal, setShowFollowModal] = useState(false)
 
   useEffect(() => {
     if (!activeChannelId) return
@@ -154,6 +157,16 @@ export default function ChatArea() {
     )
   }
 
+  // Forum channels render a completely different view
+  if (activeChannel?.type === 'forum') {
+    return (
+      <ForumChannelView
+        channelId={activeChannelId}
+        channelName={activeChannel.name}
+      />
+    )
+  }
+
   return (
     <div className="flex-1 flex bg-sol-bg-tertiary">
       <div className="flex-1 flex flex-col">
@@ -161,7 +174,15 @@ export default function ChatArea() {
         <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated justify-between">
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center">
-              <span className="text-sol-text-muted mr-2">#</span>
+              {activeChannel?.is_announcement ? (
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted mr-2 shrink-0">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 01-3.46 0" />
+                  <line x1="12" y1="2" x2="12" y2="4" />
+                </svg>
+              ) : (
+                <span className="text-sol-text-muted mr-2">#</span>
+              )}
               <h3 className="font-medium text-sol-text-primary">{activeChannel?.name}</h3>
             </div>
             {activeChannel?.topic && (
@@ -172,6 +193,21 @@ export default function ChatArea() {
             )}
           </div>
           <div className="flex items-center gap-1">
+            {/* Follow button for announcement channels */}
+            {activeChannel?.is_announcement && (
+              <button
+                onClick={() => setShowFollowModal(true)}
+                className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-sol-amber/10 text-sol-amber hover:bg-sol-amber/20 transition-colors"
+                title="Follow this announcement channel"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 01-3.46 0" />
+                  <line x1="12" y1="2" x2="12" y2="4" />
+                </svg>
+                Follow
+              </button>
+            )}
             {/* Jump to date button */}
             <div className="relative">
               <button
@@ -298,6 +334,17 @@ export default function ChatArea() {
       {activeThread && (
         <Suspense fallback={null}>
           <ThreadPanel />
+        </Suspense>
+      )}
+
+      {/* Follow announcement channel modal */}
+      {showFollowModal && activeChannel && (
+        <Suspense fallback={null}>
+          <FollowChannelModal
+            sourceChannelId={activeChannel.id}
+            sourceChannelName={activeChannel.name}
+            onClose={() => setShowFollowModal(false)}
+          />
         </Suspense>
       )}
     </div>

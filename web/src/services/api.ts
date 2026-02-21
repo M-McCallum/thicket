@@ -13,7 +13,10 @@ import type {
   ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
   MessageEdit, LinkPreview, ServerInvite, PublicServer, ServerFolder,
   DMMessageEdit, ScheduledMessage, ServerBan, ServerTimeout, AuditLogEntry,
-  Thread, ThreadMessage, ThreadSubscription, ServerEvent, PollWithOptions
+  Thread, ThreadMessage, ThreadSubscription, ServerEvent, PollWithOptions,
+  ForumTag, ForumPost, ForumPostMessage,
+  WelcomeConfig, OnboardingPrompt,
+  ChannelFollow, AutoModRule
 } from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -780,4 +783,139 @@ export const polls = {
     }),
   removeVote: (pollId: string, optionId: string) =>
     request<{ message: string }>(`/polls/${pollId}/vote/${optionId}`, { method: 'DELETE' })
+}
+
+// Forum channels (WP16)
+export const forum = {
+  // Tags
+  getTags: (channelId: string) =>
+    request<ForumTag[]>(`/channels/${channelId}/forum/tags`),
+  createTag: (channelId: string, data: { name: string; color?: string; emoji?: string; position?: number; moderated?: boolean }) =>
+    request<ForumTag>(`/channels/${channelId}/forum/tags`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  updateTag: (channelId: string, tagId: string, data: { name?: string; color?: string; emoji?: string; position?: number; moderated?: boolean }) =>
+    request<ForumTag>(`/channels/${channelId}/forum/tags/${tagId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  deleteTag: (channelId: string, tagId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/forum/tags/${tagId}`, { method: 'DELETE' }),
+
+  // Posts
+  getPosts: (channelId: string, sort?: string, tags?: string[], limit?: number, offset?: number) => {
+    const params = new URLSearchParams()
+    if (sort) params.set('sort', sort)
+    if (tags && tags.length > 0) params.set('tags', tags.join(','))
+    if (limit) params.set('limit', String(limit))
+    if (offset) params.set('offset', String(offset))
+    const query = params.toString()
+    return request<ForumPost[]>(`/channels/${channelId}/forum/posts${query ? `?${query}` : ''}`)
+  },
+  createPost: (channelId: string, data: { title: string; content: string; tag_ids?: string[] }) =>
+    request<ForumPost>(`/channels/${channelId}/forum/posts`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  getPost: (postId: string) =>
+    request<ForumPost>(`/forum/posts/${postId}`),
+  updatePostTags: (postId: string, tagIds: string[]) =>
+    request<{ message: string }>(`/forum/posts/${postId}/tags`, {
+      method: 'PUT',
+      body: JSON.stringify({ tag_ids: tagIds })
+    }),
+  pinPost: (postId: string) =>
+    request<{ message: string }>(`/forum/posts/${postId}/pin`, { method: 'PUT' }),
+  unpinPost: (postId: string) =>
+    request<{ message: string }>(`/forum/posts/${postId}/pin`, { method: 'DELETE' }),
+
+  // Post messages
+  getPostMessages: (postId: string, limit?: number, offset?: number) => {
+    const params = new URLSearchParams()
+    if (limit) params.set('limit', String(limit))
+    if (offset) params.set('offset', String(offset))
+    const query = params.toString()
+    return request<ForumPostMessage[]>(`/forum/posts/${postId}/messages${query ? `?${query}` : ''}`)
+  },
+  createPostMessage: (postId: string, content: string) =>
+    request<ForumPostMessage>(`/forum/posts/${postId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content })
+    })
+}
+
+// Onboarding (WP20)
+export const onboarding = {
+  getWelcome: (serverId: string) =>
+    request<WelcomeConfig>(`/servers/${serverId}/welcome`),
+  updateWelcome: (serverId: string, data: { welcome_message: string; welcome_channels: string[] }) =>
+    request<WelcomeConfig>(`/servers/${serverId}/welcome`, {
+      method: 'PUT',
+      body: JSON.stringify(data)
+    }),
+  getPrompts: (serverId: string) =>
+    request<OnboardingPrompt[]>(`/servers/${serverId}/onboarding`),
+  updatePrompts: (serverId: string, prompts: OnboardingPrompt[]) =>
+    request<OnboardingPrompt[]>(`/servers/${serverId}/onboarding`, {
+      method: 'PUT',
+      body: JSON.stringify({ prompts })
+    }),
+  complete: (serverId: string, selectedOptionIds: string[]) =>
+    request<{ message: string }>(`/servers/${serverId}/onboarding/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ selected_option_ids: selectedOptionIds })
+    }),
+  getStatus: (serverId: string) =>
+    request<{ completed: boolean }>(`/servers/${serverId}/onboarding/status`)
+}
+
+// Channel follows - announcement channels (WP21)
+export const channelFollows = {
+  follow: (channelId: string, targetChannelId: string) =>
+    request<ChannelFollow>(`/channels/${channelId}/followers`, {
+      method: 'POST',
+      body: JSON.stringify({ target_channel_id: targetChannelId })
+    }),
+  unfollow: (channelId: string, followId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/followers/${followId}`, {
+      method: 'DELETE'
+    }),
+  list: (channelId: string) =>
+    request<ChannelFollow[]>(`/channels/${channelId}/followers`)
+}
+
+// AutoMod (WP31)
+export const automod = {
+  list: (serverId: string) =>
+    request<AutoModRule[]>(`/servers/${serverId}/automod/rules`),
+  create: (serverId: string, data: {
+    name: string
+    type: string
+    trigger_data: Record<string, unknown>
+    action: string
+    action_metadata: Record<string, unknown>
+    enabled: boolean
+    exempt_roles: string[]
+    exempt_channels: string[]
+  }) =>
+    request<AutoModRule>(`/servers/${serverId}/automod/rules`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (serverId: string, ruleId: string, data: Partial<{
+    name: string
+    trigger_data: Record<string, unknown>
+    action: string
+    action_metadata: Record<string, unknown>
+    enabled: boolean
+    exempt_roles: string[]
+    exempt_channels: string[]
+  }>) =>
+    request<AutoModRule>(`/servers/${serverId}/automod/rules/${ruleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (serverId: string, ruleId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/automod/rules/${ruleId}`, { method: 'DELETE' })
 }

@@ -169,15 +169,16 @@ func (h *ServerHandler) CreateChannel(c fiber.Ctx) error {
 	}
 
 	var body struct {
-		Name string `json:"name"`
-		Type string `json:"type"`
+		Name           string `json:"name"`
+		Type           string `json:"type"`
+		IsAnnouncement bool   `json:"is_announcement"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
 	userID := auth.GetUserID(c)
-	channel, err := h.channelService.CreateChannel(c.Context(), serverID, userID, body.Name, body.Type)
+	channel, err := h.channelService.CreateChannel(c.Context(), serverID, userID, body.Name, body.Type, body.IsAnnouncement)
 	if err != nil {
 		return handleServerError(c, err)
 	}

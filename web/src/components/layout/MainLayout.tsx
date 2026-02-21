@@ -1,4 +1,4 @@
-import { useEffect, useState, lazy, Suspense } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import ServerSidebar from '@/components/server/ServerSidebar'
 import ChannelSidebar from '@/components/server/ChannelSidebar'
 import ChatArea from '@/components/chat/ChatArea'
@@ -13,21 +13,25 @@ import FriendRequests from '@/components/dm/FriendRequests'
 import AddFriendModal from '@/components/dm/AddFriendModal'
 import IncomingCallOverlay from '@/components/dm/IncomingCallOverlay'
 import SearchModal from '@/components/search/SearchModal'
+import WelcomeScreen from '@/components/server/WelcomeScreen'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useThemeStore } from '@/stores/themeStore'
 import { useWebSocketEvents } from '@/hooks/useWebSocketEvents'
+import { onboarding as onboardingApi } from '@/services/api'
 
 const DiscoverPage = lazy(() => import('@/components/server/DiscoverPage'))
 
 type DMTab = 'conversations' | 'friends' | 'requests'
 
 export default function MainLayout() {
-  const { activeServerId, activeChannelId, channels, fetchServers } = useServerStore()
+  const { activeServerId, activeChannelId, channels, fetchServers, servers, setActiveChannel } = useServerStore()
   const isDiscoverOpen = useServerStore((s) => s.isDiscoverOpen)
   const { activeChannelId: voiceChannelId } = useVoiceStore()
   const [dmTab, setDMTab] = useState<DMTab>('conversations')
   const [showAddFriend, setShowAddFriend] = useState(false)
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [checkingOnboarding, setCheckingOnboarding] = useState(false)
 
   useWebSocketEvents()
 
@@ -40,9 +44,45 @@ export default function MainLayout() {
     }
   }, [fetchServers])
 
+  // Check onboarding status when active server changes
+  useEffect(() => {
+    if (!activeServerId) {
+      setShowWelcome(false)
+      return
+    }
+
+    const server = servers.find((s) => s.id === activeServerId)
+    // Only show welcome if the server has a welcome message or welcome channels
+    if (!server || (!server.welcome_message && server.welcome_channels.length === 0)) {
+      setShowWelcome(false)
+      return
+    }
+
+    setCheckingOnboarding(true)
+    onboardingApi.getStatus(activeServerId)
+      .then((status) => {
+        if (!status.completed) {
+          setShowWelcome(true)
+        } else {
+          setShowWelcome(false)
+        }
+      })
+      .catch(() => setShowWelcome(false))
+      .finally(() => setCheckingOnboarding(false))
+  }, [activeServerId, servers])
+
+  const handleDismissWelcome = useCallback(() => {
+    setShowWelcome(false)
+  }, [])
+
+  const handleWelcomeChannelSelect = useCallback((channelId: string) => {
+    setActiveChannel(channelId)
+  }, [setActiveChannel])
+
   // Check if the currently selected channel is a voice channel
   const activeChannel = channels.find((c) => c.id === activeChannelId)
   const isViewingVoiceChannel = activeChannel?.type === 'voice' && voiceChannelId === activeChannelId
+  const activeServer = activeServerId ? servers.find((s) => s.id === activeServerId) : null
 
   return (
     <div className="h-screen w-screen flex flex-col bg-sol-bg overflow-hidden">
@@ -59,14 +99,21 @@ export default function MainLayout() {
               </div>
               <VoiceControls />
             </div>
-            {isViewingVoiceChannel ? (
+            {showWelcome && activeServer && !checkingOnboarding ? (
+              <WelcomeScreen
+                server={activeServer}
+                channels={channels}
+                onDismiss={handleDismissWelcome}
+                onChannelSelect={handleWelcomeChannelSelect}
+              />
+            ) : isViewingVoiceChannel ? (
               <div className="flex-1 flex flex-col min-w-0">
                 <VideoGrid />
               </div>
             ) : (
               <ChatArea />
             )}
-            <MemberList />
+            {!showWelcome && <MemberList />}
           </>
         ) : isDiscoverOpen ? (
           <Suspense fallback={<div className="flex-1 bg-sol-bg" />}>

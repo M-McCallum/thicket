@@ -198,6 +198,29 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 		}
 	}
 
+	// Cross-post to follower channels if this is an announcement channel
+	channel, chErr := h.messageService.Queries().GetChannelByID(c.Context(), channelID)
+	if chErr == nil && channel.IsAnnouncement {
+		crossPosts, _ := h.messageService.CrossPostMessage(c.Context(), channel, msg)
+		for _, cp := range crossPosts {
+			cpEvent, _ := ws.NewEvent(ws.EventMessageCreate, fiber.Map{
+				"id":                  cp.ID,
+				"channel_id":          cp.ChannelID,
+				"author_id":           cp.AuthorID,
+				"content":             cp.Content,
+				"type":                cp.Type,
+				"created_at":          cp.CreatedAt,
+				"username":            auth.GetUsername(c),
+				"author_avatar_url":   authorAvatarURL,
+				"author_display_name": authorDisplayName,
+				"attachments":         []fiber.Map{},
+			})
+			if cpEvent != nil {
+				h.hub.BroadcastToChannel(cp.ChannelID.String(), cpEvent, nil)
+			}
+		}
+	}
+
 	// Send NOTIFICATION events based on notification prefs.
 	// This runs in a goroutine to avoid blocking the response.
 	go h.sendNotifications(msg, channelID, userID, auth.GetUsername(c))
@@ -624,6 +647,8 @@ func handleMessageError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrUserTimedOut):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrAutoModBlocked):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "message blocked by automod"})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}

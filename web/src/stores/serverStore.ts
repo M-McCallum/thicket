@@ -23,7 +23,7 @@ interface ServerState {
   joinServer: (inviteCode: string) => Promise<void>
   leaveServer: (serverId: string) => Promise<void>
   deleteServer: (serverId: string) => Promise<void>
-  createChannel: (name: string, type: 'text' | 'voice') => Promise<void>
+  createChannel: (name: string, type: 'text' | 'voice' | 'forum', isAnnouncement?: boolean) => Promise<void>
   updateServer: (server: Server) => void
   updateChannel: (channel: Channel) => void
   addChannel: (channel: Channel) => void
@@ -154,10 +154,10 @@ export const useServerStore = create<ServerState>((set, get) => ({
     }))
   },
 
-  createChannel: async (name, type) => {
+  createChannel: async (name, type, isAnnouncement) => {
     const { activeServerId } = get()
     if (!activeServerId) return
-    const channel = await channelsApi.create(activeServerId, { name, type })
+    const channel = await channelsApi.create(activeServerId, { name, type, is_announcement: isAnnouncement })
     set((state) => ({ channels: [...state.channels, channel] }))
   },
 

@@ -27,8 +27,9 @@ export default function ChannelSidebar() {
   const [showStickers, setShowStickers] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showEvents, setShowEvents] = useState(false)
-  const [createType, setCreateType] = useState<'text' | 'voice'>('text')
+  const [createType, setCreateType] = useState<'text' | 'voice' | 'forum'>('text')
   const [newChannelName, setNewChannelName] = useState('')
+  const [isAnnouncement, setIsAnnouncement] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channelId: string } | null>(null)
   const [channelSettingsId, setChannelSettingsId] = useState<string | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
@@ -89,7 +90,7 @@ export default function ChannelSidebar() {
     return pref?.setting ?? 'all'
   }
 
-  const openCreateModal = (type: 'text' | 'voice') => {
+  const openCreateModal = (type: 'text' | 'voice' | 'forum') => {
     setCreateType(type)
     setShowCreate(true)
   }
@@ -97,12 +98,13 @@ export default function ChannelSidebar() {
   const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newChannelName.trim()) return
-    await createChannel(newChannelName.trim(), createType)
+    await createChannel(newChannelName.trim(), createType, createType === 'text' ? isAnnouncement : false)
     setNewChannelName('')
+    setIsAnnouncement(false)
     setShowCreate(false)
   }
 
-  const textChannels = channels.filter((c) => c.type === 'text')
+  const textChannels = channels.filter((c) => c.type === 'text' || c.type === 'forum')
   const voiceChannels = channels.filter((c) => c.type === 'voice')
 
   // Group text channels by category
@@ -179,7 +181,19 @@ export default function ChannelSidebar() {
                             : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
                       }`}
                   >
-                    <span className="text-sol-text-muted">#</span>
+                    {channel.type === 'forum' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted shrink-0">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                      </svg>
+                    ) : channel.is_announcement ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted shrink-0">
+                        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 01-3.46 0" />
+                        <line x1="12" y1="2" x2="12" y2="4" />
+                      </svg>
+                    ) : (
+                      <span className="text-sol-text-muted">#</span>
+                    )}
                     <span className="text-sm truncate flex-1">{channel.name}</span>
                     {unread && unread.count > 0 && (
                       <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
@@ -249,7 +263,19 @@ export default function ChannelSidebar() {
                             : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
                       }`}
                   >
-                    <span className="text-sol-text-muted">#</span>
+                    {channel.type === 'forum' ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted shrink-0">
+                        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                      </svg>
+                    ) : channel.is_announcement ? (
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted shrink-0">
+                        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                        <path d="M13.73 21a2 2 0 01-3.46 0" />
+                        <line x1="12" y1="2" x2="12" y2="4" />
+                      </svg>
+                    ) : (
+                      <span className="text-sol-text-muted">#</span>
+                    )}
                     <span className="text-sm truncate flex-1">{channel.name}</span>
                     {unread && unread.count > 0 && (
                       <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
@@ -299,7 +325,14 @@ export default function ChannelSidebar() {
                       <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zm-1 14.93A7.004 7.004 0 015 9h2a5 5 0 0010 0h2a7.004 7.004 0 01-6 6.93V20h4v2H8v-2h4v-4.07z" />
                     </svg>
                   </span>
-                  <span className="text-sm truncate">{channel.name}</span>
+                  <div className="flex flex-col min-w-0">
+                    <span className="text-sm truncate">{channel.name}</span>
+                    {channel.voice_status && (
+                      <span className="text-[10px] text-sol-text-muted truncate">
+                        {channel.voice_status}
+                      </span>
+                    )}
+                  </div>
                 </button>
                 {/* Show connected participants */}
                 {voiceChannelId === channel.id && participants.length > 0 && (
@@ -360,6 +393,17 @@ export default function ChannelSidebar() {
             </svg>
             Invite People
           </button>
+          {canManageChannels && (
+            <button
+              onClick={() => openCreateModal('forum')}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-sage bg-sol-bg/50 hover:bg-sol-sage/10 rounded-lg transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+              </svg>
+              Create Forum
+            </button>
+          )}
           <button
             onClick={() => setShowEvents(true)}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-sage bg-sol-bg/50 hover:bg-sol-sage/10 rounded-lg transition-colors"
@@ -486,7 +530,7 @@ export default function ChannelSidebar() {
             className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
           >
             <h3 className="font-display text-lg text-sol-amber mb-4">
-              Create {createType === 'text' ? 'Text' : 'Voice'} Channel
+              Create {createType === 'text' ? 'Text' : createType === 'voice' ? 'Voice' : 'Forum'} Channel
             </h3>
             <input
               type="text"
@@ -497,6 +541,17 @@ export default function ChannelSidebar() {
               autoFocus
               required
             />
+            {createType === 'text' && (
+              <label className="flex items-center gap-2 mb-4 text-sm text-sol-text-secondary cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isAnnouncement}
+                  onChange={(e) => setIsAnnouncement(e.target.checked)}
+                  className="rounded border-sol-bg-elevated"
+                />
+                Announcement channel
+              </label>
+            )}
             <div className="flex gap-2 justify-end">
               <button type="button" onClick={() => setShowCreate(false)} className="btn-danger">
                 Cancel

@@ -1,0 +1,1 @@
+ALTER TABLE channels ADD COLUMN voice_status TEXT NOT NULL DEFAULT '';

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Room } from 'livekit-client'
 import { useVoiceStore } from '@/stores/voiceStore'
-import type { VideoQuality, ScreenShareQuality } from '@/stores/voiceStore'
+import type { VideoQuality, ScreenShareQuality, InputMode } from '@/stores/voiceStore'
 import { soundService } from '@/services/soundService'
 
 interface VoiceSettingsModalProps {
@@ -13,20 +13,38 @@ interface DeviceInfo {
   label: string
 }
 
-type SettingsTab = 'audio' | 'video' | 'sounds'
+type SettingsTab = 'audio' | 'video' | 'sounds' | 'advanced'
 
 export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps) {
-  const {
-    selectedInputDeviceId, selectedOutputDeviceId, setInputDevice, setOutputDevice,
-    selectedVideoDeviceId, setVideoDevice, videoQuality, setVideoQuality,
-    screenShareQuality, setScreenShareQuality
-  } = useVoiceStore()
+  const selectedInputDeviceId = useVoiceStore((s) => s.selectedInputDeviceId)
+  const selectedOutputDeviceId = useVoiceStore((s) => s.selectedOutputDeviceId)
+  const setInputDevice = useVoiceStore((s) => s.setInputDevice)
+  const setOutputDevice = useVoiceStore((s) => s.setOutputDevice)
+  const selectedVideoDeviceId = useVoiceStore((s) => s.selectedVideoDeviceId)
+  const setVideoDevice = useVoiceStore((s) => s.setVideoDevice)
+  const videoQuality = useVoiceStore((s) => s.videoQuality)
+  const setVideoQuality = useVoiceStore((s) => s.setVideoQuality)
+  const inputMode = useVoiceStore((s) => s.inputMode)
+  const setInputMode = useVoiceStore((s) => s.setInputMode)
+  const pushToTalkKey = useVoiceStore((s) => s.pushToTalkKey)
+  const setPushToTalkKey = useVoiceStore((s) => s.setPushToTalkKey)
+  const noiseSuppression = useVoiceStore((s) => s.noiseSuppression)
+  const setNoiseSuppression = useVoiceStore((s) => s.setNoiseSuppression)
+  const participants = useVoiceStore((s) => s.participants)
+  const perUserVolume = useVoiceStore((s) => s.perUserVolume)
+  const setPerUserVolume = useVoiceStore((s) => s.setPerUserVolume)
+  const screenShareQuality = useVoiceStore((s) => s.screenShareQuality)
+  const setScreenShareQuality = useVoiceStore((s) => s.setScreenShareQuality)
+
   const [activeTab, setActiveTab] = useState<SettingsTab>('audio')
   const [inputDevices, setInputDevices] = useState<DeviceInfo[]>([])
   const [outputDevices, setOutputDevices] = useState<DeviceInfo[]>([])
   const [videoDevices, setVideoDevices] = useState<DeviceInfo[]>([])
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null)
   const previewRef = useRef<HTMLVideoElement>(null)
+
+  // PTT key binding
+  const [isCapturingKey, setIsCapturingKey] = useState(false)
 
   // Sound settings state
   const [soundsEnabled, setSoundsEnabled] = useState(soundService.isEnabled())
@@ -80,6 +98,21 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
     }
   }, [activeTab, selectedVideoDeviceId])
 
+  // PTT key capture
+  useEffect(() => {
+    if (!isCapturingKey) return
+
+    const handler = (e: KeyboardEvent) => {
+      e.preventDefault()
+      e.stopPropagation()
+      setPushToTalkKey(e.code)
+      setIsCapturingKey(false)
+    }
+
+    window.addEventListener('keydown', handler, true)
+    return () => window.removeEventListener('keydown', handler, true)
+  }, [isCapturingKey, setPushToTalkKey])
+
   const handleClose = () => {
     previewStream?.getTracks().forEach((t) => t.stop())
     onClose()
@@ -117,17 +150,24 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
     { value: '720p_30', label: '720p @ 30fps (Fastest)' }
   ]
 
+  // Format key code for display
+  const formatKeyName = (code: string) => {
+    if (code.startsWith('Key')) return code.slice(3)
+    if (code.startsWith('Digit')) return code.slice(5)
+    return code.replace(/([A-Z])/g, ' $1').trim()
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-[440px] animate-grow-in"
+        className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-[480px] max-h-[80vh] flex flex-col animate-grow-in"
       >
         <h3 className="font-display text-lg text-sol-amber mb-4">Voice & Video Settings</h3>
 
         {/* Tab bar */}
         <div className="flex border-b border-sol-bg-elevated mb-4">
-          {(['audio', 'video', 'sounds'] as SettingsTab[]).map((tab) => (
+          {(['audio', 'video', 'sounds', 'advanced'] as SettingsTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -142,151 +182,254 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
           ))}
         </div>
 
-        {activeTab === 'audio' ? (
-          <div className="flex flex-col gap-4">
-            {/* Input Device */}
-            <div>
-              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Input Device</label>
-              <select
-                className="input-field"
-                value={selectedInputDeviceId ?? ''}
-                onChange={(e) => setInputDevice(e.target.value)}
-              >
-                {inputDevices.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                ))}
-              </select>
-            </div>
+        <div className="overflow-y-auto flex-1">
+          {activeTab === 'audio' ? (
+            <div className="flex flex-col gap-4">
+              {/* Input Device */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Input Device</label>
+                <select
+                  className="input-field"
+                  value={selectedInputDeviceId ?? ''}
+                  onChange={(e) => setInputDevice(e.target.value)}
+                >
+                  {inputDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Output Device */}
-            <div>
-              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Output Device</label>
-              <select
-                className="input-field"
-                value={selectedOutputDeviceId ?? ''}
-                onChange={(e) => setOutputDevice(e.target.value)}
-              >
-                {outputDevices.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                ))}
-              </select>
+              {/* Output Device */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Output Device</label>
+                <select
+                  className="input-field"
+                  value={selectedOutputDeviceId ?? ''}
+                  onChange={(e) => setOutputDevice(e.target.value)}
+                >
+                  {outputDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Input Mode */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-2 uppercase tracking-wider">Input Mode</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setInputMode('voice_activity')}
+                    className={`flex-1 py-2 px-3 rounded text-sm font-mono transition-colors ${
+                      inputMode === 'voice_activity'
+                        ? 'bg-sol-amber/20 text-sol-amber border border-sol-amber/40'
+                        : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary border border-transparent'
+                    }`}
+                  >
+                    Voice Activity
+                  </button>
+                  <button
+                    onClick={() => setInputMode('push_to_talk')}
+                    className={`flex-1 py-2 px-3 rounded text-sm font-mono transition-colors ${
+                      inputMode === 'push_to_talk'
+                        ? 'bg-sol-amber/20 text-sol-amber border border-sol-amber/40'
+                        : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary border border-transparent'
+                    }`}
+                  >
+                    Push to Talk
+                  </button>
+                </div>
+              </div>
+
+              {/* PTT Key Binding (only shown when PTT is selected) */}
+              {inputMode === 'push_to_talk' && (
+                <div>
+                  <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Push to Talk Key</label>
+                  <button
+                    onClick={() => setIsCapturingKey(true)}
+                    className={`w-full py-2 px-3 rounded text-sm font-mono text-left transition-colors ${
+                      isCapturingKey
+                        ? 'bg-sol-sage/20 text-sol-sage border border-sol-sage/40 animate-pulse'
+                        : 'bg-sol-bg-elevated text-sol-text-primary border border-sol-bg-elevated hover:border-sol-text-muted'
+                    }`}
+                  >
+                    {isCapturingKey ? 'Press any key...' : formatKeyName(pushToTalkKey)}
+                  </button>
+                </div>
+              )}
+
+              {/* Noise Suppression */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-sm text-sol-text-primary">Noise Suppression</span>
+                  <p className="text-xs text-sol-text-muted">Reduce background noise</p>
+                </div>
+                <button
+                  onClick={() => setNoiseSuppression(!noiseSuppression)}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    noiseSuppression ? 'bg-sol-green' : 'bg-sol-bg-elevated'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                      noiseSuppression ? 'translate-x-5' : ''
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
-          </div>
-        ) : activeTab === 'video' ? (
-          <div className="flex flex-col gap-4">
-            {/* Camera preview */}
-            <div className="rounded-lg overflow-hidden bg-sol-bg aspect-video">
-              <video
-                ref={previewRef}
-                autoPlay
-                playsInline
-                muted
-                className="w-full h-full object-cover scale-x-[-1]"
+          ) : activeTab === 'video' ? (
+            <div className="flex flex-col gap-4">
+              {/* Camera preview */}
+              <div className="rounded-lg overflow-hidden bg-sol-bg aspect-video">
+                <video
+                  ref={previewRef}
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-full object-cover scale-x-[-1]"
+                />
+              </div>
+
+              {/* Camera Device */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Camera</label>
+                <select
+                  className="input-field"
+                  value={selectedVideoDeviceId ?? ''}
+                  onChange={(e) => setVideoDevice(e.target.value)}
+                >
+                  {videoDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Video Quality */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Video Quality</label>
+                <select
+                  className="input-field"
+                  value={videoQuality}
+                  onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
+                >
+                  {qualityOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Screen Share Quality */}
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Screen Share Quality</label>
+                <select
+                  className="input-field"
+                  value={screenShareQuality}
+                  onChange={(e) => setScreenShareQuality(e.target.value as ScreenShareQuality)}
+                >
+                  {screenShareOptions.map((o) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          ) : activeTab === 'sounds' ? (
+            <div className="flex flex-col gap-4">
+              {/* Enable/disable toggle */}
+              <div className="flex items-center justify-between">
+                <label className="text-sm text-sol-text-primary">Notification Sounds</label>
+                <button
+                  onClick={handleToggleSounds}
+                  className={`relative w-10 h-5 rounded-full transition-colors ${
+                    soundsEnabled ? 'bg-sol-green' : 'bg-sol-bg-elevated'
+                  }`}
+                >
+                  <span
+                    className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                      soundsEnabled ? 'translate-x-5' : ''
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Join sound */}
+              <SoundRow
+                label="Join Sound"
+                hasCustom={hasCustomJoin}
+                onPreview={() => soundService.previewSound('join')}
+                onUpload={() => joinInputRef.current?.click()}
+                onReset={() => handleReset('join')}
+              />
+              <input
+                ref={joinInputRef}
+                type="file"
+                accept=".mp3,.wav,.ogg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUpload('join', file)
+                  e.target.value = ''
+                }}
+              />
+
+              {/* Leave sound */}
+              <SoundRow
+                label="Leave Sound"
+                hasCustom={hasCustomLeave}
+                onPreview={() => soundService.previewSound('leave')}
+                onUpload={() => leaveInputRef.current?.click()}
+                onReset={() => handleReset('leave')}
+              />
+              <input
+                ref={leaveInputRef}
+                type="file"
+                accept=".mp3,.wav,.ogg"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  if (file) handleUpload('leave', file)
+                  e.target.value = ''
+                }}
               />
             </div>
-
-            {/* Camera Device */}
-            <div>
-              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Camera</label>
-              <select
-                className="input-field"
-                value={selectedVideoDeviceId ?? ''}
-                onChange={(e) => setVideoDevice(e.target.value)}
-              >
-                {videoDevices.map((d) => (
-                  <option key={d.deviceId} value={d.deviceId}>{d.label}</option>
-                ))}
-              </select>
+          ) : (
+            /* Advanced tab - per-user volume */
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-xs text-sol-text-secondary mb-2 uppercase tracking-wider">
+                  Per-User Volume
+                </label>
+                {participants.length === 0 ? (
+                  <p className="text-sm text-sol-text-muted italic">No other participants connected</p>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    {participants.map((p) => {
+                      const vol = perUserVolume[p.userId] ?? 100
+                      return (
+                        <div key={p.userId} className="flex items-center gap-3">
+                          <span className="text-sm text-sol-text-primary w-24 truncate shrink-0">
+                            {p.username}
+                          </span>
+                          <input
+                            type="range"
+                            min={0}
+                            max={300}
+                            step={10}
+                            value={vol}
+                            onChange={(e) => setPerUserVolume(p.userId, Number(e.target.value))}
+                            className="flex-1 accent-sol-amber h-1"
+                          />
+                          <span className="text-xs text-sol-text-muted w-10 text-right font-mono">
+                            {vol}%
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* Video Quality */}
-            <div>
-              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Video Quality</label>
-              <select
-                className="input-field"
-                value={videoQuality}
-                onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
-              >
-                {qualityOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-
-            {/* Screen Share Quality */}
-            <div>
-              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Screen Share Quality</label>
-              <select
-                className="input-field"
-                value={screenShareQuality}
-                onChange={(e) => setScreenShareQuality(e.target.value as ScreenShareQuality)}
-              >
-                {screenShareOptions.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            {/* Enable/disable toggle */}
-            <div className="flex items-center justify-between">
-              <label className="text-sm text-sol-text-primary">Notification Sounds</label>
-              <button
-                onClick={handleToggleSounds}
-                className={`relative w-10 h-5 rounded-full transition-colors ${
-                  soundsEnabled ? 'bg-sol-green' : 'bg-sol-bg-elevated'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
-                    soundsEnabled ? 'translate-x-5' : ''
-                  }`}
-                />
-              </button>
-            </div>
-
-            {/* Join sound */}
-            <SoundRow
-              label="Join Sound"
-              hasCustom={hasCustomJoin}
-              onPreview={() => soundService.previewSound('join')}
-              onUpload={() => joinInputRef.current?.click()}
-              onReset={() => handleReset('join')}
-            />
-            <input
-              ref={joinInputRef}
-              type="file"
-              accept=".mp3,.wav,.ogg"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleUpload('join', file)
-                e.target.value = ''
-              }}
-            />
-
-            {/* Leave sound */}
-            <SoundRow
-              label="Leave Sound"
-              hasCustom={hasCustomLeave}
-              onPreview={() => soundService.previewSound('leave')}
-              onUpload={() => leaveInputRef.current?.click()}
-              onReset={() => handleReset('leave')}
-            />
-            <input
-              ref={leaveInputRef}
-              type="file"
-              accept=".mp3,.wav,.ogg"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0]
-                if (file) handleUpload('leave', file)
-                e.target.value = ''
-              }}
-            />
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )

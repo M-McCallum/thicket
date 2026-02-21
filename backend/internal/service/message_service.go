@@ -56,12 +56,14 @@ var (
 	ErrReplyNotInChannel = errors.New("reply target is not in the same channel")
 	ErrGifsDisabled      = errors.New("GIFs are disabled in this server")
 	ErrUserTimedOut      = errors.New("you are timed out in this server")
+	ErrAutoModBlocked    = errors.New("message blocked by automod")
 )
 
 type MessageService struct {
-	queries   *models.Queries
-	permSvc   *PermissionService
-	sanitizer *bluemonday.Policy
+	queries    *models.Queries
+	permSvc    *PermissionService
+	automodSvc *AutoModService
+	sanitizer  *bluemonday.Policy
 }
 
 func NewMessageService(q *models.Queries, permSvc *PermissionService) *MessageService {
@@ -70,6 +72,11 @@ func NewMessageService(q *models.Queries, permSvc *PermissionService) *MessageSe
 		permSvc:   permSvc,
 		sanitizer: bluemonday.StrictPolicy(),
 	}
+}
+
+// SetAutoModService sets the automod service for message checking.
+func (s *MessageService) SetAutoModService(as *AutoModService) {
+	s.automodSvc = as
 }
 
 func (s *MessageService) Queries() *models.Queries {
@@ -147,6 +154,24 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 		return nil, ErrUserTimedOut
 	}
 
+	// AutoMod check — before persisting the message
+	if s.automodSvc != nil && content != "" {
+		action, err := s.automodSvc.CheckMessage(ctx, channel.ServerID, channelID, authorID, content)
+		if err != nil {
+			return nil, err
+		}
+		if action != nil && action.Triggered {
+			if action.Action == "delete" {
+				s.automodSvc.ExecuteAction(ctx, action, channel.ServerID, channelID, authorID, content)
+				return nil, ErrAutoModBlocked
+			}
+			// For timeout and alert, we still save the message but execute the action after
+			defer func() {
+				s.automodSvc.ExecuteAction(ctx, action, channel.ServerID, channelID, authorID, content)
+			}()
+		}
+	}
+
 	// Validate reply target
 	if replyToID != nil {
 		replyMsg, err := s.queries.GetMessageByID(ctx, *replyToID)
@@ -183,6 +208,40 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 	}
 
 	return &msg, nil
+}
+
+// CrossPostMessage creates cross-posted copies in all channels following the given announcement channel.
+// Returns the cross-posted messages (one per follower channel).
+func (s *MessageService) CrossPostMessage(ctx context.Context, sourceChannel models.Channel, originalMsg *models.Message) ([]models.Message, error) {
+	if !sourceChannel.IsAnnouncement {
+		return nil, nil
+	}
+
+	followers, err := s.queries.GetChannelFollowers(ctx, sourceChannel.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(followers) == 0 {
+		return nil, nil
+	}
+
+	crossPostContent := "[Cross-posted from #" + sourceChannel.Name + "]\n" + originalMsg.Content
+
+	var crossPosts []models.Message
+	for _, follow := range followers {
+		crossMsg, err := s.queries.CreateMessage(ctx, models.CreateMessageParams{
+			ChannelID: follow.TargetChannelID,
+			AuthorID:  originalMsg.AuthorID,
+			Content:   crossPostContent,
+			Type:      originalMsg.Type,
+		})
+		if err != nil {
+			continue // best-effort: skip failures for individual channels
+		}
+		crossPosts = append(crossPosts, crossMsg)
+	}
+
+	return crossPosts, nil
 }
 
 func (s *MessageService) GetMessages(ctx context.Context, channelID, userID uuid.UUID, before *time.Time, limit int32) ([]models.MessageWithAuthor, error) {

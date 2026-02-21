@@ -22,6 +22,8 @@ export interface Server {
   is_public?: boolean
   description?: string
   gifs_enabled?: boolean
+  welcome_message: string
+  welcome_channels: string[]
   created_at: string
 }
 
@@ -49,11 +51,21 @@ export interface Channel {
   id: string
   server_id: string
   name: string
-  type: 'text' | 'voice'
+  type: 'text' | 'voice' | 'forum'
   position: number
   topic: string
   category_id: string | null
   slow_mode_interval: number
+  voice_status: string
+  is_announcement: boolean
+  created_at: string
+}
+
+export interface ChannelFollow {
+  id: string
+  source_channel_id: string
+  target_channel_id: string
+  created_by: string
   created_at: string
 }
 
@@ -409,4 +421,89 @@ export interface AuditLogEntry {
   reason: string
   created_at: string
   actor_username?: string
+}
+
+// Forum channels (WP16)
+export interface ForumTag {
+  id: string
+  channel_id: string
+  name: string
+  color: string
+  emoji: string
+  position: number
+  moderated: boolean
+  created_at: string
+}
+
+export interface ForumPost {
+  id: string
+  channel_id: string
+  author_id: string
+  title: string
+  pinned: boolean
+  created_at: string
+  updated_at: string
+  author_username: string
+  author_display_name: string | null
+  author_avatar_url: string | null
+  tags: ForumTag[]
+  reply_count: number
+  last_activity_at: string
+  content_preview: string
+}
+
+export interface ForumPostMessage {
+  id: string
+  post_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+  author_username: string
+  author_display_name: string | null
+  author_avatar_url: string | null
+}
+
+// Welcome & Onboarding (WP20)
+export interface WelcomeConfig {
+  welcome_message: string
+  welcome_channels: string[]
+}
+
+export interface OnboardingOption {
+  id: string
+  prompt_id: string
+  label: string
+  description: string
+  emoji: string
+  role_ids: string[]
+  channel_ids: string[]
+  position: number
+}
+
+export interface OnboardingPrompt {
+  id: string
+  server_id: string
+  title: string
+  description: string
+  required: boolean
+  position: number
+  created_at: string
+  options: OnboardingOption[]
+}
+
+// AutoMod (WP31)
+export interface AutoModRule {
+  id: string
+  server_id: string
+  name: string
+  type: 'keyword' | 'regex' | 'spam' | 'invite_links' | 'mention_spam'
+  trigger_data: Record<string, unknown>
+  action: 'delete' | 'timeout' | 'alert'
+  action_metadata: Record<string, unknown>
+  enabled: boolean
+  exempt_roles: string[]
+  exempt_channels: string[]
+  created_at: string
+  updated_at: string
 }

@@ -187,6 +187,8 @@ export function useWebSocketEvents() {
             topic: channel.topic || '',
             category_id: channel.category_id,
             slow_mode_interval: channel.slow_mode_interval ?? 0,
+            voice_status: channel.voice_status || '',
+            is_announcement: channel.is_announcement ?? false,
             created_at: channel.created_at
           })
         }
@@ -208,6 +210,8 @@ export function useWebSocketEvents() {
             topic: channel.topic || '',
             category_id: channel.category_id,
             slow_mode_interval: channel.slow_mode_interval ?? 0,
+            voice_status: channel.voice_status || '',
+            is_announcement: channel.is_announcement ?? false,
             created_at: channel.created_at
           })
         }
@@ -346,6 +350,8 @@ export function useWebSocketEvents() {
           icon_url: server.icon_url,
           owner_id: server.owner_id,
           invite_code: server.invite_code,
+          welcome_message: server.welcome_message,
+          welcome_channels: server.welcome_channels ?? [],
           created_at: server.created_at
         })
       })

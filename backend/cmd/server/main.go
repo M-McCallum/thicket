@@ -73,6 +73,8 @@ func main() {
 	emojiService := service.NewEmojiService(queries, storageClient)
 	stickerService := service.NewStickerService(queries, storageClient)
 	friendService := service.NewFriendService(queries)
+	forumService := service.NewForumService(queries, permissionService)
+	onboardingService := service.NewOnboardingService(queries, permissionService)
 	moderationService := service.NewModerationService(queries, permissionService)
 	threadService := service.NewThreadService(queries)
 	eventService := service.NewEventService(queries)
@@ -142,6 +144,10 @@ func main() {
 
 	go hub.Run()
 
+	// AutoMod service (needs hub for alerts)
+	automodService := service.NewAutoModService(queries, permissionService, hub)
+	messageService.SetAutoModService(automodService)
+
 	// Handlers
 	serverHandler := handler.NewServerHandler(serverService, channelService, hub)
 	messageHandler := handler.NewMessageHandler(messageService, hub, storageClient)
@@ -157,6 +163,10 @@ func main() {
 	searchService := service.NewSearchService(queries)
 	searchHandler := handler.NewSearchHandler(searchService)
 	attachmentHandler := handler.NewAttachmentHandler(queries, storageClient)
+	forumHandler := handler.NewForumHandler(forumService, hub)
+	onboardingHandler := handler.NewOnboardingHandler(onboardingService)
+	channelFollowHandler := handler.NewChannelFollowHandler(queries, permissionService)
+	automodHandler := handler.NewAutoModHandler(automodService)
 	moderationHandler := handler.NewModerationHandler(moderationService, serverService, hub)
 	threadHandler := handler.NewThreadHandler(threadService, hub)
 	eventHandler := handler.NewEventHandler(eventService, serverService, hub)
@@ -206,7 +216,11 @@ func main() {
 		NotificationPrefHandler: notifPrefHandler,
 		ScheduleHandler:         scheduleHandler,
 		UserPrefHandler:         userPrefHandler,
-		ServerFolderHandler:     serverFolderHandler,
+		ServerFolderHandler:      serverFolderHandler,
+		ForumHandler:             forumHandler,
+		OnboardingHandler:        onboardingHandler,
+		ChannelFollowHandler:     channelFollowHandler,
+		AutoModHandler:           automodHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,

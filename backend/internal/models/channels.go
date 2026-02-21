@@ -16,21 +16,22 @@ type CreateChannelParams struct {
 	Topic            string
 	CategoryID       *uuid.UUID
 	SlowModeInterval int
+	IsAnnouncement   bool
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
 	row := q.db.QueryRow(ctx,
-		`INSERT INTO channels (server_id, name, type, position, topic, category_id, slow_mode_interval)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, server_id, name, type, position, topic, category_id, slow_mode_interval, created_at, updated_at`,
-		arg.ServerID, arg.Name, arg.Type, arg.Position, arg.Topic, arg.CategoryID, arg.SlowModeInterval,
+		`INSERT INTO channels (server_id, name, type, position, topic, category_id, slow_mode_interval, is_announcement)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id, server_id, name, type, position, topic, category_id, slow_mode_interval, voice_status, is_announcement, created_at, updated_at`,
+		arg.ServerID, arg.Name, arg.Type, arg.Position, arg.Topic, arg.CategoryID, arg.SlowModeInterval, arg.IsAnnouncement,
 	)
 	return scanChannel(row)
 }
 
 func (q *Queries) GetChannelByID(ctx context.Context, id uuid.UUID) (Channel, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, server_id, name, type, position, topic, category_id, slow_mode_interval, created_at, updated_at
+		`SELECT id, server_id, name, type, position, topic, category_id, slow_mode_interval, voice_status, is_announcement, created_at, updated_at
 		FROM channels WHERE id = $1`, id,
 	)
 	return scanChannel(row)
@@ -38,7 +39,7 @@ func (q *Queries) GetChannelByID(ctx context.Context, id uuid.UUID) (Channel, er
 
 func (q *Queries) GetServerChannels(ctx context.Context, serverID uuid.UUID) ([]Channel, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT id, server_id, name, type, position, topic, category_id, slow_mode_interval, created_at, updated_at
+		`SELECT id, server_id, name, type, position, topic, category_id, slow_mode_interval, voice_status, is_announcement, created_at, updated_at
 		FROM channels WHERE server_id = $1 ORDER BY position, name`, serverID,
 	)
 	if err != nil {
@@ -49,7 +50,7 @@ func (q *Queries) GetServerChannels(ctx context.Context, serverID uuid.UUID) ([]
 	var channels []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.SlowModeInterval, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.SlowModeInterval, &ch.VoiceStatus, &ch.IsAnnouncement, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
 			return nil, err
 		}
 		channels = append(channels, ch)
@@ -79,8 +80,18 @@ func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (C
 			slow_mode_interval = COALESCE($6, slow_mode_interval),
 			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, server_id, name, type, position, topic, category_id, slow_mode_interval, created_at, updated_at`,
+		RETURNING id, server_id, name, type, position, topic, category_id, slow_mode_interval, voice_status, is_announcement, created_at, updated_at`,
 		arg.ID, arg.Name, arg.Position, arg.Topic, arg.CategoryID, arg.SlowModeInterval,
+	)
+	return scanChannel(row)
+}
+
+func (q *Queries) SetChannelAnnouncement(ctx context.Context, channelID uuid.UUID, isAnnouncement bool) (Channel, error) {
+	row := q.db.QueryRow(ctx,
+		`UPDATE channels SET is_announcement = $2, updated_at = NOW()
+		WHERE id = $1
+		RETURNING id, server_id, name, type, position, topic, category_id, slow_mode_interval, voice_status, is_announcement, created_at, updated_at`,
+		channelID, isAnnouncement,
 	)
 	return scanChannel(row)
 }
@@ -92,7 +103,7 @@ func (q *Queries) DeleteChannel(ctx context.Context, id uuid.UUID) error {
 
 func scanChannel(row pgx.Row) (Channel, error) {
 	var ch Channel
-	err := row.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.SlowModeInterval, &ch.CreatedAt, &ch.UpdatedAt)
+	err := row.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.SlowModeInterval, &ch.VoiceStatus, &ch.IsAnnouncement, &ch.CreatedAt, &ch.UpdatedAt)
 	return ch, err
 }
 

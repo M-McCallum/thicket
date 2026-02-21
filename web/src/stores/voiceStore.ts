@@ -7,6 +7,7 @@ import { soundService } from '@/services/soundService'
 export type VideoLayoutMode = 'grid' | 'focus'
 export type VideoQuality = '1080p' | '720p' | '480p' | '360p'
 export type ScreenShareQuality = '1080p_30' | '1080p_15' | '720p_30' | '4k_15'
+export type InputMode = 'voice_activity' | 'push_to_talk'
 
 const VIDEO_RESOLUTIONS: Record<VideoQuality, { width: number; height: number; frameRate: number }> = {
   '1080p': { width: 1920, height: 1080, frameRate: 30 },
@@ -55,6 +56,13 @@ interface VoiceState {
   screenShareQuality: ScreenShareQuality
   localTrackVersion: number
 
+  // Voice settings
+  inputMode: InputMode
+  pushToTalkKey: string
+  perUserVolume: Record<string, number>
+  noiseSuppression: boolean
+  isPTTActive: boolean
+
   joinVoiceChannel: (serverId: string, channelId: string) => Promise<void>
   leaveVoiceChannel: () => void
   toggleMute: () => void
@@ -74,6 +82,13 @@ interface VoiceState {
   togglePiP: () => void
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   setScreenShareQuality: (quality: ScreenShareQuality) => void
+
+  // Voice settings actions
+  setInputMode: (mode: InputMode) => void
+  setPushToTalkKey: (key: string) => void
+  setPerUserVolume: (userId: string, volume: number) => void
+  setNoiseSuppression: (enabled: boolean) => void
+  setPTTActive: (active: boolean) => void
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -97,6 +112,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   videoQuality: (localStorage.getItem('voice:videoQuality') as VideoQuality) || '720p',
   screenShareQuality: (localStorage.getItem('voice:screenShareQuality') as ScreenShareQuality) || '1080p_30',
   localTrackVersion: 0,
+
+  // Voice settings
+  inputMode: (localStorage.getItem('voice:inputMode') as InputMode) || 'voice_activity',
+  pushToTalkKey: localStorage.getItem('voice:pushToTalkKey') || 'Space',
+  perUserVolume: {},
+  noiseSuppression: localStorage.getItem('voice:noiseSuppression') !== 'false',
+  isPTTActive: false,
 
   joinVoiceChannel: async (serverId, channelId) => {
     const { room: existingRoom } = get()
@@ -154,7 +176,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     // Attach remote audio tracks to DOM so they play
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
       if (track.kind === Track.Kind.Audio) {
-        track.attach()
+        const el = track.attach()
+        // Apply per-user volume if set
+        const vol = get().perUserVolume[participant.identity]
+        if (vol !== undefined && el instanceof HTMLMediaElement) {
+          el.volume = Math.min(vol / 100, 1)
+        }
         return
       }
       if (track.kind !== Track.Kind.Video) return
@@ -213,13 +240,25 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     // autoplay policy. localhost is exempt, which is why dev works without this.
     await room.startAudio()
 
-    // Enable microphone with saved device preference
+    const { inputMode, noiseSuppression } = get()
+    const isPTT = inputMode === 'push_to_talk'
+
+    // Enable microphone with saved device preference and noise suppression
     const savedInputId = get().selectedInputDeviceId
+    const micOptions: Record<string, unknown> = {}
+    if (savedInputId) micOptions.deviceId = savedInputId
+    if (noiseSuppression) micOptions.noiseSuppression = true
+
     await room.localParticipant.setMicrophoneEnabled(
       true,
-      savedInputId ? { deviceId: savedInputId } : undefined,
+      Object.keys(micOptions).length > 0 ? micOptions : undefined,
       { audioPreset: AudioPresets.musicHighQualityStereo },
     )
+
+    // For PTT mode: mute immediately after enabling mic (so the track is published but muted)
+    if (isPTT) {
+      await room.localParticipant.setMicrophoneEnabled(false)
+    }
 
     // Apply saved output device
     const savedOutputId = get().selectedOutputDeviceId
@@ -270,7 +309,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeChannelId: channelId,
       activeServerId: serverId,
       participants: existingParticipants,
-      isMuted: false,
+      isMuted: isPTT,
       isDeafened: false,
       isCameraEnabled: false,
       isScreenSharing: false
@@ -308,13 +347,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       isCameraEnabled: false,
       isScreenSharing: false,
       focusedTileKey: null,
-      isPiPActive: false
+      isPiPActive: false,
+      isPTTActive: false
     })
   },
 
   toggleMute: () => {
-    const { room, isMuted } = get()
+    const { room, isMuted, inputMode } = get()
     if (room) {
+      // In PTT mode, toggleMute switches back to voice activity
+      if (inputMode === 'push_to_talk') return
       room.localParticipant.setMicrophoneEnabled(isMuted)
       set({ isMuted: !isMuted })
     }
@@ -436,5 +478,63 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         resolution,
       })
     }
+  },
+
+  // Voice settings actions
+  setInputMode: (mode) => {
+    localStorage.setItem('voice:inputMode', mode)
+    set({ inputMode: mode })
+    const { room } = get()
+    if (room) {
+      if (mode === 'push_to_talk') {
+        // Mute mic when switching to PTT
+        room.localParticipant.setMicrophoneEnabled(false)
+        set({ isMuted: true, isPTTActive: false })
+      } else {
+        // Unmute mic when switching to voice activity
+        room.localParticipant.setMicrophoneEnabled(true)
+        set({ isMuted: false, isPTTActive: false })
+      }
+    }
+  },
+
+  setPushToTalkKey: (key) => {
+    localStorage.setItem('voice:pushToTalkKey', key)
+    set({ pushToTalkKey: key })
+  },
+
+  setPerUserVolume: (userId, volume) => {
+    set((state) => ({
+      perUserVolume: { ...state.perUserVolume, [userId]: volume }
+    }))
+    // Apply volume to existing audio elements
+    const { room } = get()
+    if (room) {
+      const participant = room.remoteParticipants.get(userId)
+      if (participant) {
+        participant.audioTrackPublications.forEach((pub) => {
+          if (pub.track) {
+            const elements = pub.track.attachedElements
+            elements.forEach((el) => {
+              if (el instanceof HTMLMediaElement) {
+                el.volume = Math.min(volume / 100, 1)
+              }
+            })
+          }
+        })
+      }
+    }
+  },
+
+  setNoiseSuppression: (enabled) => {
+    localStorage.setItem('voice:noiseSuppression', String(enabled))
+    set({ noiseSuppression: enabled })
+  },
+
+  setPTTActive: (active) => {
+    const { room, inputMode } = get()
+    if (inputMode !== 'push_to_talk' || !room) return
+    set({ isPTTActive: active, isMuted: !active })
+    room.localParticipant.setMicrophoneEnabled(active)
   }
 }))

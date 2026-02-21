@@ -127,11 +127,13 @@ export interface ChannelCreateData {
   id: string
   server_id: string
   name: string
-  type: 'text' | 'voice'
+  type: 'text' | 'voice' | 'forum'
   position: number
   topic: string
   category_id: string | null
   slow_mode_interval?: number
+  voice_status: string
+  is_announcement: boolean
   created_at: string
 }
 
@@ -239,6 +241,8 @@ export interface ServerUpdateData {
   icon_url: string | null
   owner_id: string
   invite_code: string
+  welcome_message: string
+  welcome_channels: string[]
   created_at: string
   updated_at: string
 }

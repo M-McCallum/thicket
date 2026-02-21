@@ -36,7 +36,11 @@ type Config struct {
 	NotificationPrefHandler *handler.NotificationPrefHandler
 	ScheduleHandler         *handler.ScheduleHandler
 	UserPrefHandler         *handler.UserPrefHandler
-	ServerFolderHandler     *handler.ServerFolderHandler
+	ServerFolderHandler      *handler.ServerFolderHandler
+	ForumHandler             *handler.ForumHandler
+	OnboardingHandler        *handler.OnboardingHandler
+	ChannelFollowHandler     *handler.ChannelFollowHandler
+	AutoModHandler           *handler.AutoModHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -323,6 +327,50 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Delete("/me/server-folders/:id", cfg.ServerFolderHandler.DeleteFolder)
 		protected.Put("/me/server-folders/:id/servers/:serverId", cfg.ServerFolderHandler.AddServerToFolder)
 		protected.Delete("/me/server-folders/:id/servers/:serverId", cfg.ServerFolderHandler.RemoveServerFromFolder)
+	}
+
+	// Forum channels
+	if cfg.ForumHandler != nil {
+		// Tags
+		protected.Get("/channels/:channelId/forum/tags", cfg.ForumHandler.GetTags)
+		protected.Post("/channels/:channelId/forum/tags", cfg.ForumHandler.CreateTag)
+		protected.Patch("/channels/:channelId/forum/tags/:tagId", cfg.ForumHandler.UpdateTag)
+		protected.Delete("/channels/:channelId/forum/tags/:tagId", cfg.ForumHandler.DeleteTag)
+		// Posts
+		protected.Get("/channels/:channelId/forum/posts", cfg.ForumHandler.GetPosts)
+		protected.Post("/channels/:channelId/forum/posts", cfg.ForumHandler.CreatePost)
+		protected.Get("/forum/posts/:postId", cfg.ForumHandler.GetPost)
+		protected.Put("/forum/posts/:postId/tags", cfg.ForumHandler.UpdatePostTags)
+		protected.Put("/forum/posts/:postId/pin", cfg.ForumHandler.PinPost)
+		protected.Delete("/forum/posts/:postId/pin", cfg.ForumHandler.UnpinPost)
+		// Post messages
+		protected.Get("/forum/posts/:postId/messages", cfg.ForumHandler.GetPostMessages)
+		protected.Post("/forum/posts/:postId/messages", cfg.ForumHandler.CreatePostMessage)
+	}
+
+	// Onboarding
+	if cfg.OnboardingHandler != nil {
+		protected.Get("/servers/:id/welcome", cfg.OnboardingHandler.GetWelcome)
+		protected.Put("/servers/:id/welcome", cfg.OnboardingHandler.UpdateWelcome)
+		protected.Get("/servers/:id/onboarding", cfg.OnboardingHandler.GetOnboarding)
+		protected.Put("/servers/:id/onboarding", cfg.OnboardingHandler.UpdateOnboarding)
+		protected.Post("/servers/:id/onboarding/complete", cfg.OnboardingHandler.CompleteOnboarding)
+		protected.Get("/servers/:id/onboarding/status", cfg.OnboardingHandler.GetOnboardingStatus)
+	}
+
+	// Channel follows (announcement channels)
+	if cfg.ChannelFollowHandler != nil {
+		protected.Post("/channels/:channelId/followers", cfg.ChannelFollowHandler.FollowChannel)
+		protected.Delete("/channels/:channelId/followers/:followId", cfg.ChannelFollowHandler.UnfollowChannel)
+		protected.Get("/channels/:channelId/followers", cfg.ChannelFollowHandler.GetFollowers)
+	}
+
+	// AutoMod
+	if cfg.AutoModHandler != nil {
+		protected.Get("/servers/:id/automod/rules", cfg.AutoModHandler.ListRules)
+		protected.Post("/servers/:id/automod/rules", cfg.AutoModHandler.CreateRule)
+		protected.Patch("/servers/:id/automod/rules/:ruleId", cfg.AutoModHandler.UpdateRule)
+		protected.Delete("/servers/:id/automod/rules/:ruleId", cfg.AutoModHandler.DeleteRule)
 	}
 
 	// WebSocket

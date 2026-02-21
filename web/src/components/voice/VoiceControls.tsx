@@ -5,14 +5,54 @@ import { useServerStore } from '@/stores/serverStore'
 import VoiceSettingsModal from './VoiceSettingsModal'
 
 export default function VoiceControls() {
-  const {
-    room, activeChannelId, isMuted, isDeafened, isCameraEnabled, isScreenSharing,
-    leaveVoiceChannel, toggleMute, toggleDeafen, toggleCamera, toggleScreenShare
-  } = useVoiceStore()
-  const { channels } = useServerStore()
+  const room = useVoiceStore((s) => s.room)
+  const activeChannelId = useVoiceStore((s) => s.activeChannelId)
+  const isMuted = useVoiceStore((s) => s.isMuted)
+  const isDeafened = useVoiceStore((s) => s.isDeafened)
+  const isCameraEnabled = useVoiceStore((s) => s.isCameraEnabled)
+  const isScreenSharing = useVoiceStore((s) => s.isScreenSharing)
+  const inputMode = useVoiceStore((s) => s.inputMode)
+  const pushToTalkKey = useVoiceStore((s) => s.pushToTalkKey)
+  const isPTTActive = useVoiceStore((s) => s.isPTTActive)
+  const leaveVoiceChannel = useVoiceStore((s) => s.leaveVoiceChannel)
+  const toggleMute = useVoiceStore((s) => s.toggleMute)
+  const toggleDeafen = useVoiceStore((s) => s.toggleDeafen)
+  const toggleCamera = useVoiceStore((s) => s.toggleCamera)
+  const toggleScreenShare = useVoiceStore((s) => s.toggleScreenShare)
+  const setPTTActive = useVoiceStore((s) => s.setPTTActive)
+
+  const channels = useServerStore((s) => s.channels)
   const [showSettings, setShowSettings] = useState(false)
   const meterRef = useRef<HTMLDivElement>(null)
   const micButtonRef = useRef<HTMLButtonElement>(null)
+
+  // Push-to-talk key listeners
+  useEffect(() => {
+    if (inputMode !== 'push_to_talk' || !room) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.repeat) return
+      if (e.code === pushToTalkKey || e.key === pushToTalkKey) {
+        e.preventDefault()
+        setPTTActive(true)
+      }
+    }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === pushToTalkKey || e.key === pushToTalkKey) {
+        e.preventDefault()
+        setPTTActive(false)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
+  }, [inputMode, pushToTalkKey, room, setPTTActive])
 
   // Tap the local mic MediaStream directly via Web Audio AnalyserNode
   // for near-zero-latency level detection (bypasses LiveKit's ~100ms audioLevel updates)
@@ -86,6 +126,7 @@ export default function VoiceControls() {
   if (!activeChannelId) return null
 
   const channel = channels.find((c) => c.id === activeChannelId)
+  const isPTTMode = inputMode === 'push_to_talk'
 
   return (
     <div className="p-3 bg-sol-bg border-t border-sol-bg-elevated">
@@ -104,6 +145,17 @@ export default function VoiceControls() {
           <span className="text-[10px] text-sol-sage font-mono">Connected</span>
         </span>
       </div>
+
+      {/* PTT indicator */}
+      {isPTTMode && (
+        <div className={`text-[10px] font-mono mb-1 text-center py-0.5 rounded transition-colors ${
+          isPTTActive
+            ? 'bg-sol-sage/20 text-sol-sage'
+            : 'bg-sol-bg-elevated text-sol-text-muted'
+        }`}>
+          {isPTTActive ? 'Transmitting...' : `Push [${pushToTalkKey}] to talk`}
+        </div>
+      )}
 
       {/* Audio level meter */}
       <div className="h-1 bg-sol-bg-elevated rounded-full mb-2 overflow-hidden">
@@ -126,7 +178,8 @@ export default function VoiceControls() {
               ? 'bg-sol-amber/20 text-sol-amber'
               : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary data-[mic-active=1]:text-sol-sage data-[mic-active=1]:ring-1 data-[mic-active=1]:ring-sol-sage/50'
           }`}
-          title={isMuted ? 'Unmute' : 'Mute'}
+          title={isPTTMode ? 'Push to Talk active' : isMuted ? 'Unmute' : 'Mute'}
+          disabled={isPTTMode}
         >
           {isMuted ? (
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

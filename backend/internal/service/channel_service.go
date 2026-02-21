@@ -13,7 +13,7 @@ import (
 var (
 	ErrChannelNotFound    = errors.New("channel not found")
 	ErrInvalidChannelName = errors.New("channel name must be 1-100 characters")
-	ErrInvalidChannelType = errors.New("channel type must be 'text' or 'voice'")
+	ErrInvalidChannelType = errors.New("channel type must be 'text', 'voice', or 'forum'")
 )
 
 type ChannelService struct {
@@ -25,11 +25,11 @@ func NewChannelService(q *models.Queries, permSvc *PermissionService) *ChannelSe
 	return &ChannelService{queries: q, permSvc: permSvc}
 }
 
-func (s *ChannelService) CreateChannel(ctx context.Context, serverID, userID uuid.UUID, name, channelType string) (*models.Channel, error) {
+func (s *ChannelService) CreateChannel(ctx context.Context, serverID, userID uuid.UUID, name, channelType string, isAnnouncement ...bool) (*models.Channel, error) {
 	if len(name) < 1 || len(name) > 100 {
 		return nil, ErrInvalidChannelName
 	}
-	if channelType != "text" && channelType != "voice" {
+	if channelType != "text" && channelType != "voice" && channelType != "forum" {
 		return nil, ErrInvalidChannelType
 	}
 
@@ -53,11 +53,21 @@ func (s *ChannelService) CreateChannel(ctx context.Context, serverID, userID uui
 		return nil, err
 	}
 
+	announce := false
+	if len(isAnnouncement) > 0 {
+		announce = isAnnouncement[0]
+	}
+	// Only text channels can be announcement channels
+	if announce && channelType != "text" {
+		announce = false
+	}
+
 	channel, err := s.queries.CreateChannel(ctx, models.CreateChannelParams{
-		ServerID: serverID,
-		Name:     name,
-		Type:     channelType,
-		Position: int32(len(channels)),
+		ServerID:       serverID,
+		Name:           name,
+		Type:           channelType,
+		Position:       int32(len(channels)),
+		IsAnnouncement: announce,
 	})
 	if err != nil {
 		return nil, err

@@ -9,7 +9,8 @@ export interface JoinServerRequest {
 
 export interface CreateChannelRequest {
   name: string
-  type: 'text' | 'voice'
+  type: 'text' | 'voice' | 'forum'
+  is_announcement?: boolean
 }
 
 export interface SendMessageRequest {
