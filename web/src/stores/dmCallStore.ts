@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, RemoteParticipant, Participant } from 'livekit-client'
+import { Room, RoomEvent, RemoteParticipant, Participant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client'
 import { dm } from '@/services/api'
 import { wsService } from '@/services/ws'
 
@@ -38,14 +38,19 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
     const { room: existing } = get()
     if (existing) get().endCall()
 
-    // Create AudioContext synchronously in the user-gesture call stack
-    const audioContext = new AudioContext()
-
     wsService.send({ type: 'DM_CALL_START', data: { conversation_id: conversationId } })
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room({ webAudioMix: { audioContext } })
+    const room = new Room()
+
+    // Explicitly attach audio tracks for autoplay policy compliance
+    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+      if (track.kind === Track.Kind.Audio) track.attach()
+    })
+    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+      if (track.kind === Track.Kind.Audio) track.detach()
+    })
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       set((s) => ({
@@ -82,14 +87,19 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
   acceptCall: async (conversationId) => {
     set({ incomingCall: null })
 
-    // Create AudioContext synchronously in the user-gesture call stack
-    const audioContext = new AudioContext()
-
     wsService.send({ type: 'DM_CALL_ACCEPT', data: { conversation_id: conversationId } })
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room({ webAudioMix: { audioContext } })
+    const room = new Room()
+
+    // Explicitly attach audio tracks for autoplay policy compliance
+    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
+      if (track.kind === Track.Kind.Audio) track.attach()
+    })
+    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack) => {
+      if (track.kind === Track.Kind.Audio) track.detach()
+    })
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       set((s) => ({

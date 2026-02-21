@@ -86,15 +86,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       get().leaveVoiceChannel()
     }
 
-    // Create AudioContext synchronously in the user-gesture call stack
-    // so it starts in "running" state. Browsers suspend AudioContexts
-    // created outside of click/tap handlers (autoplay policy).
-    const audioContext = new AudioContext()
-
     const { token, room: roomName } = await voice.getToken(serverId, channelId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
 
-    const room = new Room({ webAudioMix: { audioContext } })
+    const room = new Room()
 
     room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
       set((state) => ({
@@ -138,8 +133,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       }))
     })
 
-    // Track remote video/screen-share tracks
+    // Attach remote audio tracks to DOM so they play
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+      if (track.kind === Track.Kind.Audio) {
+        track.attach()
+        return
+      }
       if (track.kind !== Track.Kind.Video) return
       const isScreenShare = track.source === Track.Source.ScreenShare
       set((state) => ({
@@ -156,6 +155,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     })
 
     room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+      if (track.kind === Track.Kind.Audio) {
+        track.detach()
+        return
+      }
       if (track.kind !== Track.Kind.Video) return
       const isScreenShare = track.source === Track.Source.ScreenShare
       set((state) => {
