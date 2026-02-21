@@ -1,6 +1,7 @@
 import { useState, useMemo, lazy, Suspense } from 'react'
 import type { Message } from '@/types/models'
 import AttachmentPreview from './AttachmentPreview'
+import UserAvatar from '@/components/common/UserAvatar'
 import UserProfilePopup from '@/components/profile/UserProfilePopup'
 import MarkdownRenderer from './MarkdownRenderer'
 import LinkPreviewCard from './LinkPreviewCard'
@@ -108,10 +109,10 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
       {/* Avatar */}
       <button
         onClick={() => !isOwn && setShowProfile(true)}
-        className="w-10 h-10 rounded-full bg-sol-bg-elevated flex-shrink-0 flex items-center justify-center text-sm font-medium text-sol-text-secondary hover:opacity-80 transition-opacity"
+        className="flex-shrink-0 hover:opacity-80 transition-opacity"
         type="button"
       >
-        {displayName.charAt(0).toUpperCase()}
+        <UserAvatar avatarUrl={message.author_avatar_url} username={displayName} size="sm" className="w-10 h-10" />
       </button>
 
       {/* Content */}

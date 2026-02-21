@@ -1,4 +1,4 @@
-import { useEffect, useRef, lazy, Suspense } from 'react'
+import { useEffect, useRef, useCallback, useState, lazy, Suspense } from 'react'
 import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -10,11 +10,32 @@ import MessageInput from './MessageInput'
 const PinnedMessagesPanel = lazy(() => import('./PinnedMessagesPanel'))
 
 export default function ChatArea() {
-  const { messages, fetchMessages, sendMessage, addMessage, clearMessages, showPinnedPanel, setShowPinnedPanel, fetchPinnedMessages } = useMessageStore()
-  const { activeChannelId, channels } = useServerStore()
-  const { user } = useAuthStore()
+  const fetchMessages = useMessageStore((s) => s.fetchMessages)
+  const fetchMoreMessages = useMessageStore((s) => s.fetchMoreMessages)
+  const sendMessage = useMessageStore((s) => s.sendMessage)
+  const addMessage = useMessageStore((s) => s.addMessage)
+  const clearMessages = useMessageStore((s) => s.clearMessages)
+  const showPinnedPanel = useMessageStore((s) => s.showPinnedPanel)
+  const setShowPinnedPanel = useMessageStore((s) => s.setShowPinnedPanel)
+  const fetchPinnedMessages = useMessageStore((s) => s.fetchPinnedMessages)
+  const messages = useMessageStore((s) => s.messages)
+  const hasMore = useMessageStore((s) => s.hasMore)
+  const isFetchingMore = useMessageStore((s) => s.isFetchingMore)
+  const isJumpedState = useMessageStore((s) => s.isJumpedState)
+  const jumpToDate = useMessageStore((s) => s.jumpToDate)
+  const jumpToPresent = useMessageStore((s) => s.jumpToPresent)
+
+  const activeChannelId = useServerStore((s) => s.activeChannelId)
+  const channels = useServerStore((s) => s.channels)
+  const user = useAuthStore((s) => s.user)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const sentinelRef = useRef<HTMLDivElement>(null)
   const activeChannel = channels.find((c) => c.id === activeChannelId)
+
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [dateInput, setDateInput] = useState('')
 
   useEffect(() => {
     if (!activeChannelId) return
@@ -40,6 +61,8 @@ export default function ChatArea() {
           created_at: msgData.created_at,
           updated_at: msgData.created_at,
           author_username: msgData.username,
+          author_avatar_url: msgData.author_avatar_url,
+          author_display_name: msgData.author_display_name,
           attachments: msgData.attachments
         })
       }
@@ -51,9 +74,31 @@ export default function ChatArea() {
     }
   }, [activeChannelId])
 
+  // Infinite scroll: IntersectionObserver on sentinel at top of messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages.length])
+    if (!activeChannelId || !sentinelRef.current) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !isFetchingMore) {
+          fetchMoreMessages(activeChannelId)
+        }
+      },
+      { root: scrollContainerRef.current, threshold: 0.1 }
+    )
+
+    observer.observe(sentinelRef.current)
+    return () => observer.disconnect()
+  }, [activeChannelId, hasMore, isFetchingMore, fetchMoreMessages])
+
+  // Auto-scroll to bottom only for new messages (not when loading older ones)
+  const prevMessageCountRef = useRef(0)
+  useEffect(() => {
+    if (messages.length === prevMessageCountRef.current + 1 && !isFetchingMore) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+    prevMessageCountRef.current = messages.length
+  }, [messages.length, isFetchingMore])
 
   const handleSend = async (content: string, files?: File[], msgType?: string) => {
     if (!activeChannelId) return
@@ -66,6 +111,20 @@ export default function ChatArea() {
     }
     setShowPinnedPanel(!showPinnedPanel)
   }
+
+  const handleJumpToDate = useCallback(() => {
+    if (!activeChannelId || !dateInput) return
+    const date = new Date(dateInput + 'T00:00:00')
+    if (isNaN(date.getTime())) return
+    jumpToDate(activeChannelId, date)
+    setShowDatePicker(false)
+    setDateInput('')
+  }, [activeChannelId, dateInput, jumpToDate])
+
+  const handleJumpToPresent = useCallback(() => {
+    if (!activeChannelId) return
+    jumpToPresent(activeChannelId)
+  }, [activeChannelId, jumpToPresent])
 
   if (!activeChannelId) {
     return (
@@ -92,20 +151,73 @@ export default function ChatArea() {
               </>
             )}
           </div>
-          <button
-            onClick={handleTogglePins}
-            className={`p-1.5 rounded transition-colors ${showPinnedPanel ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-text-primary'}`}
-            title="Pinned Messages"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="17" x2="12" y2="22" />
-              <path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z" />
-            </svg>
-          </button>
+          <div className="flex items-center gap-1">
+            {/* Jump to date button */}
+            <div className="relative">
+              <button
+                onClick={() => setShowDatePicker(!showDatePicker)}
+                className="p-1.5 rounded transition-colors text-sol-text-muted hover:text-sol-text-primary"
+                title="Jump to Date"
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </button>
+              {showDatePicker && (
+                <div className="absolute right-0 top-full mt-1 bg-sol-bg-elevated border border-sol-border rounded-lg shadow-lg p-3 z-50">
+                  <input
+                    type="date"
+                    value={dateInput}
+                    onChange={(e) => setDateInput(e.target.value)}
+                    className="bg-sol-bg-tertiary text-sol-text-primary border border-sol-border rounded px-2 py-1 text-sm"
+                    autoFocus
+                  />
+                  <div className="flex gap-2 mt-2">
+                    <button
+                      onClick={handleJumpToDate}
+                      disabled={!dateInput}
+                      className="text-xs px-3 py-1 bg-sol-accent text-white rounded hover:bg-sol-accent/80 disabled:opacity-50"
+                    >
+                      Jump
+                    </button>
+                    <button
+                      onClick={() => { setShowDatePicker(false); setDateInput('') }}
+                      className="text-xs px-3 py-1 text-sol-text-muted hover:text-sol-text-primary"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            <button
+              onClick={handleTogglePins}
+              className={`p-1.5 rounded transition-colors ${showPinnedPanel ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-text-primary'}`}
+              title="Pinned Messages"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="17" x2="12" y2="22" />
+                <path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z" />
+              </svg>
+            </button>
+          </div>
         </div>
 
+        {/* Jump to present banner */}
+        {isJumpedState && (
+          <button
+            onClick={handleJumpToPresent}
+            className="mx-4 mt-2 py-1.5 px-4 bg-sol-accent/20 text-sol-accent text-sm rounded-lg hover:bg-sol-accent/30 transition-colors text-center"
+          >
+            Viewing older messages — Jump to present
+          </button>
+        )}
+
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse">
           <div ref={messagesEndRef} />
           {messages.map((message) => (
             <MessageItem
@@ -114,6 +226,11 @@ export default function ChatArea() {
               isOwn={message.author_id === user?.id}
             />
           ))}
+          {/* Sentinel for infinite scroll — sits at the visual top (DOM bottom in flex-col-reverse) */}
+          <div ref={sentinelRef} className="h-1 shrink-0" />
+          {isFetchingMore && (
+            <div className="text-center py-2 text-sol-text-muted text-sm">Loading older messages...</div>
+          )}
         </div>
 
         {/* Message input */}

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { StickerPack, Sticker } from '@/types/models'
-import { stickers as stickersApi } from '@/services/api'
+import { stickers as stickersApi, resolveAttachmentUrl } from '@/services/api'
 
 interface StickerPickerProps {
   onSelect: (stickerId: string) => void
@@ -69,7 +69,7 @@ export default function StickerPicker({ onSelect, onClose }: StickerPickerProps)
                 className="p-1 rounded-lg hover:bg-sol-bg-elevated transition-colors"
                 title={sticker.name}
               >
-                <img src={sticker.url} alt={sticker.name} className="w-full aspect-square object-contain" />
+                <img src={resolveAttachmentUrl(sticker.url)} alt={sticker.name} className="w-full aspect-square object-contain" />
               </button>
             ))}
           </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { StickerPack, Sticker } from '@/types/models'
-import { stickers as stickersApi } from '@/services/api'
+import { stickers as stickersApi, resolveAttachmentUrl } from '@/services/api'
 
 interface StickerManagerProps {
   serverId: string
@@ -190,7 +190,7 @@ export default function StickerManager({ serverId, onClose }: StickerManagerProp
                   {stickerList.map((sticker) => (
                     <div key={sticker.id} className="relative group">
                       <img
-                        src={sticker.url}
+                        src={resolveAttachmentUrl(sticker.url)}
                         alt={sticker.name}
                         className="w-full aspect-square object-contain rounded-lg bg-sol-bg p-1"
                       />

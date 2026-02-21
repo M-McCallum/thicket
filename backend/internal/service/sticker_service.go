@@ -90,8 +90,7 @@ func (s *StickerService) GetStickerByID(ctx context.Context, id uuid.UUID) (*mod
 		}
 		return nil, err
 	}
-	url, _ := s.storage.GetPresignedURL(ctx, sticker.ObjectKey)
-	sticker.URL = url
+	sticker.URL = "/api/files/" + sticker.ObjectKey
 	return &sticker, nil
 }
 
@@ -107,11 +106,8 @@ func (s *StickerService) DeleteSticker(ctx context.Context, id uuid.UUID) error 
 	return s.queries.DeleteSticker(ctx, id)
 }
 
-func (s *StickerService) resolveURLs(ctx context.Context, stickers []models.Sticker) {
+func (s *StickerService) resolveURLs(_ context.Context, stickers []models.Sticker) {
 	for i := range stickers {
-		url, err := s.storage.GetPresignedURL(ctx, stickers[i].ObjectKey)
-		if err == nil {
-			stickers[i].URL = url
-		}
+		stickers[i].URL = "/api/files/" + stickers[i].ObjectKey
 	}
 }

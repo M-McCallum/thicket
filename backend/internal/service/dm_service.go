@@ -186,6 +186,36 @@ func (s *DMService) GetDMMessages(ctx context.Context, conversationID, userID uu
 	})
 }
 
+func (s *DMService) GetDMMessagesAfter(ctx context.Context, conversationID, userID uuid.UUID, after time.Time, limit int32) ([]models.DMMessageWithAuthor, error) {
+	// Verify conversation exists
+	_, err := s.queries.GetDMConversationByID(ctx, conversationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrConversationNotFound
+		}
+		return nil, err
+	}
+
+	// Verify user is a participant
+	_, err = s.queries.GetDMParticipant(ctx, conversationID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotDMParticipant
+		}
+		return nil, err
+	}
+
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	return s.queries.GetDMMessagesAfter(ctx, models.GetDMMessagesAfterParams{
+		ConversationID: conversationID,
+		After:          after,
+		Limit:          limit,
+	})
+}
+
 func (s *DMService) GetParticipantIDs(ctx context.Context, conversationID uuid.UUID) ([]uuid.UUID, error) {
 	participants, err := s.queries.GetDMParticipants(ctx, conversationID)
 	if err != nil {

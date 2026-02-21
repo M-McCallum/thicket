@@ -123,6 +123,33 @@ func (s *MessageService) GetMessages(ctx context.Context, channelID, userID uuid
 	})
 }
 
+func (s *MessageService) GetMessagesAfter(ctx context.Context, channelID, userID uuid.UUID, after time.Time, limit int32) ([]models.MessageWithAuthor, error) {
+	// Verify membership
+	channel, err := s.queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrChannelNotFound
+		}
+		return nil, err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+
+	return s.queries.GetChannelMessagesAfter(ctx, models.GetChannelMessagesAfterParams{
+		ChannelID: channelID,
+		After:     after,
+		Limit:     limit,
+	})
+}
+
 func (s *MessageService) UpdateMessage(ctx context.Context, messageID, userID uuid.UUID, content string) (*models.Message, error) {
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
 	if content == "" {

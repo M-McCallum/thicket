@@ -93,6 +93,60 @@ func (q *Queries) GetChannelMessages(ctx context.Context, arg GetChannelMessages
 	return messages, rows.Err()
 }
 
+type GetChannelMessagesAfterParams struct {
+	ChannelID uuid.UUID
+	After     time.Time
+	Limit     int32
+}
+
+func (q *Queries) GetChannelMessagesAfter(ctx context.Context, arg GetChannelMessagesAfterParams) ([]MessageWithAuthor, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT m.id, m.channel_id, m.author_id, m.content, m.type, m.reply_to_id, m.created_at, m.updated_at,
+		        u.username, u.display_name, u.avatar_url,
+		        rm.id, rm.author_id, ru.username, rm.content
+		FROM messages m
+		JOIN users u ON m.author_id = u.id
+		LEFT JOIN messages rm ON m.reply_to_id = rm.id
+		LEFT JOIN users ru ON rm.author_id = ru.id
+		WHERE m.channel_id = $1 AND m.created_at > $2
+		ORDER BY m.created_at ASC LIMIT $3`,
+		arg.ChannelID, arg.After, arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []MessageWithAuthor
+	for rows.Next() {
+		var m MessageWithAuthor
+		var replyID, replyAuthorID *uuid.UUID
+		var replyUsername, replyContent *string
+		if err := rows.Scan(
+			&m.ID, &m.ChannelID, &m.AuthorID, &m.Content, &m.Type, &m.ReplyToID, &m.CreatedAt, &m.UpdatedAt,
+			&m.AuthorUsername, &m.AuthorDisplayName, &m.AuthorAvatarURL,
+			&replyID, &replyAuthorID, &replyUsername, &replyContent,
+		); err != nil {
+			return nil, err
+		}
+		m.Attachments = []Attachment{}
+		m.Reactions = []ReactionCount{}
+		if replyID != nil {
+			m.ReplyTo = &ReplySnippet{
+				ID:             *replyID,
+				AuthorID:       *replyAuthorID,
+				AuthorUsername: *replyUsername,
+				Content:        *replyContent,
+			}
+		}
+		messages = append(messages, m)
+	}
+	if messages == nil {
+		messages = []MessageWithAuthor{}
+	}
+	return messages, rows.Err()
+}
+
 func (q *Queries) UpdateMessage(ctx context.Context, id uuid.UUID, content string) (Message, error) {
 	var m Message
 	err := q.db.QueryRow(ctx,

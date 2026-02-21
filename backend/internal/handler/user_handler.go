@@ -213,21 +213,17 @@ func (h *UserHandler) GetPublicProfile(c fiber.Ctx) error {
 	return c.JSON(toPublicUser(user))
 }
 
-// resolveAvatarURL converts a storage object key to a presigned URL.
-func (h *UserHandler) resolveAvatarURL(c fiber.Ctx, user *models.User) {
+// resolveAvatarURL converts a storage object key to a proxy URL.
+func (h *UserHandler) resolveAvatarURL(_ fiber.Ctx, user *models.User) {
 	if user.AvatarURL == nil || *user.AvatarURL == "" {
 		return
 	}
-	// Skip if it's already an absolute URL (legacy /uploads/ path or external)
-	if strings.HasPrefix(*user.AvatarURL, "http") || strings.HasPrefix(*user.AvatarURL, "/uploads/") {
+	// Skip if it's already an absolute URL or proxy path
+	if strings.HasPrefix(*user.AvatarURL, "http") || strings.HasPrefix(*user.AvatarURL, "/api/") || strings.HasPrefix(*user.AvatarURL, "/uploads/") {
 		return
 	}
-	presigned, err := h.storage.GetPresignedURL(c.Context(), *user.AvatarURL)
-	if err != nil {
-		log.Printf("Failed to get presigned URL for avatar %s: %v", *user.AvatarURL, err)
-		return
-	}
-	user.AvatarURL = &presigned
+	proxyURL := "/api/files/" + *user.AvatarURL
+	user.AvatarURL = &proxyURL
 }
 
 func (h *UserHandler) broadcastProfileUpdate(c fiber.Ctx, userID uuid.UUID, user models.User) {

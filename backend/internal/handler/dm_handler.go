@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
 	"github.com/M-McCallum/thicket/internal/service"
 	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
@@ -91,8 +92,69 @@ func (h *DMHandler) GetDMMessages(c fiber.Ctx) error {
 	}
 
 	_ = h.attachmentService.AttachToDMMessages(c.Context(), messages)
+	resolveDMMessageAvatars(messages)
 
 	return c.JSON(messages)
+}
+
+func resolveDMMessageAvatars(messages []models.DMMessageWithAuthor) {
+	for i := range messages {
+		if messages[i].AuthorAvatarURL != nil {
+			proxyURL := "/api/files/" + *messages[i].AuthorAvatarURL
+			messages[i].AuthorAvatarURL = &proxyURL
+		}
+	}
+}
+
+func (h *DMHandler) GetDMMessagesAround(c fiber.Ctx) error {
+	conversationID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid conversation ID"})
+	}
+
+	tsStr := c.Query("timestamp")
+	if tsStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "timestamp is required"})
+	}
+	ts, err := time.Parse(time.RFC3339Nano, tsStr)
+	if err != nil {
+		ts, err = time.Parse(time.RFC3339, tsStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid timestamp"})
+		}
+	}
+
+	limitVal := 25
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
+			limitVal = parsed
+		}
+	}
+	limit := int32(limitVal)
+	userID := auth.GetUserID(c)
+
+	// Get messages before timestamp
+	before, err := h.dmService.GetDMMessages(c.Context(), conversationID, userID, &ts, limit)
+	if err != nil {
+		return handleDMError(c, err)
+	}
+
+	// Get messages after timestamp
+	after, err := h.dmService.GetDMMessagesAfter(c.Context(), conversationID, userID, ts, limit)
+	if err != nil {
+		return handleDMError(c, err)
+	}
+
+	// Reverse after (ASC) to DESC, then merge
+	for i, j := 0, len(after)-1; i < j; i, j = i+1, j-1 {
+		after[i], after[j] = after[j], after[i]
+	}
+	merged := append(after, before...)
+
+	_ = h.attachmentService.AttachToDMMessages(c.Context(), merged)
+	resolveDMMessageAvatars(merged)
+
+	return c.JSON(merged)
 }
 
 func (h *DMHandler) SendDM(c fiber.Ctx) error {
@@ -176,18 +238,31 @@ func (h *DMHandler) SendDM(c fiber.Ctx) error {
 		}
 	}
 
+	// Look up author for avatar/display_name
+	var authorAvatarURL, authorDisplayName interface{}
+	author, authorErr := h.dmService.Queries().GetUserByID(c.Context(), userID)
+	if authorErr == nil {
+		if author.AvatarURL != nil {
+			proxyURL := "/api/files/" + *author.AvatarURL
+			authorAvatarURL = proxyURL
+		}
+		authorDisplayName = author.DisplayName
+	}
+
 	// Broadcast to all participants via SendToUser
 	participantIDs, err := h.dmService.GetParticipantIDs(c.Context(), conversationID)
 	if err == nil {
 		event, _ := ws.NewEvent(ws.EventDMMessageCreate, fiber.Map{
-			"id":              msg.ID,
-			"conversation_id": msg.ConversationID,
-			"author_id":       msg.AuthorID,
-			"content":         msg.Content,
-			"type":            msg.Type,
-			"created_at":      msg.CreatedAt,
-			"username":        auth.GetUsername(c),
-			"attachments":     attachments,
+			"id":                   msg.ID,
+			"conversation_id":     msg.ConversationID,
+			"author_id":           msg.AuthorID,
+			"content":             msg.Content,
+			"type":                msg.Type,
+			"created_at":          msg.CreatedAt,
+			"username":            auth.GetUsername(c),
+			"author_avatar_url":   authorAvatarURL,
+			"author_display_name": authorDisplayName,
+			"attachments":         attachments,
 		})
 		if event != nil {
 			for _, pid := range participantIDs {

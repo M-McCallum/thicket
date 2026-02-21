@@ -151,6 +151,44 @@ func (q *Queries) GetDMMessages(ctx context.Context, arg GetDMMessagesParams) ([
 	return messages, rows.Err()
 }
 
+type GetDMMessagesAfterParams struct {
+	ConversationID uuid.UUID
+	After          time.Time
+	Limit          int32
+}
+
+func (q *Queries) GetDMMessagesAfter(ctx context.Context, arg GetDMMessagesAfterParams) ([]DMMessageWithAuthor, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT dm.id, dm.conversation_id, dm.author_id, dm.content, dm.type, dm.created_at, dm.updated_at,
+		        u.username, u.display_name, u.avatar_url
+		FROM dm_messages dm JOIN users u ON dm.author_id = u.id
+		WHERE dm.conversation_id = $1 AND dm.created_at > $2
+		ORDER BY dm.created_at ASC LIMIT $3`,
+		arg.ConversationID, arg.After, arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var messages []DMMessageWithAuthor
+	for rows.Next() {
+		var m DMMessageWithAuthor
+		if err := rows.Scan(
+			&m.ID, &m.ConversationID, &m.AuthorID, &m.Content, &m.Type, &m.CreatedAt, &m.UpdatedAt,
+			&m.AuthorUsername, &m.AuthorDisplayName, &m.AuthorAvatarURL,
+		); err != nil {
+			return nil, err
+		}
+		m.Attachments = []Attachment{}
+		messages = append(messages, m)
+	}
+	if messages == nil {
+		messages = []DMMessageWithAuthor{}
+	}
+	return messages, rows.Err()
+}
+
 func (q *Queries) GetDMConversationByID(ctx context.Context, id uuid.UUID) (DMConversation, error) {
 	var c DMConversation
 	err := q.db.QueryRow(ctx,

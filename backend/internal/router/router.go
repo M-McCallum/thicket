@@ -67,10 +67,11 @@ func Setup(app *fiber.App, cfg Config) {
 		api.Get("/servers/invite/:code/preview", cfg.ServerHandler.GetServerPreview)
 	}
 
-	// Attachment file proxy (public — no auth, registered on app directly
+	// File proxy routes (public — no auth, registered on app directly
 	// because Fiber v3 group middleware bleeds to sibling routes)
 	if cfg.AttachmentHandler != nil {
 		app.Get("/api/attachments/:id/:filename", cfg.AttachmentHandler.ServeAttachment)
+		app.Get("/api/files/+", cfg.AttachmentHandler.ServeFile)
 	}
 
 	// Protected routes
@@ -121,6 +122,7 @@ func Setup(app *fiber.App, cfg Config) {
 	// Messages
 	protected.Post("/channels/:channelId/messages", cfg.MessageHandler.SendMessage)
 	protected.Get("/channels/:channelId/messages", cfg.MessageHandler.GetMessages)
+	protected.Get("/channels/:channelId/messages/around", cfg.MessageHandler.GetMessagesAround)
 	protected.Put("/messages/:id", cfg.MessageHandler.UpdateMessage)
 	protected.Delete("/messages/:id", cfg.MessageHandler.DeleteMessage)
 
@@ -160,6 +162,7 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Post("/dm/conversations", cfg.DMHandler.CreateConversation)
 	protected.Get("/dm/conversations", cfg.DMHandler.GetConversations)
 	protected.Get("/dm/conversations/:id/messages", cfg.DMHandler.GetDMMessages)
+	protected.Get("/dm/conversations/:id/messages/around", cfg.DMHandler.GetDMMessagesAround)
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
 
 	// Voice

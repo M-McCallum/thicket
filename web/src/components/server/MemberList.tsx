@@ -3,6 +3,7 @@ import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissionStore } from '@/stores/permissionStore'
 import UserProfilePopup from '@/components/profile/UserProfilePopup'
+import UserAvatar from '@/components/common/UserAvatar'
 
 const statusColors: Record<string, string> = {
   online: 'bg-sol-green',
@@ -125,7 +126,7 @@ export default function MemberList() {
   )
 }
 
-function MemberItem({ member, color, onClick }: { member: { id: string; username: string; display_name: string | null; status: string; role: string }; color: string | null; onClick: () => void }) {
+function MemberItem({ member, color, onClick }: { member: { id: string; username: string; display_name: string | null; avatar_url: string | null; status: string; role: string }; color: string | null; onClick: () => void }) {
   const fallbackColors: Record<string, string> = {
     owner: 'text-sol-amber',
     admin: 'text-sol-rose',
@@ -135,9 +136,7 @@ function MemberItem({ member, color, onClick }: { member: { id: string; username
   return (
     <div onClick={onClick} className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
       <div className="relative">
-        <div className="w-8 h-8 rounded-full bg-sol-bg-elevated flex items-center justify-center text-sm font-medium">
-          {(member.display_name ?? member.username).charAt(0).toUpperCase()}
-        </div>
+        <UserAvatar avatarUrl={member.avatar_url} username={member.display_name ?? member.username} size="sm" />
         <div
           className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-sol-bg-secondary ${statusColors[member.status] ?? statusColors.offline}`}
         />

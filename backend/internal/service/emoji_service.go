@@ -75,11 +75,8 @@ func (s *EmojiService) DeleteEmoji(ctx context.Context, emojiID uuid.UUID) error
 	return s.queries.DeleteCustomEmoji(ctx, emojiID)
 }
 
-func (s *EmojiService) resolveURLs(ctx context.Context, emojis []models.CustomEmoji) {
+func (s *EmojiService) resolveURLs(_ context.Context, emojis []models.CustomEmoji) {
 	for i := range emojis {
-		url, err := s.storage.GetPresignedURL(ctx, emojis[i].ObjectKey)
-		if err == nil {
-			emojis[i].URL = url
-		}
+		emojis[i].URL = "/api/files/" + emojis[i].ObjectKey
 	}
 }

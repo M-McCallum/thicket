@@ -37,6 +37,8 @@ export default function DMChatArea() {
           created_at: msgData.created_at,
           updated_at: msgData.created_at,
           author_username: msgData.username,
+          author_avatar_url: msgData.author_avatar_url,
+          author_display_name: msgData.author_display_name,
           attachments: msgData.attachments
         })
       }

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
 	"github.com/M-McCallum/thicket/internal/service"
 	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
@@ -145,18 +146,31 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 		}
 	}
 
+	// Look up author for avatar/display_name
+	var authorAvatarURL, authorDisplayName interface{}
+	author, err := h.messageService.Queries().GetUserByID(c.Context(), userID)
+	if err == nil {
+		if author.AvatarURL != nil {
+			proxyURL := "/api/files/" + *author.AvatarURL
+			authorAvatarURL = proxyURL
+		}
+		authorDisplayName = author.DisplayName
+	}
+
 	// Broadcast via WebSocket
 	event, _ := ws.NewEvent(ws.EventMessageCreate, fiber.Map{
-		"id":           msg.ID,
-		"channel_id":   msg.ChannelID,
-		"author_id":    msg.AuthorID,
-		"content":      msg.Content,
-		"type":         msg.Type,
-		"reply_to_id":  msg.ReplyToID,
-		"reply_to":     replyTo,
-		"created_at":   msg.CreatedAt,
-		"username":     auth.GetUsername(c),
-		"attachments":  attachments,
+		"id":                  msg.ID,
+		"channel_id":          msg.ChannelID,
+		"author_id":           msg.AuthorID,
+		"content":             msg.Content,
+		"type":                msg.Type,
+		"reply_to_id":         msg.ReplyToID,
+		"reply_to":            replyTo,
+		"created_at":          msg.CreatedAt,
+		"username":            auth.GetUsername(c),
+		"author_avatar_url":   authorAvatarURL,
+		"author_display_name": authorDisplayName,
+		"attachments":         attachments,
 	})
 	if event != nil {
 		h.hub.BroadcastToChannel(channelID.String(), event, nil)
@@ -197,8 +211,73 @@ func (h *MessageHandler) GetMessages(c fiber.Ctx) error {
 	// Attach attachments and reactions
 	_ = h.attachmentService.AttachToMessages(c.Context(), messages)
 	_ = h.messageService.AttachReactionsToMessages(c.Context(), messages, userID)
+	resolveMessageAvatars(messages)
 
 	return c.JSON(messages)
+}
+
+func resolveMessageAvatars(messages []models.MessageWithAuthor) {
+	for i := range messages {
+		if messages[i].AuthorAvatarURL != nil {
+			proxyURL := "/api/files/" + *messages[i].AuthorAvatarURL
+			messages[i].AuthorAvatarURL = &proxyURL
+		}
+	}
+}
+
+func (h *MessageHandler) GetMessagesAround(c fiber.Ctx) error {
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+
+	tsStr := c.Query("timestamp")
+	if tsStr == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "timestamp is required"})
+	}
+	ts, err := time.Parse(time.RFC3339Nano, tsStr)
+	if err != nil {
+		ts, err = time.Parse(time.RFC3339, tsStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid timestamp"})
+		}
+	}
+
+	limitVal := 25
+	if l := c.Query("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 50 {
+			limitVal = parsed
+		}
+	}
+	limit := int32(limitVal)
+	userID := auth.GetUserID(c)
+
+	// Get messages before the timestamp
+	beforeTs := ts
+	before, err := h.messageService.GetMessages(c.Context(), channelID, userID, &beforeTs, limit)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	// Get messages after the timestamp
+	after, err := h.messageService.GetMessagesAfter(c.Context(), channelID, userID, ts, limit)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	// Merge: after (reversed to DESC) + before — all in descending order
+	// after comes back in ASC, so reverse it
+	for i, j := 0, len(after)-1; i < j; i, j = i+1, j-1 {
+		after[i], after[j] = after[j], after[i]
+	}
+	merged := append(after, before...)
+
+	// Attach attachments and reactions to the merged set
+	_ = h.attachmentService.AttachToMessages(c.Context(), merged)
+	_ = h.messageService.AttachReactionsToMessages(c.Context(), merged, userID)
+	resolveMessageAvatars(merged)
+
+	return c.JSON(merged)
 }
 
 func (h *MessageHandler) UpdateMessage(c fiber.Ctx) error {
@@ -324,6 +403,7 @@ func (h *MessageHandler) GetPinnedMessages(c fiber.Ctx) error {
 	}
 
 	_ = h.attachmentService.AttachToMessages(c.Context(), messages)
+	resolveMessageAvatars(messages)
 
 	return c.JSON(messages)
 }

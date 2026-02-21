@@ -151,6 +151,13 @@ func (h *ServerHandler) GetMembers(c fiber.Ctx) error {
 		return handleServerError(c, err)
 	}
 
+	for i := range members {
+		if members[i].AvatarURL != nil {
+			proxyURL := "/api/files/" + *members[i].AvatarURL
+			members[i].AvatarURL = &proxyURL
+		}
+	}
+
 	return c.JSON(members)
 }
 

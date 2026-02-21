@@ -84,6 +84,8 @@ export interface MessageCreateData {
   reply_to?: { id: string; author_id: string; author_username: string; content: string } | null
   created_at: string
   username: string
+  author_avatar_url?: string | null
+  author_display_name?: string | null
   attachments?: Attachment[]
 }
 
@@ -152,6 +154,8 @@ export interface DMMessageCreateData {
   type?: string
   created_at: string
   username: string
+  author_avatar_url?: string | null
+  author_display_name?: string | null
   attachments?: Attachment[]
 }
 

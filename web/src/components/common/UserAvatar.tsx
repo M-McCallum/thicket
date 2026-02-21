@@ -11,15 +11,22 @@ const sizeClasses = {
   lg: 'w-20 h-20 text-3xl'
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
-// Strip /api suffix to get the base URL for static files
-const STATIC_BASE = API_BASE.replace(/\/api$/, '')
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const API_ORIGIN = API_BASE.replace(/\/api$/, '')
+
+function resolveAvatarSrc(url: string): string {
+  if (url.startsWith('http')) return url
+  // Already a proxy path like /api/files/...
+  if (url.startsWith('/api/')) return `${API_ORIGIN}${url}`
+  // Raw object key like avatars/uuid.ext — route through file proxy
+  return `${API_ORIGIN}/api/files/${url}`
+}
 
 export default function UserAvatar({ avatarUrl, username, size = 'md', className = '' }: UserAvatarProps) {
   const initial = username?.charAt(0).toUpperCase() ?? '?'
 
   if (avatarUrl) {
-    const src = avatarUrl.startsWith('http') ? avatarUrl : `${STATIC_BASE}${avatarUrl}`
+    const src = resolveAvatarSrc(avatarUrl)
     return (
       <img
         src={src}

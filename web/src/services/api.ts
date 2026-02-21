@@ -213,7 +213,12 @@ export const messages = {
   delete: (id: string) =>
     request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' }),
   edits: (id: string) =>
-    request<MessageEdit[]>(`/messages/${id}/edits`)
+    request<MessageEdit[]>(`/messages/${id}/edits`),
+  around: (channelId: string, timestamp: string, limit?: number) => {
+    const params = new URLSearchParams({ timestamp })
+    if (limit) params.set('limit', String(limit))
+    return request<Message[]>(`/channels/${channelId}/messages/around?${params}`)
+  }
 }
 
 // Voice
@@ -324,6 +329,11 @@ export const dm = {
       method: 'POST',
       body: JSON.stringify({ content, type: msgType })
     })
+  },
+  getMessagesAround: (conversationId: string, timestamp: string, limit?: number) => {
+    const params = new URLSearchParams({ timestamp })
+    if (limit) params.set('limit', String(limit))
+    return request<DMMessage[]>(`/dm/conversations/${conversationId}/messages/around?${params}`)
   },
   getVoiceToken: (conversationId: string) =>
     request<{ token: string; room: string }>(
