@@ -59,6 +59,7 @@ export default function ChatArea() {
     clearMessages()
     clearThreads()
     fetchMessages(activeChannelId)
+    fetchPinnedMessages(activeChannelId)
 
     // Fetch threads for this channel
     threadsApi.list(activeChannelId).then(setThreadsForChannel).catch(() => {})

@@ -7,12 +7,11 @@ interface PinnedMessagesPanelProps {
 }
 
 export default function PinnedMessagesPanel({ channelId, onClose }: PinnedMessagesPanelProps) {
-  const { pinnedMessages, fetchPinnedMessages } = useMessageStore()
+  const pinnedMessages = useMessageStore((s) => s.pinnedMessages)
 
   const handleUnpin = async (messageId: string) => {
     try {
       await pinsApi.unpin(channelId, messageId)
-      fetchPinnedMessages(channelId)
     } catch {
       // ignore
     }

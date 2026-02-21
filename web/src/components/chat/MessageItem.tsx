@@ -82,9 +82,15 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   const canDelete = isOwn || canManageMessages
   const canEdit = isOwn && !isSticker && !isGif
 
+  const isPinned = useMessageStore((s) => s.pinnedMessageIds.has(message.id))
+
   const handlePin = async () => {
     try {
-      await pinsApi.pin(message.channel_id, message.id)
+      if (isPinned) {
+        await pinsApi.unpin(message.channel_id, message.id)
+      } else {
+        await pinsApi.pin(message.channel_id, message.id)
+      }
     } catch {
       // ignore
     }
@@ -205,8 +211,8 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
           )}
           <button
             onClick={handlePin}
-            className="p-1.5 text-sol-text-muted hover:text-sol-amber transition-colors"
-            title="Pin"
+            className={`p-1.5 transition-colors ${isPinned ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-amber'}`}
+            title={isPinned ? 'Unpin' : 'Pin'}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="17" x2="12" y2="22" />
@@ -299,6 +305,14 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
             {displayName}
           </button>
           <span className="text-xs font-mono text-sol-text-muted">{time}</span>
+          {isPinned && (
+            <span className="text-sol-amber text-xs flex items-center gap-0.5" title="Pinned message">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="17" x2="12" y2="22" />
+                <path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z" />
+              </svg>
+            </span>
+          )}
           {message.updated_at !== message.created_at && (
             <button
               onClick={() => setShowEditHistory(true)}

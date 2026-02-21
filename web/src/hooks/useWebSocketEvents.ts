@@ -411,8 +411,7 @@ export function useWebSocketEvents() {
         const pin = _data as MessagePinData
         const { activeChannelId } = useServerStore.getState()
         if (pin.channel_id === activeChannelId) {
-          const { showPinnedPanel, fetchPinnedMessages } = useMessageStore.getState()
-          if (showPinnedPanel) fetchPinnedMessages(pin.channel_id)
+          useMessageStore.getState().addPinnedMessage(pin.message_id)
         }
       })
     )
@@ -423,8 +422,7 @@ export function useWebSocketEvents() {
         const unpin = _data as MessageUnpinData
         const { activeChannelId } = useServerStore.getState()
         if (unpin.channel_id === activeChannelId) {
-          const { showPinnedPanel, fetchPinnedMessages } = useMessageStore.getState()
-          if (showPinnedPanel) fetchPinnedMessages(unpin.channel_id)
+          useMessageStore.getState().removePinnedMessage(unpin.message_id)
         }
       })
     )

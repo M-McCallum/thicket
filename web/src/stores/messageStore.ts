@@ -24,7 +24,10 @@ interface MessageState {
   removeMessage: (messageId: string) => void
   clearMessages: () => void
   setReplyingTo: (message: Message | null) => void
+  pinnedMessageIds: Set<string>
   fetchPinnedMessages: (channelId: string) => Promise<void>
+  addPinnedMessage: (messageId: string) => void
+  removePinnedMessage: (messageId: string) => void
   setShowPinnedPanel: (show: boolean) => void
   addReaction: (messageId: string, emoji: string, isMe: boolean) => void
   removeReaction: (messageId: string, emoji: string, isMe: boolean) => void
@@ -43,6 +46,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   hasMore: true,
   replyingTo: null,
   pinnedMessages: [],
+  pinnedMessageIds: new Set<string>(),
   showPinnedPanel: false,
   highlightedMessageId: null,
   isJumpedState: false,
@@ -135,18 +139,39 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       pinnedMessages: state.pinnedMessages.filter((m) => m.id !== messageId)
     })),
 
-  clearMessages: () => set({ messages: [], hasMore: true, replyingTo: null, pinnedMessages: [], showPinnedPanel: false, highlightedMessageId: null, isJumpedState: false, editingMessageId: null }),
+  clearMessages: () => set({ messages: [], hasMore: true, replyingTo: null, pinnedMessages: [], pinnedMessageIds: new Set<string>(), showPinnedPanel: false, highlightedMessageId: null, isJumpedState: false, editingMessageId: null }),
 
   setReplyingTo: (message) => set({ replyingTo: message }),
 
   fetchPinnedMessages: async (channelId) => {
     try {
       const pinned = await pinsApi.list(channelId)
-      set({ pinnedMessages: pinned })
+      set({ pinnedMessages: pinned, pinnedMessageIds: new Set(pinned.map((m) => m.id)) })
     } catch {
       // ignore
     }
   },
+
+  addPinnedMessage: (messageId) =>
+    set((state) => {
+      if (state.pinnedMessageIds.has(messageId)) return state
+      const msg = state.messages.find((m) => m.id === messageId)
+      return {
+        pinnedMessageIds: new Set([...state.pinnedMessageIds, messageId]),
+        pinnedMessages: msg ? [msg, ...state.pinnedMessages] : state.pinnedMessages
+      }
+    }),
+
+  removePinnedMessage: (messageId) =>
+    set((state) => {
+      if (!state.pinnedMessageIds.has(messageId)) return state
+      const ids = new Set(state.pinnedMessageIds)
+      ids.delete(messageId)
+      return {
+        pinnedMessageIds: ids,
+        pinnedMessages: state.pinnedMessages.filter((m) => m.id !== messageId)
+      }
+    }),
 
   setShowPinnedPanel: (show) => set({ showPinnedPanel: show }),
 
