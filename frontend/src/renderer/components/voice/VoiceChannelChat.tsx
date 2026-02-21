@@ -40,7 +40,7 @@ export default function VoiceChannelChat() {
           channel_id: msgData.channel_id,
           author_id: msgData.author_id,
           content: msgData.content,
-          type: msgData.type as 'text' | 'sticker' | undefined,
+          type: msgData.type as 'text' | undefined,
           reply_to_id: msgData.reply_to_id,
           reply_to: msgData.reply_to,
           reactions: [],

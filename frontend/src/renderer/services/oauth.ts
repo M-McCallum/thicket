@@ -1,7 +1,7 @@
 import { OidcClient, WebStorageStateStore } from 'oidc-client-ts'
 import type { OAuthTokens } from '../types/api'
 
-const AUTHORITY = 'http://localhost:4444'
+const AUTHORITY = import.meta.env.VITE_OIDC_AUTHORITY || 'http://localhost:4444'
 const CLIENT_ID = 'thicket-desktop'
 const REDIRECT_URI = 'thicket://auth/callback'
 const SCOPES = 'openid offline_access profile'

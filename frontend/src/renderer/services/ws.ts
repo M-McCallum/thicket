@@ -1,6 +1,7 @@
 import type { WSEvent, WSEventType } from '../types/ws'
 
-const WS_URL = 'ws://localhost:8080/ws'
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
+const WS_URL = API_BASE.replace(/^http/, 'ws').replace(/\/api$/, '/ws')
 const HEARTBEAT_INTERVAL = 30000
 const RECONNECT_DELAY = 3000
 const MAX_RECONNECT_DELAY = 30000

@@ -7,9 +7,9 @@ import { PermManageServer, PermManageChannels } from '@renderer/types/permission
 import { useNotificationStore } from '@renderer/stores/notificationStore'
 import { categories as categoriesApi } from '@renderer/services/api'
 import InviteModal from './InviteModal'
-import StickerManager from './StickerManager'
+
 import ChannelSettingsModal from './ChannelSettingsModal'
-import { invalidateStickerCache } from '@renderer/components/chat/MessageInput'
+
 import { useLayoutStore } from '@renderer/stores/layoutStore'
 
 const ServerSettingsModal = lazy(() => import('./ServerSettingsModal'))
@@ -24,7 +24,7 @@ export default function ChannelSidebar() {
   const canManageChannels = useHasPermission(PermManageChannels)
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
-  const [showStickers, setShowStickers] = useState(false)
+
   const [showSettings, setShowSettings] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice' | 'forum'>('text')
   const [newChannelName, setNewChannelName] = useState('')
@@ -444,16 +444,6 @@ export default function ChannelSidebar() {
               Create Forum
             </button>
           )}
-          <button
-            onClick={() => setShowStickers(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-violet bg-sol-bg/50 hover:bg-sol-violet/10 rounded-lg transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2a10 10 0 1010 10h-10V2z" />
-              <path d="M12 2v10h10" />
-            </svg>
-            Sticker Packs
-          </button>
         </div>
       )}
 
@@ -462,10 +452,6 @@ export default function ChannelSidebar() {
         <InviteModal serverId={activeServerId!} onClose={() => setShowInvite(false)} />
       )}
 
-      {/* Sticker manager */}
-      {showStickers && activeServerId && (
-        <StickerManager serverId={activeServerId} onClose={() => { setShowStickers(false); invalidateStickerCache() }} />
-      )}
 
       {/* Server settings modal */}
       {showSettings && activeServer && (

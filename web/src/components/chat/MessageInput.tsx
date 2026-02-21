@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { gifs, stickers as stickersApi, scheduledMessages, ApiError } from '@/services/api'
+import { gifs, scheduledMessages, ApiError } from '@/services/api'
 import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import { useHasPermission } from '@/stores/permissionStore'
@@ -8,7 +8,7 @@ import { isLargeFile, isFileTooLarge, uploadLargeFile, abortUpload, type UploadP
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
-const StickerPicker = lazy(() => import('./StickerPicker'))
+
 const ScheduledMessagesPanel = lazy(() => import('./ScheduledMessagesPanel'))
 
 interface PendingFile {
@@ -28,11 +28,6 @@ interface MessageInputProps {
 
 // Cache feature availability across instances
 let gifAvailable: boolean | null = null
-let stickerAvailable: boolean | null = null
-
-export function invalidateStickerCache() {
-  stickerAvailable = null
-}
 
 export default function MessageInput({ channelName, onSend, channelId, dmConversationId }: MessageInputProps) {
   const canSend = useHasPermission(PermSendMessages)
@@ -41,12 +36,12 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
   const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
-  const [showSticker, setShowSticker] = useState(false)
+
   const [showSchedulePicker, setShowSchedulePicker] = useState(false)
   const [showScheduledPanel, setShowScheduledPanel] = useState(false)
   const [scheduleDate, setScheduleDate] = useState('')
   const [hasGifs, setHasGifs] = useState(gifAvailable ?? false)
-  const [hasStickers, setHasStickers] = useState(stickerAvailable ?? false)
+
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [slowModeCountdown, setSlowModeCountdown] = useState(0)
@@ -74,12 +69,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
         setHasGifs(true)
       }).catch(() => { gifAvailable = false })
     }
-    if (stickerAvailable === null) {
-      stickersApi.getPacks().then((packs) => {
-        stickerAvailable = packs.length > 0
-        setHasStickers(packs.length > 0)
-      }).catch(() => { stickerAvailable = false })
-    }
+
   }, [])
 
   const resetHeight = useCallback(() => {
@@ -351,10 +341,6 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
     await onSend(url)
   }
 
-  const handleStickerSelect = async (stickerId: string) => {
-    setShowSticker(false)
-    await onSend(stickerId, undefined, 'sticker')
-  }
 
   const handleScheduleConfirm = async () => {
     const trimmed = input.trim()
@@ -559,7 +545,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
           <Suspense fallback={null}>
             {showEmoji && <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmoji(false)} />}
             {showGif && <GifPicker onSelect={handleGifSelect} onClose={() => setShowGif(false)} />}
-            {showSticker && <StickerPicker onSelect={handleStickerSelect} onClose={() => setShowSticker(false)} />}
+
             {showScheduledPanel && <ScheduledMessagesPanel onClose={() => setShowScheduledPanel(false)} />}
           </Suspense>
 
@@ -605,7 +591,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
 
           <button
             type="button"
-            onClick={() => { setShowEmoji(!showEmoji); setShowGif(false); setShowSticker(false) }}
+            onClick={() => { setShowEmoji(!showEmoji); setShowGif(false) }}
             className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
             title="Emoji"
           >
@@ -620,7 +606,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
           {hasGifs && gifsEnabledOnServer && (
             <button
               type="button"
-              onClick={() => { setShowGif(!showGif); setShowEmoji(false); setShowSticker(false) }}
+              onClick={() => { setShowGif(!showGif); setShowEmoji(false) }}
               className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
               title="GIF"
             >
@@ -628,19 +614,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
             </button>
           )}
 
-          {hasStickers && (
-            <button
-              type="button"
-              onClick={() => { setShowSticker(!showSticker); setShowEmoji(false); setShowGif(false) }}
-              className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
-              title="Sticker"
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2a10 10 0 1010 10h-10V2z" />
-                <path d="M12 2v10h10" />
-              </svg>
-            </button>
-          )}
+
 
           {/* Schedule message button */}
           <button

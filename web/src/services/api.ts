@@ -9,7 +9,7 @@ import type {
 import type {
   Server, Channel, Message, ServerMember,
   DMConversationWithParticipants, DMMessage, User,
-  CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
+  CustomEmoji, Friendship, ServerPreview,
   ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
   MessageEdit, LinkPreview, StageInstance, StageSpeaker, StageInfo,
   SoundboardSound, BotUser, Webhook,
@@ -484,27 +484,6 @@ export interface GifResult {
   }
 }
 
-// Stickers
-export const stickers = {
-  getPacks: () => request<StickerPack[]>('/sticker-packs'),
-  getStickers: (packId: string) =>
-    request<Sticker[]>(`/sticker-packs/${packId}/stickers`),
-  createPack: (serverId: string, name: string, description?: string) =>
-    request<StickerPack>(`/servers/${serverId}/sticker-packs`, {
-      method: 'POST',
-      body: JSON.stringify({ name, description })
-    }),
-  createSticker: (packId: string, name: string, file: File) => {
-    const fd = new FormData()
-    fd.append('name', name)
-    fd.append('image', file)
-    return requestMultipart<Sticker>(`/sticker-packs/${packId}/stickers`, fd)
-  },
-  deletePack: (serverId: string, packId: string) =>
-    request<void>(`/servers/${serverId}/sticker-packs/${packId}`, { method: 'DELETE' }),
-  delete: (stickerId: string) =>
-    request<{ message: string }>(`/stickers/${stickerId}`, { method: 'DELETE' })
-}
 
 // Friends
 export const friends = {

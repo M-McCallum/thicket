@@ -95,20 +95,19 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
 
   const displayName = message.author_display_name ?? message.author_username ?? 'Unknown'
   const isPoll = message.type === 'poll'
-  const isSticker = message.type === 'sticker'
-  const isGif = !isSticker && /^https?:\/\/.*\.(gif|gifv)(\?.*)?$/i.test(message.content) ||
+  const isGif = /^https?:\/\/.*\.(gif|gifv)(\?.*)?$/i.test(message.content) ||
     /^https?:\/\/media\d*\.giphy\.com\//i.test(message.content)
 
-  // Extract URLs for link previews (skip stickers/gifs)
+  // Extract URLs for link previews (skip gifs)
   const previewUrls = useMemo(() => {
-    if (isSticker || isGif) return []
+    if (isGif) return []
     const matches = message.content.match(URL_REGEX)
     if (!matches) return []
     return [...new Set(matches)].slice(0, 3)
-  }, [message.content, isSticker, isGif])
+  }, [message.content, isGif])
 
   const canDelete = isOwn || canManageMessages
-  const canEdit = isOwn && !isSticker && !isGif
+  const canEdit = isOwn && !isGif
 
   const isPinned = useMessageStore((s) => s.pinnedMessageIds.has(message.id))
 
@@ -377,15 +376,6 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
                 </button>
               </span>
             </div>
-          </div>
-        ) : isSticker ? (
-          <div className="mt-1">
-            <img
-              src={message.content}
-              alt="Sticker"
-              className="w-36 h-36 object-contain"
-              loading="lazy"
-            />
           </div>
         ) : isGif ? (
           <div className="mt-1">

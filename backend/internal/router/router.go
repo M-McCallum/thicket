@@ -25,7 +25,7 @@ type Config struct {
 	UserHandler        *handler.UserHandler
 	EmojiHandler       *handler.EmojiHandler
 	GifHandler         *handler.GifHandler
-	StickerHandler     *handler.StickerHandler
+
 	FriendHandler      *handler.FriendHandler
 	RoleHandler        *handler.RoleHandler
 	LinkPreviewHandler *handler.LinkPreviewHandler
@@ -292,15 +292,6 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Get("/gifs/trending", cfg.GifHandler.Trending)
 	}
 
-	// Stickers
-	if cfg.StickerHandler != nil {
-		protected.Get("/sticker-packs", cfg.StickerHandler.GetPacks)
-		protected.Get("/sticker-packs/:id/stickers", cfg.StickerHandler.GetStickers)
-		protected.Post("/servers/:id/sticker-packs", cfg.StickerHandler.CreatePack)
-		protected.Post("/sticker-packs/:id/stickers", cfg.StickerHandler.CreateSticker)
-		protected.Delete("/servers/:serverId/sticker-packs/:id", cfg.StickerHandler.DeletePack)
-		protected.Delete("/stickers/:id", cfg.StickerHandler.DeleteSticker)
-	}
 
 	// Moderation
 	if cfg.ModerationHandler != nil {

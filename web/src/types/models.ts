@@ -108,7 +108,7 @@ export interface Message {
   channel_id: string
   author_id: string
   content: string
-  type?: 'text' | 'sticker' | 'poll'
+  type?: 'text' | 'poll'
   reply_to_id?: string | null
   reply_to?: ReplySnippet | null
   reactions?: ReactionCount[]
@@ -159,7 +159,7 @@ export interface DMMessage {
   conversation_id: string
   author_id: string
   content: string
-  type?: 'text' | 'sticker' | 'poll'
+  type?: 'text' | 'poll'
   reply_to_id?: string | null
   reply_to?: DMReplySnippet | null
   reactions?: DMReactionCount[]
@@ -199,22 +199,6 @@ export interface CustomEmoji {
   created_at: string
 }
 
-export interface StickerPack {
-  id: string
-  name: string
-  description?: string
-  server_id?: string
-  creator_id: string
-  created_at: string
-}
-
-export interface Sticker {
-  id: string
-  pack_id: string
-  name: string
-  url: string
-  created_at: string
-}
 
 export interface Friendship {
   id: string

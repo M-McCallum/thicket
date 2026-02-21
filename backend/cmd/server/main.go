@@ -87,7 +87,7 @@ func main() {
 	identityService := service.NewIdentityService(queries, kratosClient)
 	userService := service.NewUserService(queries)
 	emojiService := service.NewEmojiService(queries, storageClient)
-	stickerService := service.NewStickerService(queries, storageClient)
+
 	friendService := service.NewFriendService(queries)
 	stageService := service.NewStageService(queries, permissionService)
 	soundboardService := service.NewSoundboardService(queries, storageClient)
@@ -182,7 +182,7 @@ func main() {
 	oryHandler := handler.NewOryHandler(hydraClient, kratosClient, identityService, cfg.Ory.KratosBrowserURL)
 	userHandler := handler.NewUserHandler(userService, hub, serverService.GetUserCoMemberIDs, storageClient)
 	emojiHandler := handler.NewEmojiHandler(emojiService, serverService)
-	stickerHandler := handler.NewStickerHandler(stickerService, serverService)
+
 	friendHandler := handler.NewFriendHandler(friendService, hub)
 	inviteHandler := handler.NewInviteHandler(inviteService, serverService, hub)
 	roleHandler := handler.NewRoleHandler(roleService, serverService, hub)
@@ -238,7 +238,7 @@ func main() {
 		UserHandler:        userHandler,
 		EmojiHandler:       emojiHandler,
 		GifHandler:         gifHandler,
-		StickerHandler:     stickerHandler,
+
 		FriendHandler:      friendHandler,
 		RoleHandler:        roleHandler,
 		LinkPreviewHandler: linkPreviewHandler,

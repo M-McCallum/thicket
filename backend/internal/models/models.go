@@ -215,25 +215,7 @@ type CustomEmoji struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// StickerPack is a collection of stickers.
-type StickerPack struct {
-	ID          uuid.UUID  `json:"id"`
-	Name        string     `json:"name"`
-	Description *string    `json:"description,omitempty"`
-	ServerID    *uuid.UUID `json:"server_id,omitempty"`
-	CreatorID   uuid.UUID  `json:"creator_id"`
-	CreatedAt   time.Time  `json:"created_at"`
-}
 
-// Sticker is a single sticker in a pack.
-type Sticker struct {
-	ID        uuid.UUID `json:"id"`
-	PackID    uuid.UUID `json:"pack_id"`
-	Name      string    `json:"name"`
-	ObjectKey string    `json:"object_key"`
-	URL       string    `json:"url"`
-	CreatedAt time.Time `json:"created_at"`
-}
 
 // Friendship represents a friend/block relationship.
 type Friendship struct {

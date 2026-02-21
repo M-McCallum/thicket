@@ -62,7 +62,7 @@ export default function DMChatArea() {
           conversation_id: msgData.conversation_id,
           author_id: msgData.author_id,
           content: msgData.content,
-          type: msgData.type as 'text' | 'sticker' | undefined,
+          type: msgData.type as 'text' | undefined,
           created_at: msgData.created_at,
           updated_at: msgData.created_at,
           author_username: msgData.username,
@@ -411,16 +411,15 @@ function DMMessageItemInner({
   const isEditing = editingMessageId === message.id
 
   const canDelete = isOwn
-  const canEdit = isOwn && message.type !== 'sticker'
+  const canEdit = isOwn
 
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
   })
   const displayName = message.author_display_name ?? message.author_username ?? 'Unknown'
-  const isSticker = message.type === 'sticker'
-  const isGif = !isSticker && (/^https?:\/\/.*\.(gif|gifv)(\?.*)?$/i.test(message.content) ||
-    /^https?:\/\/media\d*\.giphy\.com\//i.test(message.content))
+  const isGif = /^https?:\/\/.*\.(gif|gifv)(\?.*)?$/i.test(message.content) ||
+    /^https?:\/\/media\d*\.giphy\.com\//i.test(message.content)
 
   const startEditing = () => {
     setEditContent(message.content)
@@ -621,10 +620,6 @@ function DMMessageItemInner({
                 </button>
               </span>
             </div>
-          </div>
-        ) : isSticker ? (
-          <div className="mt-1">
-            <img src={message.content} alt="Sticker" className="w-36 h-36 object-contain" loading="lazy" />
           </div>
         ) : isGif ? (
           <div className="mt-1">

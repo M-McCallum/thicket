@@ -80,7 +80,7 @@ export default function ChatArea() {
           channel_id: msgData.channel_id,
           author_id: msgData.author_id,
           content: msgData.content,
-          type: msgData.type as 'text' | 'sticker' | 'poll' | undefined,
+          type: msgData.type as 'text' | 'poll' | undefined,
           reply_to_id: msgData.reply_to_id,
           reply_to: msgData.reply_to,
           reactions: [],
