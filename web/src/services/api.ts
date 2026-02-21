@@ -492,6 +492,8 @@ export const stickers = {
     fd.append('image', file)
     return requestMultipart<Sticker>(`/sticker-packs/${packId}/stickers`, fd)
   },
+  deletePack: (serverId: string, packId: string) =>
+    request<void>(`/servers/${serverId}/sticker-packs/${packId}`, { method: 'DELETE' }),
   delete: (stickerId: string) =>
     request<{ message: string }>(`/stickers/${stickerId}`, { method: 'DELETE' })
 }
@@ -757,6 +759,8 @@ export const threads = {
     const query = params.toString()
     return request<ThreadMessage[]>(`/threads/${threadId}/messages${query ? `?${query}` : ''}`)
   },
+  deleteMessage: (threadId: string, messageId: string) =>
+    request<void>(`/threads/${threadId}/messages/${messageId}`, { method: 'DELETE' }),
   updateSubscription: (threadId: string, notificationLevel: string) =>
     request<ThreadSubscription>(`/threads/${threadId}/subscription`, {
       method: 'PUT',
@@ -843,6 +847,8 @@ export const forum = {
     const query = params.toString()
     return request<ForumPostMessage[]>(`/forum/posts/${postId}/messages${query ? `?${query}` : ''}`)
   },
+  deletePostMessage: (postId: string, messageId: string) =>
+    request<void>(`/forum/posts/${postId}/messages/${messageId}`, { method: 'DELETE' }),
   createPostMessage: (postId: string, content: string) =>
     request<ForumPostMessage>(`/forum/posts/${postId}/messages`, {
       method: 'POST',
@@ -988,6 +994,27 @@ export const webhooks = {
     }),
   delete: (webhookId: string) =>
     request<{ message: string }>(`/webhooks/${webhookId}`, { method: 'DELETE' })
+}
+
+// Large file uploads
+export const uploads = {
+  initiate: (filename: string, contentType: string, fileSize: number) =>
+    request<{ pending_upload_id: string; part_urls: string[]; part_size: number }>('/uploads/initiate', {
+      method: 'POST',
+      body: JSON.stringify({ filename, content_type: contentType, file_size: fileSize })
+    }),
+  reportPart: (pendingUploadId: string, partNumber: number, etag: string) =>
+    request<void>(`/uploads/${pendingUploadId}/part-complete`, {
+      method: 'POST',
+      body: JSON.stringify({ part_number: partNumber, etag })
+    }),
+  complete: (pendingUploadId: string, messageId?: string, dmMessageId?: string) =>
+    request<{ id: string; url: string; filename: string; original_filename: string; content_type: string; size: number }>(`/uploads/${pendingUploadId}/complete`, {
+      method: 'POST',
+      body: JSON.stringify({ message_id: messageId, dm_message_id: dmMessageId })
+    }),
+  abort: (pendingUploadId: string) =>
+    request<void>(`/uploads/${pendingUploadId}`, { method: 'DELETE' })
 }
 
 // Exports
