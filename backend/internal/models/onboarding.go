@@ -46,7 +46,7 @@ func (q *Queries) UpdateWelcomeConfig(ctx context.Context, serverID uuid.UUID, m
 	row := q.db.QueryRow(ctx,
 		`UPDATE servers SET welcome_message = $2, welcome_channels = $3, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, icon_url, owner_id, invite_code, welcome_message, welcome_channels, created_at, updated_at`,
+		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, default_message_retention_days, created_at, updated_at`,
 		serverID, message, channelIDs,
 	)
 	return scanServer(row)

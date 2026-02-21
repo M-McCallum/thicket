@@ -69,6 +69,18 @@ export const useDMStore = create<DMState>((set, get) => ({
 
   editMessage: async (messageId, content) => {
     try {
+      // Check if the conversation is encrypted
+      const msg = get().messages.find((m) => m.id === messageId)
+      if (msg) {
+        const conv = get().conversations.find((c) => c.id === msg.conversation_id)
+        if (conv?.encrypted) {
+          const { useE2EEStore } = await import('./e2eeStore')
+          const e2ee = useE2EEStore.getState()
+          if (e2ee.initialized) {
+            content = await e2ee.encrypt(msg.conversation_id, content)
+          }
+        }
+      }
       await dmApi.editMessage(messageId, content)
       set({ editingMessageId: null })
     } catch {
@@ -178,6 +190,21 @@ export const useDMStore = create<DMState>((set, get) => ({
   },
 
   sendMessage: async (conversationId, content, files, msgType) => {
+    // Check if conversation is encrypted
+    const conv = get().conversations.find((c) => c.id === conversationId)
+    if (conv?.encrypted) {
+      // Encrypt content before sending via E2EE store
+      const { useE2EEStore } = await import('./e2eeStore')
+      const e2ee = useE2EEStore.getState()
+      if (e2ee.initialized) {
+        try {
+          content = await e2ee.encrypt(conversationId, content)
+        } catch (err) {
+          console.error('[E2EE] Encryption failed:', err)
+          throw new Error('Failed to encrypt message')
+        }
+      }
+    }
     await dmApi.sendMessage(conversationId, content, files, msgType)
   },
 

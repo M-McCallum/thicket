@@ -18,9 +18,9 @@ func (q *Queries) CreateDMConversation(ctx context.Context, arg CreateDMConversa
 	err := q.db.QueryRow(ctx,
 		`INSERT INTO dm_conversations (is_group, name, accepted)
 		VALUES ($1, $2, $3)
-		RETURNING id, is_group, name, accepted, created_at`,
+		RETURNING id, is_group, name, accepted, encrypted, created_at`,
 		arg.IsGroup, arg.Name, arg.Accepted,
-	).Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.CreatedAt)
+	).Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.Encrypted, &c.CreatedAt)
 	return c, err
 }
 
@@ -44,7 +44,7 @@ func (q *Queries) GetDMParticipant(ctx context.Context, conversationID, userID u
 
 func (q *Queries) GetUserDMConversations(ctx context.Context, userID uuid.UUID) ([]DMConversation, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT dc.id, dc.is_group, dc.name, dc.accepted, dc.created_at
+		`SELECT dc.id, dc.is_group, dc.name, dc.accepted, dc.encrypted, dc.created_at
 		FROM dm_conversations dc JOIN dm_participants dp ON dc.id = dp.conversation_id
 		WHERE dp.user_id = $1 ORDER BY dc.created_at DESC`, userID,
 	)
@@ -56,7 +56,7 @@ func (q *Queries) GetUserDMConversations(ctx context.Context, userID uuid.UUID) 
 	var convos []DMConversation
 	for rows.Next() {
 		var c DMConversation
-		if err := rows.Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.CreatedAt); err != nil {
+		if err := rows.Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.Encrypted, &c.CreatedAt); err != nil {
 			return nil, err
 		}
 		convos = append(convos, c)
@@ -228,8 +228,8 @@ func (q *Queries) GetDMMessagesAfter(ctx context.Context, arg GetDMMessagesAfter
 func (q *Queries) GetDMConversationByID(ctx context.Context, id uuid.UUID) (DMConversation, error) {
 	var c DMConversation
 	err := q.db.QueryRow(ctx,
-		`SELECT id, is_group, name, accepted, created_at FROM dm_conversations WHERE id = $1`, id,
-	).Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.CreatedAt)
+		`SELECT id, is_group, name, accepted, encrypted, created_at FROM dm_conversations WHERE id = $1`, id,
+	).Scan(&c.ID, &c.IsGroup, &c.Name, &c.Accepted, &c.Encrypted, &c.CreatedAt)
 	return c, err
 }
 

@@ -268,6 +268,8 @@ func (h *DMHandler) SendDM(c fiber.Ctx) error {
 	// Broadcast to all participants via SendToUser
 	participantIDs, err := h.dmService.GetParticipantIDs(c.Context(), conversationID)
 	if err == nil {
+		// Check if conversation is encrypted
+		conv, _ := h.dmService.Queries().GetDMConversationByID(c.Context(), conversationID)
 		event, _ := ws.NewEvent(ws.EventDMMessageCreate, fiber.Map{
 			"id":                   msg.ID,
 			"conversation_id":     msg.ConversationID,
@@ -279,6 +281,7 @@ func (h *DMHandler) SendDM(c fiber.Ctx) error {
 			"author_avatar_url":   authorAvatarURL,
 			"author_display_name": authorDisplayName,
 			"attachments":         attachments,
+			"encrypted":           conv.Encrypted,
 		})
 		if event != nil {
 			for _, pid := range participantIDs {
@@ -483,6 +486,7 @@ func (h *DMHandler) EditDMMessage(c fiber.Ctx) error {
 	// Broadcast to all participants
 	participantIDs, err := h.dmService.GetParticipantIDs(c.Context(), msg.ConversationID)
 	if err == nil {
+		conv, _ := h.dmService.Queries().GetDMConversationByID(c.Context(), msg.ConversationID)
 		event, _ := ws.NewEvent(ws.EventDMMessageUpdate, fiber.Map{
 			"id":              msg.ID,
 			"conversation_id": msg.ConversationID,
@@ -490,6 +494,7 @@ func (h *DMHandler) EditDMMessage(c fiber.Ctx) error {
 			"content":         msg.Content,
 			"created_at":      msg.CreatedAt,
 			"updated_at":      msg.UpdatedAt,
+			"encrypted":       conv.Encrypted,
 		})
 		if event != nil {
 			for _, pid := range participantIDs {
@@ -711,6 +716,8 @@ func handleDMError(c fiber.Ctx, err error) error {
 	case errors.Is(err, service.ErrCannotDMSelf):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrEmptyMessage):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrMessageTooLong):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrMaxParticipants):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})

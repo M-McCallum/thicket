@@ -1,6 +1,8 @@
 package router
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	"github.com/gofiber/fiber/v3/middleware/logger"
@@ -8,6 +10,7 @@ import (
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/handler"
+	"github.com/M-McCallum/thicket/internal/middleware"
 	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
 )
@@ -45,6 +48,7 @@ type Config struct {
 	BotHandler         *handler.BotHandler
 	WebhookHandler     *handler.WebhookHandler
 	ExportHandler      *handler.ExportHandler
+	KeysHandler        *handler.KeysHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -58,11 +62,42 @@ func Setup(app *fiber.App, cfg Config) {
 	// Global middleware
 	app.Use(recover.New())
 	app.Use(logger.New())
+	app.Use(middleware.SecurityHeaders())
 	app.Use(cors.New(cors.Config{
 		AllowOrigins: []string{cfg.CORSOrigin},
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))
+
+	// Global rate limit: 120 req/min per IP on /api
+	apiRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    120,
+		Window: time.Minute,
+	})
+
+	// Stricter rate limits for specific endpoints
+	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    30,
+		Window: time.Minute,
+	})
+	messageSendRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    10,
+		Window: 10 * time.Second,
+		KeyFunc: middleware.UserChannelKeyFunc,
+	})
+	fileUploadRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    5,
+		Window: time.Minute,
+		KeyFunc: middleware.UserKeyFunc,
+	})
+	webhookExecRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    10,
+		Window: time.Second,
+	})
+	wsConnRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    5,
+		Window: time.Minute,
+	})
 
 	// Health check
 	app.Get("/health", func(c fiber.Ctx) error {
@@ -71,7 +106,7 @@ func Setup(app *fiber.App, cfg Config) {
 
 	// Ory Hydra provider endpoints (no auth middleware)
 	if cfg.OryHandler != nil {
-		oryAuth := app.Group("/auth")
+		oryAuth := app.Group("/auth", authRateLimit)
 		oryAuth.Get("/login", cfg.OryHandler.GetLogin)
 		oryAuth.Get("/registration", cfg.OryHandler.GetRegistration)
 		oryAuth.Get("/consent", cfg.OryHandler.GetConsent)
@@ -79,7 +114,7 @@ func Setup(app *fiber.App, cfg Config) {
 		oryAuth.Get("/error", cfg.OryHandler.GetError)
 	}
 
-	api := app.Group("/api")
+	api := app.Group("/api", apiRateLimit)
 
 	// Public routes (no auth)
 	if cfg.ServerHandler != nil {
@@ -95,7 +130,7 @@ func Setup(app *fiber.App, cfg Config) {
 
 	// Webhook execute (public — no auth, token in URL)
 	if cfg.WebhookHandler != nil {
-		app.Post("/api/webhooks/:webhookId/:token", cfg.WebhookHandler.ExecuteWebhook)
+		app.Post("/api/webhooks/:webhookId/:token", webhookExecRateLimit, cfg.WebhookHandler.ExecuteWebhook)
 	}
 
 	// Protected routes
@@ -115,7 +150,7 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Patch("/me/profile", cfg.UserHandler.UpdateProfile)
 		protected.Put("/me/status", cfg.UserHandler.UpdateStatus)
 		protected.Put("/me/custom-status", cfg.UserHandler.UpdateCustomStatus)
-		protected.Post("/me/avatar", cfg.UserHandler.UploadAvatar)
+		protected.Post("/me/avatar", fileUploadRateLimit, cfg.UserHandler.UploadAvatar)
 		protected.Delete("/me/avatar", cfg.UserHandler.DeleteAvatar)
 		protected.Get("/users/:id/profile", cfg.UserHandler.GetPublicProfile)
 	}
@@ -153,7 +188,7 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Delete("/servers/:id/categories/:categoryId", cfg.ServerHandler.DeleteCategory)
 
 	// Messages
-	protected.Post("/channels/:channelId/messages", cfg.MessageHandler.SendMessage)
+	protected.Post("/channels/:channelId/messages", messageSendRateLimit, cfg.MessageHandler.SendMessage)
 	protected.Get("/channels/:channelId/messages", cfg.MessageHandler.GetMessages)
 	protected.Get("/channels/:channelId/messages/around", cfg.MessageHandler.GetMessagesAround)
 	protected.Put("/messages/:id", cfg.MessageHandler.UpdateMessage)
@@ -211,7 +246,7 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Get("/dm/conversations", cfg.DMHandler.GetConversations)
 	protected.Get("/dm/conversations/:id/messages", cfg.DMHandler.GetDMMessages)
 	protected.Get("/dm/conversations/:id/messages/around", cfg.DMHandler.GetDMMessagesAround)
-	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
+	protected.Post("/dm/conversations/:id/messages", messageSendRateLimit, cfg.DMHandler.SendDM)
 	protected.Post("/dm/conversations/:id/accept", cfg.DMHandler.AcceptRequest)
 	protected.Post("/dm/conversations/:id/decline", cfg.DMHandler.DeclineRequest)
 	protected.Post("/dm/conversations/:id/participants", cfg.DMHandler.AddParticipant)
@@ -412,6 +447,19 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Post("/me/data-export", cfg.ExportHandler.ExportAccountData)
 	}
 
+	// E2EE Identity Keys
+	if cfg.KeysHandler != nil {
+		protected.Post("/keys/identity", cfg.KeysHandler.RegisterIdentityKey)
+		protected.Get("/keys/identity", cfg.KeysHandler.GetMyIdentityKeys)
+		protected.Get("/keys/identity/:userId", cfg.KeysHandler.GetUserIdentityKeys)
+		protected.Delete("/keys/identity/devices/:deviceId", cfg.KeysHandler.RemoveDeviceKey)
+		protected.Put("/keys/envelope", cfg.KeysHandler.StoreKeyEnvelope)
+		protected.Get("/keys/envelope", cfg.KeysHandler.GetKeyEnvelope)
+		protected.Delete("/keys/envelope", cfg.KeysHandler.DeleteKeyEnvelope)
+		protected.Post("/keys/group/:conversationId", cfg.KeysHandler.StoreGroupKey)
+		protected.Get("/keys/group/:conversationId", cfg.KeysHandler.GetGroupKeys)
+	}
+
 	// WebSocket
-	app.Get("/ws", ws.Handler(cfg.Hub, cfg.JWKSManager, cfg.CoMemberIDsFn, cfg.ServerMemberIDsFn))
+	app.Get("/ws", wsConnRateLimit, ws.Handler(cfg.Hub, cfg.JWKSManager, cfg.CoMemberIDsFn, cfg.ServerMemberIDsFn))
 }

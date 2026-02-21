@@ -11,9 +11,9 @@ import (
 )
 
 var (
-	ErrWebhookNotFound   = errors.New("webhook not found")
+	ErrWebhookNotFound     = errors.New("webhook not found")
 	ErrWebhookTokenInvalid = errors.New("invalid webhook token")
-	ErrInvalidWebhookName = errors.New("webhook name must be 1-80 characters")
+	ErrInvalidWebhookName  = errors.New("webhook name must be 1-80 characters")
 )
 
 type WebhookService struct {
@@ -26,53 +26,59 @@ func NewWebhookService(q *models.Queries, permSvc *PermissionService) *WebhookSe
 }
 
 // CreateWebhook creates a webhook for a channel. The caller must have ManageChannels.
-func (s *WebhookService) CreateWebhook(ctx context.Context, channelID, creatorID uuid.UUID, name string) (*models.Webhook, error) {
+// Returns the webhook with the plaintext token (shown once).
+func (s *WebhookService) CreateWebhook(ctx context.Context, channelID, creatorID uuid.UUID, name string) (*models.Webhook, string, error) {
 	if len(name) < 1 || len(name) > 80 {
-		return nil, ErrInvalidWebhookName
+		return nil, "", ErrInvalidWebhookName
 	}
 
 	// Verify channel exists and get server ID for permission check
 	channel, err := s.queries.GetChannelByID(ctx, channelID)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrChannelNotFound
+			return nil, "", ErrChannelNotFound
 		}
-		return nil, err
+		return nil, "", err
 	}
 
 	// Check membership
 	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, creatorID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrNotMember
+			return nil, "", ErrNotMember
 		}
-		return nil, err
+		return nil, "", err
 	}
 
 	// Check permission
 	ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, creatorID, models.PermManageChannels)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if !ok {
-		return nil, ErrInsufficientRole
+		return nil, "", ErrInsufficientRole
 	}
 
 	token, err := GenerateToken()
 	if err != nil {
-		return nil, err
+		return nil, "", err
+	}
+
+	tokenHash, err := HashToken(token)
+	if err != nil {
+		return nil, "", err
 	}
 
 	webhook, err := s.queries.CreateWebhook(ctx, models.CreateWebhookParams{
 		ChannelID: channelID,
 		Name:      name,
-		Token:     token,
+		Token:     tokenHash,
 		CreatorID: creatorID,
 	})
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	return &webhook, nil
+	return &webhook, token, nil
 }
 
 // ListWebhooks lists all webhooks for a channel.
@@ -140,7 +146,7 @@ func (s *WebhookService) ExecuteWebhook(ctx context.Context, webhookID uuid.UUID
 		return nil, nil, err
 	}
 
-	if webhook.Token != token {
+	if !ValidateToken(token, webhook.TokenHash) {
 		return nil, nil, ErrWebhookTokenInvalid
 	}
 
@@ -149,8 +155,6 @@ func (s *WebhookService) ExecuteWebhook(ctx context.Context, webhookID uuid.UUID
 	}
 
 	// Create message with the webhook's creator as the author
-	// (we use a special zero UUID as a webhook sentinel, but for simplicity
-	// we'll use the creator_id)
 	msg, err := s.queries.CreateMessage(ctx, models.CreateMessageParams{
 		ChannelID: webhook.ChannelID,
 		AuthorID:  webhook.CreatorID,

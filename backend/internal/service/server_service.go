@@ -201,7 +201,7 @@ var (
 	ErrInvalidCategoryName = errors.New("category name must be 1-100 characters")
 )
 
-func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string, isPublic *bool, description *string, gifsEnabled *bool) (*models.Server, error) {
+func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string, isPublic *bool, description *string, gifsEnabled *bool, retentionDays *int) (*models.Server, error) {
 	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
@@ -219,12 +219,13 @@ func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.
 		return nil, ErrInvalidServerName
 	}
 	server, err := s.queries.UpdateServer(ctx, models.UpdateServerParams{
-		ID:          serverID,
-		Name:        name,
-		IconURL:     iconURL,
-		IsPublic:    isPublic,
-		Description: description,
-		GifsEnabled: gifsEnabled,
+		ID:                          serverID,
+		Name:                        name,
+		IconURL:                     iconURL,
+		IsPublic:                    isPublic,
+		Description:                 description,
+		GifsEnabled:                 gifsEnabled,
+		DefaultMessageRetentionDays: retentionDays,
 	})
 	if err != nil {
 		return nil, err
@@ -261,6 +262,9 @@ func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, 
 	}
 	if name != nil && (len(*name) < 1 || len(*name) > 100) {
 		return nil, ErrInvalidChannelName
+	}
+	if topic != nil && len(*topic) > 1024 {
+		return nil, errors.New("channel topic must be 1024 characters or fewer")
 	}
 	ch, err := s.queries.UpdateChannel(ctx, models.UpdateChannelParams{
 		ID:               channelID,

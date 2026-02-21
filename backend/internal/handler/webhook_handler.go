@@ -36,21 +36,21 @@ func (h *WebhookHandler) CreateWebhook(c fiber.Ctx) error {
 	}
 
 	userID := auth.GetUserID(c)
-	webhook, err := h.webhookService.CreateWebhook(c.Context(), channelID, userID, body.Name)
+	webhook, token, err := h.webhookService.CreateWebhook(c.Context(), channelID, userID, body.Name)
 	if err != nil {
 		return handleWebhookError(c, err)
 	}
 
-	// Return the webhook with the token visible (only on creation)
+	// Return the webhook with the plaintext token visible (shown once on creation only)
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
 		"id":         webhook.ID,
 		"channel_id": webhook.ChannelID,
 		"name":       webhook.Name,
 		"avatar_url": webhook.AvatarURL,
-		"token":      webhook.Token,
+		"token":      token,
 		"creator_id": webhook.CreatorID,
 		"created_at": webhook.CreatedAt,
-		"url":        "/api/webhooks/" + webhook.ID.String() + "/" + webhook.Token,
+		"url":        "/api/webhooks/" + webhook.ID.String() + "/" + token,
 	})
 }
 

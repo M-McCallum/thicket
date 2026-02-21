@@ -164,7 +164,7 @@ export const servers = {
   delete: (id: string) =>
     request<{ message: string }>(`/servers/${id}`, { method: 'DELETE' }),
   members: (id: string) => request<ServerMember[]>(`/servers/${id}/members`),
-  update: (id: string, data: { name?: string; icon_url?: string; is_public?: boolean; description?: string; gifs_enabled?: boolean }) =>
+  update: (id: string, data: { name?: string; icon_url?: string; is_public?: boolean; description?: string; gifs_enabled?: boolean; default_message_retention_days?: number | null }) =>
     request<Server>(`/servers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
@@ -391,6 +391,51 @@ export const dm = {
     request<{ message: string }>(`/dm/conversations/${conversationId}/pins/${messageId}`, { method: 'DELETE' }),
   getPinnedMessages: (conversationId: string) =>
     request<DMMessage[]>(`/dm/conversations/${conversationId}/pins`)
+}
+
+// E2EE Identity Keys
+export interface IdentityKeyResponse {
+  id: string
+  user_id: string
+  device_id: string
+  public_key_jwk: JsonWebKey
+  created_at: string
+}
+
+export interface KeyEnvelopeResponse {
+  user_id: string
+  envelope: number[] // byte array from server JSON
+  updated_at: string
+}
+
+export const keys = {
+  registerIdentityKey: (deviceId: string, publicKeyJWK: JsonWebKey) =>
+    request<IdentityKeyResponse>('/keys/identity', {
+      method: 'POST',
+      body: JSON.stringify({ device_id: deviceId, public_key_jwk: publicKeyJWK })
+    }),
+  getMyKeys: () =>
+    request<IdentityKeyResponse[]>('/keys/identity'),
+  getUserKeys: (userId: string) =>
+    request<IdentityKeyResponse[]>(`/keys/identity/${userId}`),
+  removeDeviceKey: (deviceId: string) =>
+    request<{ message: string }>(`/keys/identity/devices/${deviceId}`, { method: 'DELETE' }),
+  storeEnvelope: (envelope: number[]) =>
+    request<{ message: string }>('/keys/envelope', {
+      method: 'PUT',
+      body: JSON.stringify({ envelope })
+    }),
+  getEnvelope: () =>
+    request<KeyEnvelopeResponse>('/keys/envelope'),
+  deleteEnvelope: () =>
+    request<{ message: string }>('/keys/envelope', { method: 'DELETE' }),
+  storeGroupKey: (conversationId: string, epoch: number, userId: string, encryptedKey: number[]) =>
+    request<{ message: string }>(`/keys/group/${conversationId}`, {
+      method: 'POST',
+      body: JSON.stringify({ epoch, user_id: userId, encrypted_key: encryptedKey })
+    }),
+  getGroupKeys: (conversationId: string) =>
+    request<Array<{ conversation_id: string; epoch: number; user_id: string; encrypted_key: number[]; created_at: string }>>(`/keys/group/${conversationId}`),
 }
 
 // Custom Emojis

@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, RemoteParticipant, Participant, Track, RemoteTrack, RemoteTrackPublication } from 'livekit-client'
+import { Room, RoomEvent, RemoteParticipant, Participant, Track, RemoteTrack, RemoteTrackPublication, ExternalE2EEKeyProvider } from 'livekit-client'
 import { dm } from '@/services/api'
 import { wsService } from '@/services/ws'
 
@@ -14,11 +14,12 @@ interface DMCallState {
   activeConversationId: string | null
   isMuted: boolean
   isDeafened: boolean
+  isE2EE: boolean
   participants: DMCallParticipant[]
   incomingCall: { conversationId: string; callerId: string; callerUsername: string } | null
 
-  startCall: (conversationId: string) => Promise<void>
-  acceptCall: (conversationId: string) => Promise<void>
+  startCall: (conversationId: string, encrypted?: boolean) => Promise<void>
+  acceptCall: (conversationId: string, encrypted?: boolean) => Promise<void>
   endCall: () => void
   declineCall: () => void
   toggleMute: () => void
@@ -31,10 +32,11 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
   activeConversationId: null,
   isMuted: false,
   isDeafened: false,
+  isE2EE: false,
   participants: [],
   incomingCall: null,
 
-  startCall: async (conversationId) => {
+  startCall: async (conversationId, encrypted) => {
     const { room: existing } = get()
     if (existing) get().endCall()
 
@@ -42,7 +44,32 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room()
+
+    // Set up E2EE if the conversation is encrypted
+    let e2eeEnabled = false
+    const roomOptions: ConstructorParameters<typeof Room>[0] = {}
+    if (encrypted) {
+      try {
+        const { deriveVoiceKey } = await import('@/crypto/dmEncryption')
+        const { useE2EEStore } = await import('./e2eeStore')
+        const dmKey = useE2EEStore.getState().dmKeys.get(conversationId)
+        if (dmKey) {
+          const voiceKeyBytes = await deriveVoiceKey(dmKey)
+          const keyProvider = new ExternalE2EEKeyProvider()
+          roomOptions.e2ee = {
+            keyProvider,
+            worker: new Worker(new URL('livekit-client/e2ee-worker', import.meta.url)),
+          }
+          e2eeEnabled = true
+          // Set the key after room creation
+          setTimeout(() => keyProvider.setKey(voiceKeyBytes.buffer as ArrayBuffer), 0)
+        }
+      } catch (err) {
+        console.warn('[E2EE] Voice encryption setup failed, falling back to unencrypted:', err)
+      }
+    }
+
+    const room = new Room(roomOptions)
 
     // Explicitly attach audio tracks for autoplay policy compliance
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
@@ -81,17 +108,41 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
       muted: !p.isMicrophoneEnabled
     }))
 
-    set({ room, activeConversationId: conversationId, participants: existing_participants, isMuted: false, isDeafened: false })
+    set({ room, activeConversationId: conversationId, participants: existing_participants, isMuted: false, isDeafened: false, isE2EE: e2eeEnabled })
   },
 
-  acceptCall: async (conversationId) => {
+  acceptCall: async (conversationId, encrypted) => {
     set({ incomingCall: null })
 
     wsService.send({ type: 'DM_CALL_ACCEPT', data: { conversation_id: conversationId } })
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room()
+
+    // Set up E2EE if the conversation is encrypted
+    let e2eeEnabled = false
+    const roomOptions: ConstructorParameters<typeof Room>[0] = {}
+    if (encrypted) {
+      try {
+        const { deriveVoiceKey } = await import('@/crypto/dmEncryption')
+        const { useE2EEStore } = await import('./e2eeStore')
+        const dmKey = useE2EEStore.getState().dmKeys.get(conversationId)
+        if (dmKey) {
+          const voiceKeyBytes = await deriveVoiceKey(dmKey)
+          const keyProvider = new ExternalE2EEKeyProvider()
+          roomOptions.e2ee = {
+            keyProvider,
+            worker: new Worker(new URL('livekit-client/e2ee-worker', import.meta.url)),
+          }
+          e2eeEnabled = true
+          setTimeout(() => keyProvider.setKey(voiceKeyBytes.buffer as ArrayBuffer), 0)
+        }
+      } catch (err) {
+        console.warn('[E2EE] Voice encryption setup failed, falling back to unencrypted:', err)
+      }
+    }
+
+    const room = new Room(roomOptions)
 
     // Explicitly attach audio tracks for autoplay policy compliance
     room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
@@ -120,7 +171,7 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
       muted: !p.isMicrophoneEnabled
     }))
 
-    set({ room, activeConversationId: conversationId, participants: existing_participants, isMuted: false, isDeafened: false })
+    set({ room, activeConversationId: conversationId, participants: existing_participants, isMuted: false, isDeafened: false, isE2EE: e2eeEnabled })
   },
 
   endCall: () => {
@@ -129,7 +180,7 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
     if (activeConversationId) {
       wsService.send({ type: 'DM_CALL_END', data: { conversation_id: activeConversationId } })
     }
-    set({ room: null, activeConversationId: null, participants: [], isMuted: false, isDeafened: false })
+    set({ room: null, activeConversationId: null, participants: [], isMuted: false, isDeafened: false, isE2EE: false })
   },
 
   declineCall: () => {

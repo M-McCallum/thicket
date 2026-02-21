@@ -85,6 +85,13 @@ func main() {
 	pollService := service.NewPollService(queries)
 	inviteService := service.NewInviteService(queries, permissionService)
 
+	// E2EE keys service
+	keysService := service.NewKeysService(queries)
+
+	// Cleanup service (message retention)
+	cleanupService := service.NewCleanupService(queries)
+	cleanupService.Start()
+
 	// Scheduler service
 	schedulerService := service.NewSchedulerService(queries, messageService, dmService)
 	schedulerService.Start()
@@ -171,6 +178,7 @@ func main() {
 	soundboardHandler := handler.NewSoundboardHandler(soundboardService, serverService)
 	botHandler := handler.NewBotHandler(botService)
 	webhookHandler := handler.NewWebhookHandler(webhookService, hub)
+	keysHandler := handler.NewKeysHandler(keysService)
 	exportHandler := handler.NewExportHandler(exportService)
 	forumHandler := handler.NewForumHandler(forumService, hub)
 	onboardingHandler := handler.NewOnboardingHandler(onboardingService)
@@ -233,6 +241,7 @@ func main() {
 		BotHandler:         botHandler,
 		WebhookHandler:     webhookHandler,
 		ExportHandler:      exportHandler,
+		KeysHandler:        keysHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,

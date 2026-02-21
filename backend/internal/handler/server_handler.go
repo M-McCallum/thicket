@@ -246,18 +246,19 @@ func (h *ServerHandler) UpdateServer(c fiber.Ctx) error {
 	}
 
 	var body struct {
-		Name        *string `json:"name"`
-		IconURL     *string `json:"icon_url"`
-		IsPublic    *bool   `json:"is_public"`
-		Description *string `json:"description"`
-		GifsEnabled *bool   `json:"gifs_enabled"`
+		Name                        *string `json:"name"`
+		IconURL                     *string `json:"icon_url"`
+		IsPublic                    *bool   `json:"is_public"`
+		Description                 *string `json:"description"`
+		GifsEnabled                 *bool   `json:"gifs_enabled"`
+		DefaultMessageRetentionDays *int    `json:"default_message_retention_days"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
 	userID := auth.GetUserID(c)
-	server, err := h.serverService.UpdateServer(c.Context(), serverID, userID, body.Name, body.IconURL, body.IsPublic, body.Description, body.GifsEnabled)
+	server, err := h.serverService.UpdateServer(c.Context(), serverID, userID, body.Name, body.IconURL, body.IsPublic, body.Description, body.GifsEnabled, body.DefaultMessageRetentionDays)
 	if err != nil {
 		return handleServerError(c, err)
 	}

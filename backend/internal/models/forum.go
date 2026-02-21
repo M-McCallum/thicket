@@ -368,6 +368,22 @@ func (q *Queries) GetForumPostMessages(ctx context.Context, postID uuid.UUID, li
 	return messages, rows.Err()
 }
 
+// GetForumPostMessageByID returns a forum post message by its ID.
+func (q *Queries) GetForumPostMessageByID(ctx context.Context, id uuid.UUID) (ForumPostMessage, error) {
+	var m ForumPostMessage
+	err := q.db.QueryRow(ctx,
+		`SELECT id, post_id, author_id, content, created_at, updated_at
+		FROM forum_post_messages WHERE id = $1`, id,
+	).Scan(&m.ID, &m.PostID, &m.AuthorID, &m.Content, &m.CreatedAt, &m.UpdatedAt)
+	return m, err
+}
+
+// DeleteForumPostMessage deletes a forum post message by its ID.
+func (q *Queries) DeleteForumPostMessage(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, `DELETE FROM forum_post_messages WHERE id = $1`, id)
+	return err
+}
+
 // TouchForumPostUpdatedAt bumps the updated_at timestamp on a forum post.
 func (q *Queries) TouchForumPostUpdatedAt(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, `UPDATE forum_posts SET updated_at = NOW() WHERE id = $1`, id)

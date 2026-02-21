@@ -17,7 +17,7 @@ func (q *Queries) CreateServer(ctx context.Context, arg CreateServerParams) (Ser
 	row := q.db.QueryRow(ctx,
 		`INSERT INTO servers (name, owner_id, invite_code)
 		VALUES ($1, $2, $3)
-		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, created_at, updated_at`,
+		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, default_message_retention_days, created_at, updated_at`,
 		arg.Name, arg.OwnerID, arg.InviteCode,
 	)
 	return scanServer(row)
@@ -25,7 +25,7 @@ func (q *Queries) CreateServer(ctx context.Context, arg CreateServerParams) (Ser
 
 func (q *Queries) GetServerByID(ctx context.Context, id uuid.UUID) (Server, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, created_at, updated_at
+		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, default_message_retention_days, created_at, updated_at
 		FROM servers WHERE id = $1`, id,
 	)
 	return scanServer(row)
@@ -33,7 +33,7 @@ func (q *Queries) GetServerByID(ctx context.Context, id uuid.UUID) (Server, erro
 
 func (q *Queries) GetServerByInviteCode(ctx context.Context, inviteCode string) (Server, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, created_at, updated_at
+		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, default_message_retention_days, created_at, updated_at
 		FROM servers WHERE invite_code = $1`, inviteCode,
 	)
 	return scanServer(row)
@@ -41,7 +41,7 @@ func (q *Queries) GetServerByInviteCode(ctx context.Context, inviteCode string) 
 
 func (q *Queries) GetUserServers(ctx context.Context, userID uuid.UUID) ([]Server, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT s.id, s.name, s.icon_url, s.owner_id, s.invite_code, s.is_public, s.description, s.gifs_enabled, s.welcome_message, s.welcome_channels, s.created_at, s.updated_at
+		`SELECT s.id, s.name, s.icon_url, s.owner_id, s.invite_code, s.is_public, s.description, s.gifs_enabled, s.welcome_message, s.welcome_channels, s.default_message_retention_days, s.created_at, s.updated_at
 		FROM servers s JOIN server_members sm ON s.id = sm.server_id
 		WHERE sm.user_id = $1 ORDER BY s.name`, userID,
 	)
@@ -65,22 +65,25 @@ func (q *Queries) GetUserServers(ctx context.Context, userID uuid.UUID) ([]Serve
 }
 
 type UpdateServerParams struct {
-	ID          uuid.UUID
-	Name        *string
-	IconURL     *string
-	IsPublic    *bool
-	Description *string
-	GifsEnabled *bool
+	ID                          uuid.UUID
+	Name                        *string
+	IconURL                     *string
+	IsPublic                    *bool
+	Description                 *string
+	GifsEnabled                 *bool
+	DefaultMessageRetentionDays *int
 }
 
 func (q *Queries) UpdateServer(ctx context.Context, arg UpdateServerParams) (Server, error) {
 	row := q.db.QueryRow(ctx,
 		`UPDATE servers SET name = COALESCE($2, name), icon_url = COALESCE($3, icon_url),
 		 is_public = COALESCE($4, is_public), description = COALESCE($5, description),
-		 gifs_enabled = COALESCE($6, gifs_enabled), updated_at = NOW()
+		 gifs_enabled = COALESCE($6, gifs_enabled),
+		 default_message_retention_days = COALESCE($7, default_message_retention_days),
+		 updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, created_at, updated_at`,
-		arg.ID, arg.Name, arg.IconURL, arg.IsPublic, arg.Description, arg.GifsEnabled,
+		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, gifs_enabled, welcome_message, welcome_channels, default_message_retention_days, created_at, updated_at`,
+		arg.ID, arg.Name, arg.IconURL, arg.IsPublic, arg.Description, arg.GifsEnabled, arg.DefaultMessageRetentionDays,
 	)
 	return scanServer(row)
 }
@@ -208,7 +211,7 @@ func (q *Queries) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID) ([]u
 
 func scanServer(row pgx.Row) (Server, error) {
 	var s Server
-	err := row.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.GifsEnabled, &s.WelcomeMessage, &s.WelcomeChannels, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.GifsEnabled, &s.WelcomeMessage, &s.WelcomeChannels, &s.DefaultMessageRetentionDays, &s.CreatedAt, &s.UpdatedAt)
 	if s.WelcomeChannels == nil {
 		s.WelcomeChannels = []uuid.UUID{}
 	}
@@ -217,7 +220,7 @@ func scanServer(row pgx.Row) (Server, error) {
 
 func scanServerFromRows(rows pgx.Rows) (Server, error) {
 	var s Server
-	err := rows.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.GifsEnabled, &s.WelcomeMessage, &s.WelcomeChannels, &s.CreatedAt, &s.UpdatedAt)
+	err := rows.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.GifsEnabled, &s.WelcomeMessage, &s.WelcomeChannels, &s.DefaultMessageRetentionDays, &s.CreatedAt, &s.UpdatedAt)
 	if s.WelcomeChannels == nil {
 		s.WelcomeChannels = []uuid.UUID{}
 	}

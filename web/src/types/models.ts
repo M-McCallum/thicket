@@ -24,6 +24,7 @@ export interface Server {
   gifs_enabled?: boolean
   welcome_message: string
   welcome_channels: string[]
+  default_message_retention_days?: number | null
   created_at: string
 }
 
@@ -136,6 +137,7 @@ export interface DMConversation {
   is_group: boolean
   name: string | null
   accepted: boolean
+  encrypted: boolean
   created_at: string
 }
 

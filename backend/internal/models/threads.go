@@ -192,6 +192,22 @@ func (q *Queries) GetThreadSubscription(ctx context.Context, threadID, userID uu
 	return s, err
 }
 
+// GetThreadMessageByID returns a thread message by its ID.
+func (q *Queries) GetThreadMessageByID(ctx context.Context, id uuid.UUID) (ThreadMessage, error) {
+	var m ThreadMessage
+	err := q.db.QueryRow(ctx,
+		`SELECT id, thread_id, author_id, content, reply_to_id, created_at, updated_at
+		FROM thread_messages WHERE id = $1`, id,
+	).Scan(&m.ID, &m.ThreadID, &m.AuthorID, &m.Content, &m.ReplyToID, &m.CreatedAt, &m.UpdatedAt)
+	return m, err
+}
+
+// DeleteThreadMessage deletes a thread message by its ID.
+func (q *Queries) DeleteThreadMessage(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, `DELETE FROM thread_messages WHERE id = $1`, id)
+	return err
+}
+
 // GetThreadsForMessages returns threads that are attached to the given parent message IDs.
 func (q *Queries) GetThreadsForMessages(ctx context.Context, messageIDs []uuid.UUID) ([]Thread, error) {
 	rows, err := q.db.Query(ctx,

@@ -15,7 +15,7 @@ interface ServerSettingsModalProps {
   onClose: () => void
 }
 
-type Tab = 'general' | 'visibility' | 'roles' | 'members' | 'moderation' | 'welcome' | 'onboarding' | 'automod' | 'bots' | 'webhooks'
+type Tab = 'general' | 'visibility' | 'roles' | 'members' | 'moderation' | 'welcome' | 'onboarding' | 'automod' | 'bots' | 'webhooks' | 'retention'
 
 export default function ServerSettingsModal({ server, onClose }: ServerSettingsModalProps) {
   const [tab, setTab] = useState<Tab>('general')
@@ -163,6 +163,16 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             }`}
           >
             Webhooks
+          </button>
+          <button
+            onClick={() => setTab('retention')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'retention'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Retention
           </button>
           <div className="flex-1" />
           <button onClick={onClose} className="text-sol-text-muted hover:text-sol-text-primary transition-colors pb-2">
@@ -355,7 +365,97 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
               <WebhookManager />
             </Suspense>
           )}
+
+          {tab === 'retention' && (
+            <RetentionSettingsTab serverId={server.id} currentDays={server.default_message_retention_days ?? null} />
+          )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// --- Retention Settings Tab ---
+
+const RETENTION_OPTIONS = [
+  { label: 'Forever (no auto-delete)', value: 0 },
+  { label: '7 days', value: 7 },
+  { label: '30 days', value: 30 },
+  { label: '90 days', value: 90 },
+  { label: '180 days', value: 180 },
+  { label: '365 days', value: 365 },
+]
+
+function RetentionSettingsTab({ serverId, currentDays }: { serverId: string; currentDays: number | null }) {
+  const [retentionDays, setRetentionDays] = useState<number>(currentDays ?? 0)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [success, setSuccess] = useState(false)
+
+  const handleSave = async () => {
+    setSaving(true)
+    setError('')
+    setSuccess(false)
+    try {
+      await serversApi.update(serverId, {
+        default_message_retention_days: retentionDays === 0 ? null : retentionDays,
+      })
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 2000)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save retention settings')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4 max-w-md">
+      <div>
+        <h3 className="text-sm font-medium text-sol-text-primary mb-1">Message Retention</h3>
+        <p className="text-xs text-sol-text-muted mb-3">
+          Automatically delete messages older than the selected duration. This helps manage storage and comply with data retention policies.
+        </p>
+      </div>
+
+      <div>
+        <label className="block text-sm text-sol-text-secondary mb-2">Default Retention Period</label>
+        <div className="space-y-1.5">
+          {RETENTION_OPTIONS.map((opt) => (
+            <label
+              key={opt.value}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-sol-bg-elevated cursor-pointer transition-colors"
+            >
+              <input
+                type="radio"
+                name="retention"
+                checked={retentionDays === opt.value}
+                onChange={() => setRetentionDays(opt.value)}
+                className="accent-sol-amber"
+              />
+              <span className="text-sol-text-primary text-sm">{opt.label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+
+      {retentionDays > 0 && (
+        <p className="text-xs text-sol-coral/80 px-3">
+          Messages older than {retentionDays} days will be permanently deleted during the next cleanup cycle. This action cannot be undone.
+        </p>
+      )}
+
+      {error && <p className="text-sm text-sol-coral">{error}</p>}
+      {success && <p className="text-sm text-sol-sage">Saved!</p>}
+
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-4 py-2 bg-sol-amber/20 text-sol-amber rounded-lg hover:bg-sol-amber/30 disabled:opacity-50 transition-colors"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
       </div>
     </div>
   )

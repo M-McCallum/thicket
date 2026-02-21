@@ -20,7 +20,11 @@ import (
 var (
 	ErrAutoModRuleNotFound = errors.New("automod rule not found")
 	ErrInvalidRuleType     = errors.New("invalid automod rule type")
+	ErrInvalidRegexPattern = errors.New("invalid or unsafe regex pattern")
 )
+
+// nestedQuantifierPattern detects ReDoS-prone patterns like (a+)+ or (a*)*
+var nestedQuantifierPattern = regexp.MustCompile(`[+*]\)?[+*]`)
 
 // inviteLinkPattern matches discord.gg and common invite link patterns.
 var inviteLinkPattern = regexp.MustCompile(`(?i)(discord\.gg|discordapp\.com/invite|discord\.com/invite)/[a-zA-Z0-9]+`)
@@ -65,6 +69,13 @@ func (s *AutoModService) CreateRule(ctx context.Context, serverID, userID uuid.U
 		return nil, ErrInvalidRuleType
 	}
 
+	// Validate regex patterns for safety (ReDoS prevention)
+	if params.Type == "regex" {
+		if err := validateRegexRule(params.TriggerData); err != nil {
+			return nil, err
+		}
+	}
+
 	params.ServerID = serverID
 	rule, err := s.queries.CreateAutoModRule(ctx, params)
 	if err != nil {
@@ -92,6 +103,13 @@ func (s *AutoModService) UpdateRule(ctx context.Context, serverID, ruleID, userI
 	}
 	if existing.ServerID != serverID {
 		return nil, ErrAutoModRuleNotFound
+	}
+
+	// Validate regex patterns on update if the rule is a regex type
+	if existing.Type == "regex" && params.TriggerData != nil {
+		if err := validateRegexRule(params.TriggerData); err != nil {
+			return nil, err
+		}
 	}
 
 	params.ID = ruleID
@@ -288,7 +306,20 @@ func (s *AutoModService) checkRegex(content string, triggerData json.RawMessage)
 	if err != nil {
 		return false
 	}
-	return re.MatchString(content)
+
+	// Run regex match with a timeout to prevent ReDoS
+	type result struct{ matched bool }
+	ch := make(chan result, 1)
+	go func() {
+		ch <- result{re.MatchString(content)}
+	}()
+	select {
+	case r := <-ch:
+		return r.matched
+	case <-time.After(100 * time.Millisecond):
+		log.Printf("[AutoMod] Regex pattern timed out: %s", data.Pattern)
+		return false
+	}
 }
 
 func (s *AutoModService) checkSpam(ctx context.Context, serverID, userID uuid.UUID, triggerData json.RawMessage) bool {
@@ -336,6 +367,27 @@ func (s *AutoModService) checkMentionSpam(content string, triggerData json.RawMe
 	mentionPattern := regexp.MustCompile(`<@[0-9a-fA-F-]+>|@\w+`)
 	matches := mentionPattern.FindAllString(content, -1)
 	return len(matches) > data.MaxMentions
+}
+
+// validateRegexRule checks that a regex rule's pattern is safe to use.
+func validateRegexRule(triggerData json.RawMessage) error {
+	var data struct {
+		Pattern string `json:"pattern"`
+	}
+	if err := json.Unmarshal(triggerData, &data); err != nil {
+		return ErrInvalidRegexPattern
+	}
+	if data.Pattern == "" || len(data.Pattern) > 200 {
+		return ErrInvalidRegexPattern
+	}
+	if _, err := regexp.Compile(data.Pattern); err != nil {
+		return ErrInvalidRegexPattern
+	}
+	// Reject patterns with nested quantifiers (ReDoS risk)
+	if nestedQuantifierPattern.MatchString(data.Pattern) {
+		return ErrInvalidRegexPattern
+	}
+	return nil
 }
 
 // Helpers

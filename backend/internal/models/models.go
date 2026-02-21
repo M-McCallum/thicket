@@ -32,10 +32,11 @@ type Server struct {
 	IsPublic        bool        `json:"is_public"`
 	Description     string      `json:"description"`
 	GifsEnabled     bool        `json:"gifs_enabled"`
-	WelcomeMessage  string      `json:"welcome_message"`
-	WelcomeChannels []uuid.UUID `json:"welcome_channels"`
-	CreatedAt       time.Time   `json:"created_at"`
-	UpdatedAt       time.Time   `json:"updated_at"`
+	WelcomeMessage              string      `json:"welcome_message"`
+	WelcomeChannels             []uuid.UUID `json:"welcome_channels"`
+	DefaultMessageRetentionDays *int        `json:"default_message_retention_days"`
+	CreatedAt                   time.Time   `json:"created_at"`
+	UpdatedAt                   time.Time   `json:"updated_at"`
 }
 
 type ServerMember struct {
@@ -117,6 +118,7 @@ type DMConversation struct {
 	IsGroup   bool      `json:"is_group"`
 	Name      *string   `json:"name"`
 	Accepted  bool      `json:"accepted"`
+	Encrypted bool      `json:"encrypted"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

@@ -132,8 +132,20 @@ func (s *DMService) SendDM(ctx context.Context, conversationID, authorID uuid.UU
 	})
 }
 
+// isEncryptedPayload detects E2EE ciphertext envelope ({"v":1,"ct":"..."}).
+func isEncryptedPayload(content string) bool {
+	return len(content) > 10 && strings.HasPrefix(content, `{"v":1,`)
+}
+
 func (s *DMService) SendDMWithOptions(ctx context.Context, conversationID, authorID uuid.UUID, content string, opts SendDMOptions) (*models.DMMessage, error) {
-	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
+	// Skip sanitization for encrypted payloads — ciphertext is opaque base64
+	if !isEncryptedPayload(content) {
+		content = s.sanitizer.Sanitize(strings.TrimSpace(content))
+	}
+
+	if len(content) > 4000 {
+		return nil, ErrMessageTooLong
+	}
 
 	mt := opts.MsgType
 	if mt == "" {
@@ -496,9 +508,15 @@ func (s *DMService) EditDMMessage(ctx context.Context, messageID, userID uuid.UU
 		return nil, ErrNotDMMessageAuthor
 	}
 
-	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
+	// Skip sanitization for encrypted payloads
+	if !isEncryptedPayload(content) {
+		content = s.sanitizer.Sanitize(strings.TrimSpace(content))
+	}
 	if content == "" {
 		return nil, ErrEmptyMessage
+	}
+	if len(content) > 4000 {
+		return nil, ErrMessageTooLong
 	}
 
 	// Save old content to edits

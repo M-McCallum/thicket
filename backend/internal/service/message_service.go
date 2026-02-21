@@ -57,7 +57,10 @@ var (
 	ErrGifsDisabled      = errors.New("GIFs are disabled in this server")
 	ErrUserTimedOut      = errors.New("you are timed out in this server")
 	ErrAutoModBlocked    = errors.New("message blocked by automod")
+	ErrMessageTooLong    = errors.New("message content cannot exceed 4000 characters")
 )
+
+const MaxMessageLength = 4000
 
 type MessageService struct {
 	queries    *models.Queries
@@ -85,6 +88,10 @@ func (s *MessageService) Queries() *models.Queries {
 
 func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uuid.UUID, content string, replyToID *uuid.UUID, msgType ...string) (*models.Message, error) {
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
+
+	if len(content) > MaxMessageLength {
+		return nil, ErrMessageTooLong
+	}
 
 	mt := "text"
 	if len(msgType) > 0 && msgType[0] != "" {
@@ -312,6 +319,9 @@ func (s *MessageService) UpdateMessage(ctx context.Context, messageID, userID uu
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
 	if content == "" {
 		return nil, ErrEmptyMessage
+	}
+	if len(content) > MaxMessageLength {
+		return nil, ErrMessageTooLong
 	}
 
 	msg, err := s.queries.GetMessageByID(ctx, messageID)

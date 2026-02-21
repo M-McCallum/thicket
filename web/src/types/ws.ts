@@ -183,6 +183,7 @@ export interface DMMessageCreateData {
   author_avatar_url?: string | null
   author_display_name?: string | null
   attachments?: Attachment[]
+  encrypted?: boolean
 }
 
 export interface UserProfileUpdateData {
@@ -373,6 +374,7 @@ export interface DMMessageUpdateData {
   content: string
   created_at: string
   updated_at: string
+  encrypted?: boolean
 }
 
 export interface DMMessageDeleteData {
