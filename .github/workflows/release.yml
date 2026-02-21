@@ -39,6 +39,10 @@ jobs:
         run: npm run dist:${{ matrix.platform }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Vite build-time env vars (public URLs baked into client JS)
+          VITE_API_URL: https://chat.mitchell.land/api
+          VITE_OIDC_AUTHORITY: https://chat.mitchell.land
+          VITE_LIVEKIT_URL: wss://chat.mitchell.land/livekit
           # macOS code signing (optional — build succeeds unsigned when unset)
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
