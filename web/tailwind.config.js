@@ -1,51 +1,41 @@
 /** @type {import('tailwindcss').Config} */
-
-function withOpacity(variableName) {
-  return ({ opacityValue }) => {
-    if (opacityValue !== undefined) {
-      return `rgb(var(${variableName}) / ${opacityValue})`
-    }
-    return `rgb(var(${variableName}))`
-  }
-}
-
 export default {
   content: ['./src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         'sol-bg': {
-          DEFAULT: withOpacity('--sol-bg'),
-          secondary: withOpacity('--sol-bg-secondary'),
-          tertiary: withOpacity('--sol-bg-tertiary'),
-          elevated: withOpacity('--sol-bg-elevated')
+          DEFAULT: 'rgb(var(--sol-bg) / <alpha-value>)',
+          secondary: 'rgb(var(--sol-bg-secondary) / <alpha-value>)',
+          tertiary: 'rgb(var(--sol-bg-tertiary) / <alpha-value>)',
+          elevated: 'rgb(var(--sol-bg-elevated) / <alpha-value>)'
         },
         'sol-amber': {
-          DEFAULT: withOpacity('--sol-amber'),
-          dim: withOpacity('--sol-amber-dim'),
+          DEFAULT: 'rgb(var(--sol-amber) / <alpha-value>)',
+          dim: 'rgb(var(--sol-amber-dim) / <alpha-value>)',
           glow: 'rgb(var(--sol-amber) / 0.25)'
         },
         'sol-rose': {
-          DEFAULT: withOpacity('--sol-rose'),
-          dim: withOpacity('--sol-rose-dim'),
+          DEFAULT: 'rgb(var(--sol-rose) / <alpha-value>)',
+          dim: 'rgb(var(--sol-rose-dim) / <alpha-value>)',
           glow: 'rgb(var(--sol-rose) / 0.25)'
         },
         'sol-green': {
-          DEFAULT: withOpacity('--sol-green'),
-          dim: withOpacity('--sol-green-dim')
+          DEFAULT: 'rgb(var(--sol-green) / <alpha-value>)',
+          dim: 'rgb(var(--sol-green-dim) / <alpha-value>)'
         },
         'sol-coral': {
-          DEFAULT: withOpacity('--sol-coral'),
-          dim: withOpacity('--sol-coral-dim')
+          DEFAULT: 'rgb(var(--sol-coral) / <alpha-value>)',
+          dim: 'rgb(var(--sol-coral-dim) / <alpha-value>)'
         },
         'sol-sage': {
-          DEFAULT: withOpacity('--sol-sage'),
-          dim: withOpacity('--sol-sage-dim')
+          DEFAULT: 'rgb(var(--sol-sage) / <alpha-value>)',
+          dim: 'rgb(var(--sol-sage-dim) / <alpha-value>)'
         },
         'sol-text': {
-          primary: withOpacity('--sol-text-primary'),
-          secondary: withOpacity('--sol-text-secondary'),
-          muted: withOpacity('--sol-text-muted')
+          primary: 'rgb(var(--sol-text-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--sol-text-secondary) / <alpha-value>)',
+          muted: 'rgb(var(--sol-text-muted) / <alpha-value>)'
         }
       },
       fontFamily: {

@@ -1,8 +1,4 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* ===== Theme definitions ===== */
+/* ===== Theme definitions — space-separated RGB values for Tailwind opacity support ===== */
 
 /* Default / Solarized Dark (forest theme) */
 :root {
@@ -179,6 +175,10 @@
 .theme-amoled .hljs-variable {
   color: rgb(255 179 0);
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* ===== Base styles ===== */
 
