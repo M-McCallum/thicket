@@ -33,14 +33,15 @@ var (
 	ErrSizeMismatch    = errors.New("uploaded file size does not match declared size")
 )
 
-var allowedContentTypes = map[string]bool{
-	"image/jpeg": true, "image/png": true, "image/gif": true, "image/webp": true,
-	"video/mp4": true, "video/webm": true, "video/quicktime": true,
-	"audio/mpeg": true, "audio/flac": true, "audio/wav": true,
-	"application/pdf": true, "text/plain": true,
-	"application/zip": true, "application/x-zip-compressed": true,
-	"application/x-7z-compressed": true, "application/x-tar": true, "application/gzip": true,
-	"application/octet-stream": true,
+// blockedContentTypes prevents uploading executable/dangerous file types.
+var blockedContentTypes = map[string]bool{
+	"application/x-msdownload":    true, // .exe
+	"application/x-msdos-program": true,
+	"application/x-dosexec":       true,
+	"application/x-executable":    true,
+	"application/x-sharedlib":     true, // .so
+	"application/x-mach-binary":   true, // macOS binaries
+	"application/vnd.microsoft.portable-executable": true, // PE
 }
 
 type AttachmentService struct {
@@ -69,7 +70,7 @@ func (s *AttachmentService) CreateAttachments(ctx context.Context, messageID *uu
 		if input.Size > MaxFileSizeBytes {
 			return nil, ErrFileTooLarge
 		}
-		if !allowedContentTypes[input.ContentType] {
+		if blockedContentTypes[input.ContentType] {
 			return nil, ErrInvalidFileType
 		}
 
@@ -137,7 +138,7 @@ func (s *AttachmentService) InitiateMultipartUpload(ctx context.Context, userID 
 	if fileSize > MaxFileSizeBytes {
 		return uuid.Nil, nil, 0, ErrFileTooLarge
 	}
-	if !allowedContentTypes[contentType] {
+	if blockedContentTypes[contentType] {
 		return uuid.Nil, nil, 0, ErrInvalidFileType
 	}
 

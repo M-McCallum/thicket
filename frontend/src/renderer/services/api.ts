@@ -142,6 +142,91 @@ async function requestMultipart<T>(
   return response.json()
 }
 
+const LARGE_FILE_THRESHOLD = 10 * 1024 * 1024 // 10 MB — matches backend LargeFileThreshold
+
+interface InitiateUploadResponse {
+  pending_upload_id: string
+  part_urls: string[]
+  part_size: number
+}
+
+/**
+ * Upload a large file using the chunked multipart upload flow.
+ * Returns the pending_upload_id which can be passed to complete.
+ */
+async function uploadLargeFile(
+  file: File,
+  onProgress?: (uploaded: number, total: number) => void
+): Promise<string> {
+  // 1. Initiate
+  const initRes = await request<InitiateUploadResponse>('/uploads/initiate', {
+    method: 'POST',
+    body: JSON.stringify({
+      filename: file.name,
+      content_type: file.type || 'application/octet-stream',
+      file_size: file.size
+    })
+  })
+
+  const { pending_upload_id, part_urls, part_size } = initRes
+  let uploaded = 0
+
+  try {
+    // 2. Upload each part to presigned URL and report completion
+    for (let i = 0; i < part_urls.length; i++) {
+      const start = i * part_size
+      const end = Math.min(start + part_size, file.size)
+      const blob = file.slice(start, end)
+
+      const partRes = await fetch(part_urls[i], {
+        method: 'PUT',
+        body: blob
+      })
+
+      if (!partRes.ok) {
+        throw new Error(`Failed to upload part ${i + 1}`)
+      }
+
+      const etag = partRes.headers.get('ETag') || ''
+
+      // Report part completion to backend
+      await request(`/uploads/${pending_upload_id}/part-complete`, {
+        method: 'POST',
+        body: JSON.stringify({ part_number: i + 1, etag })
+      })
+
+      uploaded += end - start
+      onProgress?.(uploaded, file.size)
+    }
+  } catch (err) {
+    // Abort on failure
+    await request(`/uploads/${pending_upload_id}`, { method: 'DELETE' }).catch(() => {})
+    throw err
+  }
+
+  return pending_upload_id
+}
+
+/**
+ * Complete a chunked upload by associating it with a message.
+ */
+async function completeLargeUpload(
+  pendingUploadId: string,
+  messageId?: string,
+  dmMessageId?: string
+) {
+  return request<{ id: string; filename: string; original_filename: string; content_type: string; size: number; url: string }>(
+    `/uploads/${pendingUploadId}/complete`,
+    {
+      method: 'POST',
+      body: JSON.stringify({
+        message_id: messageId || '',
+        dm_message_id: dmMessageId || ''
+      })
+    }
+  )
+}
+
 // Auth
 export const auth = {
   logout: () =>
@@ -208,19 +293,33 @@ export const messages = {
     const query = params.toString()
     return request<Message[]>(`/channels/${channelId}/messages${query ? `?${query}` : ''}`)
   },
-  send: (channelId: string, content: string, files?: File[], msgType?: string, replyToId?: string) => {
-    if (files && files.length > 0) {
+  send: async (channelId: string, content: string, files?: File[], msgType?: string, replyToId?: string) => {
+    const largeFiles = files?.filter((f) => f.size >= LARGE_FILE_THRESHOLD) || []
+    const smallFiles = files?.filter((f) => f.size < LARGE_FILE_THRESHOLD) || []
+
+    // Send the message (with small files inline)
+    let msg: Message
+    if (smallFiles.length > 0) {
       const fd = new FormData()
       fd.append('content', content)
       if (msgType) fd.append('type', msgType)
       if (replyToId) fd.append('reply_to_id', replyToId)
-      files.forEach((f) => fd.append('files[]', f))
-      return requestMultipart<Message>(`/channels/${channelId}/messages`, fd)
+      smallFiles.forEach((f) => fd.append('files[]', f))
+      msg = await requestMultipart<Message>(`/channels/${channelId}/messages`, fd)
+    } else {
+      msg = await request<Message>(`/channels/${channelId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content, type: msgType, reply_to_id: replyToId })
+      })
     }
-    return request<Message>(`/channels/${channelId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ content, type: msgType, reply_to_id: replyToId })
-    })
+
+    // Upload large files via chunked upload and attach to the message
+    for (const file of largeFiles) {
+      const pendingId = await uploadLargeFile(file)
+      await completeLargeUpload(pendingId, msg.id)
+    }
+
+    return msg
   },
   update: (id: string, content: string) =>
     request<Message>(`/messages/${id}`, {
@@ -334,18 +433,30 @@ export const dm = {
     const query = params.toString()
     return request<DMMessage[]>(`/dm/conversations/${conversationId}/messages${query ? `?${query}` : ''}`)
   },
-  sendMessage: (conversationId: string, content: string, files?: File[], msgType?: string) => {
-    if (files && files.length > 0) {
+  sendMessage: async (conversationId: string, content: string, files?: File[], msgType?: string) => {
+    const largeFiles = files?.filter((f) => f.size >= LARGE_FILE_THRESHOLD) || []
+    const smallFiles = files?.filter((f) => f.size < LARGE_FILE_THRESHOLD) || []
+
+    let msg: DMMessage
+    if (smallFiles.length > 0) {
       const fd = new FormData()
       fd.append('content', content)
       if (msgType) fd.append('type', msgType)
-      files.forEach((f) => fd.append('files[]', f))
-      return requestMultipart<DMMessage>(`/dm/conversations/${conversationId}/messages`, fd)
+      smallFiles.forEach((f) => fd.append('files[]', f))
+      msg = await requestMultipart<DMMessage>(`/dm/conversations/${conversationId}/messages`, fd)
+    } else {
+      msg = await request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({ content, type: msgType })
+      })
     }
-    return request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({ content, type: msgType })
-    })
+
+    for (const file of largeFiles) {
+      const pendingId = await uploadLargeFile(file)
+      await completeLargeUpload(pendingId, undefined, msg.id)
+    }
+
+    return msg
   },
   getMessagesAround: (conversationId: string, timestamp: string, limit?: number) => {
     const params = new URLSearchParams({ timestamp })

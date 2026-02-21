@@ -150,6 +150,8 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
           setSendError(`Message blocked by AutoMod${rule}`)
         } else if (err.status === 403) {
           setSendError(err.message)
+        } else {
+          setSendError(err.message || 'Failed to send message')
         }
       }
     }
