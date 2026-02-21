@@ -86,10 +86,15 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       get().leaveVoiceChannel()
     }
 
+    // Create AudioContext synchronously in the user-gesture call stack
+    // so it starts in "running" state. Browsers suspend AudioContexts
+    // created outside of click/tap handlers (autoplay policy).
+    const audioContext = new AudioContext()
+
     const { token, room: roomName } = await voice.getToken(serverId, channelId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
 
-    const room = new Room()
+    const room = new Room({ webAudioMix: { audioContext } })
 
     room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {
       set((state) => ({

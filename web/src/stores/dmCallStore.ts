@@ -38,11 +38,14 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
     const { room: existing } = get()
     if (existing) get().endCall()
 
+    // Create AudioContext synchronously in the user-gesture call stack
+    const audioContext = new AudioContext()
+
     wsService.send({ type: 'DM_CALL_START', data: { conversation_id: conversationId } })
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room()
+    const room = new Room({ webAudioMix: { audioContext } })
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       set((s) => ({
@@ -78,11 +81,15 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
 
   acceptCall: async (conversationId) => {
     set({ incomingCall: null })
+
+    // Create AudioContext synchronously in the user-gesture call stack
+    const audioContext = new AudioContext()
+
     wsService.send({ type: 'DM_CALL_ACCEPT', data: { conversation_id: conversationId } })
 
     const { token } = await dm.getVoiceToken(conversationId)
     const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
-    const room = new Room()
+    const room = new Room({ webAudioMix: { audioContext } })
 
     room.on(RoomEvent.ParticipantConnected, (p: RemoteParticipant) => {
       set((s) => ({
