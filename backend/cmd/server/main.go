@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
@@ -28,6 +30,17 @@ func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
+	}
+
+	// Warn about dev secrets in production
+	if cfg.Env == "production" {
+		if secret := os.Getenv("SECRETS_SYSTEM"); secret != "" && strings.Contains(strings.ToLower(secret), "dev") {
+			log.Fatal("FATAL: SECRETS_SYSTEM contains 'dev' — refusing to start in production with a weak secret")
+		}
+	} else {
+		if secret := os.Getenv("SECRETS_SYSTEM"); secret != "" && strings.Contains(strings.ToLower(secret), "dev") {
+			log.Println("WARNING: SECRETS_SYSTEM contains 'dev' — do not use this in production")
+		}
 	}
 
 	pool, err := database.Connect(cfg.DB.URL())
