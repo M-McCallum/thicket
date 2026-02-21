@@ -13,6 +13,7 @@ import (
 
 type Client struct {
 	client *minio.Client
+	core   minio.Core
 	bucket string
 }
 
@@ -24,7 +25,7 @@ func NewClient(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*Cli
 	if err != nil {
 		return nil, fmt.Errorf("minio client: %w", err)
 	}
-	return &Client{client: mc, bucket: bucket}, nil
+	return &Client{client: mc, core: minio.Core{Client: mc}, bucket: bucket}, nil
 }
 
 func (c *Client) EnsureBucket(ctx context.Context) error {
@@ -61,4 +62,36 @@ func (c *Client) GetPresignedURL(ctx context.Context, objectKey string) (string,
 
 func (c *Client) GetObject(ctx context.Context, objectKey string) (*minio.Object, error) {
 	return c.client.GetObject(ctx, c.bucket, objectKey, minio.GetObjectOptions{})
+}
+
+func (c *Client) StatObject(ctx context.Context, objectKey string) (minio.ObjectInfo, error) {
+	return c.client.StatObject(ctx, c.bucket, objectKey, minio.StatObjectOptions{})
+}
+
+func (c *Client) NewMultipartUpload(ctx context.Context, objectKey, contentType string) (string, error) {
+	uploadID, err := c.core.NewMultipartUpload(ctx, c.bucket, objectKey, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
+	return uploadID, err
+}
+
+func (c *Client) PresignedUploadPartURL(ctx context.Context, objectKey, uploadID string, partNumber int) (string, error) {
+	params := url.Values{}
+	params.Set("partNumber", fmt.Sprintf("%d", partNumber))
+	params.Set("uploadId", uploadID)
+
+	u, err := c.client.Presign(ctx, "PUT", c.bucket, objectKey, time.Hour, params)
+	if err != nil {
+		return "", err
+	}
+	return u.String(), nil
+}
+
+func (c *Client) CompleteMultipartUpload(ctx context.Context, objectKey, uploadID string, parts []minio.CompletePart) error {
+	_, err := c.core.CompleteMultipartUpload(ctx, c.bucket, objectKey, uploadID, parts, minio.PutObjectOptions{})
+	return err
+}
+
+func (c *Client) AbortMultipartUpload(ctx context.Context, objectKey, uploadID string) error {
+	return c.core.AbortMultipartUpload(ctx, c.bucket, objectKey, uploadID)
 }
