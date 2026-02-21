@@ -9,7 +9,8 @@ import type {
 import type {
   Server, Channel, Message, ServerMember,
   DMConversationWithParticipants, DMMessage, User,
-  CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview
+  CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
+  ChannelCategory
 } from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -144,7 +145,17 @@ export const servers = {
     request<{ message: string }>(`/servers/${id}/leave`, { method: 'POST' }),
   delete: (id: string) =>
     request<{ message: string }>(`/servers/${id}`, { method: 'DELETE' }),
-  members: (id: string) => request<ServerMember[]>(`/servers/${id}/members`)
+  members: (id: string) => request<ServerMember[]>(`/servers/${id}/members`),
+  update: (id: string, data: { name?: string; icon_url?: string }) =>
+    request<Server>(`/servers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  setNickname: (serverId: string, nickname: string | null) =>
+    request<{ message: string }>(`/servers/${serverId}/members/me/nickname`, {
+      method: 'PATCH',
+      body: JSON.stringify({ nickname })
+    })
 }
 
 // Channels
@@ -153,6 +164,11 @@ export const channels = {
   create: (serverId: string, data: CreateChannelRequest) =>
     request<Channel>(`/servers/${serverId}/channels`, {
       method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (serverId: string, channelId: string, data: { name?: string; topic?: string; category_id?: string }) =>
+    request<Channel>(`/servers/${serverId}/channels/${channelId}`, {
+      method: 'PATCH',
       body: JSON.stringify(data)
     })
 }
@@ -166,17 +182,18 @@ export const messages = {
     const query = params.toString()
     return request<Message[]>(`/channels/${channelId}/messages${query ? `?${query}` : ''}`)
   },
-  send: (channelId: string, content: string, files?: File[], msgType?: string) => {
+  send: (channelId: string, content: string, files?: File[], msgType?: string, replyToId?: string) => {
     if (files && files.length > 0) {
       const fd = new FormData()
       fd.append('content', content)
       if (msgType) fd.append('type', msgType)
-      files.forEach((f) => fd.append('files', f))
+      if (replyToId) fd.append('reply_to_id', replyToId)
+      files.forEach((f) => fd.append('files[]', f))
       return requestMultipart<Message>(`/channels/${channelId}/messages`, fd)
     }
     return request<Message>(`/channels/${channelId}/messages`, {
       method: 'POST',
-      body: JSON.stringify({ content, type: msgType })
+      body: JSON.stringify({ content, type: msgType, reply_to_id: replyToId })
     })
   },
   update: (id: string, content: string) =>
@@ -203,6 +220,40 @@ export const channelsApi = {
     request<{ message: string }>(`/servers/${serverId}/channels/${channelId}`, {
       method: 'DELETE'
     })
+}
+
+// Pins
+export const pins = {
+  list: (channelId: string) => request<Message[]>(`/channels/${channelId}/pins`),
+  pin: (channelId: string, messageId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/pins/${messageId}`, { method: 'PUT' }),
+  unpin: (channelId: string, messageId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/pins/${messageId}`, { method: 'DELETE' })
+}
+
+// Reactions
+export const reactions = {
+  add: (messageId: string, emoji: string) =>
+    request<{ message: string }>(`/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, { method: 'PUT' }),
+  remove: (messageId: string, emoji: string) =>
+    request<{ message: string }>(`/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`, { method: 'DELETE' })
+}
+
+// Categories
+export const categories = {
+  list: (serverId: string) => request<ChannelCategory[]>(`/servers/${serverId}/categories`),
+  create: (serverId: string, name: string, position: number) =>
+    request<ChannelCategory>(`/servers/${serverId}/categories`, {
+      method: 'POST',
+      body: JSON.stringify({ name, position })
+    }),
+  update: (serverId: string, categoryId: string, data: { name?: string; position?: number }) =>
+    request<ChannelCategory>(`/servers/${serverId}/categories/${categoryId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (serverId: string, categoryId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/categories/${categoryId}`, { method: 'DELETE' })
 }
 
 // Profile
@@ -255,7 +306,7 @@ export const dm = {
       const fd = new FormData()
       fd.append('content', content)
       if (msgType) fd.append('type', msgType)
-      files.forEach((f) => fd.append('files', f))
+      files.forEach((f) => fd.append('files[]', f))
       return requestMultipart<DMMessage>(`/dm/conversations/${conversationId}/messages`, fd)
     }
     return request<DMMessage>(`/dm/conversations/${conversationId}/messages`, {
