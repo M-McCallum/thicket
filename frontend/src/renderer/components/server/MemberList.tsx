@@ -15,7 +15,7 @@ export default function MemberList(): JSX.Element {
 
   return (
     <div className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col">
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-2" style={{ contain: 'strict' }}>
         {/* Online */}
         {onlineMembers.length > 0 && (
           <div className="mb-2">

@@ -70,7 +70,7 @@ export default function ChatArea(): JSX.Element {
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse">
+      <div className="flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse" style={{ contain: 'strict' }}>
         <div ref={messagesEndRef} />
         {messages.map((message) => (
           <MessageItem

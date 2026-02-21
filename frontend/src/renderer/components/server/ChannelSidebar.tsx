@@ -40,7 +40,7 @@ export default function ChannelSidebar(): JSX.Element {
         </h2>
       </div>
 
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto py-2" style={{ contain: 'content' }}>
         {/* Text channels */}
         <div className="mb-2">
           <div className="px-3 py-1 flex items-center justify-between">

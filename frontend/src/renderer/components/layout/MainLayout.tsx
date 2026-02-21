@@ -1,12 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, lazy, Suspense } from 'react'
 import TitleBar from './TitleBar'
 import ServerSidebar from '../server/ServerSidebar'
 import ChannelSidebar from '../server/ChannelSidebar'
 import ChatArea from '../chat/ChatArea'
 import MemberList from '../server/MemberList'
-import VoiceControls from '../voice/VoiceControls'
 import { useServerStore } from '../../stores/serverStore'
 import { useWebSocketEvents } from '../../hooks/useWebSocketEvents'
+
+const VoiceControls = lazy(() => import('../voice/VoiceControls'))
 
 export default function MainLayout(): JSX.Element {
   const { activeServerId, fetchServers } = useServerStore()
@@ -32,7 +33,7 @@ export default function MainLayout(): JSX.Element {
               <div className="flex-1 overflow-hidden">
                 <ChannelSidebar />
               </div>
-              <VoiceControls />
+              <Suspense><VoiceControls /></Suspense>
             </div>
             <ChatArea />
             <MemberList />

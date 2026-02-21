@@ -6,12 +6,19 @@ if [ -z "${LIVEKIT_API_KEY:-}" ] || [ -z "${LIVEKIT_API_SECRET:-}" ]; then
   exit 1
 fi
 
+if [ -z "${NODE_IP:-}" ]; then
+  echo "ERROR: NODE_IP must be set to the server's public IP address"
+  exit 1
+fi
+
 cat > /tmp/livekit.yaml <<EOF
 port: 7880
 rtc:
   port_range_start: 7882
   port_range_end: 7892
-  use_external_ip: true
+  use_external_ip: false
+  node_ip: ${NODE_IP}
+  tcp_port: 7881
 
 keys:
   ${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}

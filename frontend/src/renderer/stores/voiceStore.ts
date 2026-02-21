@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client'
+import type { Room as RoomType, RemoteParticipant, Participant } from 'livekit-client'
 import { voice } from '../services/api'
 import { wsService } from '../services/ws'
 
@@ -11,7 +11,7 @@ export interface VoiceParticipant {
 }
 
 interface VoiceState {
-  room: Room | null
+  room: RoomType | null
   activeChannelId: string | null
   activeServerId: string | null
   participants: VoiceParticipant[]
@@ -52,6 +52,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     const { token, room: roomName } = await voice.getToken(serverId, channelId)
     const livekitUrl = 'ws://localhost:7880'
 
+    const { Room, RoomEvent } = await import('livekit-client')
     const room = new Room()
 
     room.on(RoomEvent.ParticipantConnected, (participant: RemoteParticipant) => {

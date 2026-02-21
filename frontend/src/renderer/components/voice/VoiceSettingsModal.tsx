@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Room } from 'livekit-client'
 import { useVoiceStore } from '../../stores/voiceStore'
 
 interface VoiceSettingsModalProps {
@@ -18,6 +17,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
 
   useEffect(() => {
     async function loadDevices() {
+      const { Room } = await import('livekit-client')
       const inputs = await Room.getLocalDevices('audioinput')
       const outputs = await Room.getLocalDevices('audiooutput')
       setInputDevices(inputs.map((d) => ({ deviceId: d.deviceId, label: d.label || `Microphone (${d.deviceId.slice(0, 8)})` })))

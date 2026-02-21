@@ -30,6 +30,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 940,
     minHeight: 600,
+    show: false,
     frame: false,
     titleBarStyle: 'hidden',
     backgroundColor: '#141e13',
@@ -79,6 +80,11 @@ if (!gotTheLock) {
     }
   })
 }
+
+// GPU and V8 optimizations
+app.commandLine.appendSwitch('enable-gpu-rasterization')
+app.commandLine.appendSwitch('enable-zero-copy')
+app.commandLine.appendSwitch('ignore-gpu-blocklist')
 
 app.whenReady().then(() => {
   electronApp.setAppUserModelId('com.thicket')

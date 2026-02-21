@@ -244,11 +244,13 @@ services:
     environment:
       - LIVEKIT_API_KEY=${LIVEKIT_API_KEY}
       - LIVEKIT_API_SECRET=${LIVEKIT_API_SECRET}
+      - NODE_IP=${NODE_IP}
     networks:
       - internal
       - dokploy-network
     ports:
-      # UDP media ports must bypass Traefik — direct host binding
+      # TCP fallback + UDP media ports must bypass Traefik — direct host binding
+      - "7881:7881"
       - "7882-7892:7882-7892/udp"
     labels:
       # LiveKit signaling (HTTP/WebSocket) goes through Traefik

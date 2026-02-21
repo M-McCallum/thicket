@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { Track } from 'livekit-client'
 import { useVoiceStore } from '../../stores/voiceStore'
 import { useServerStore } from '../../stores/serverStore'
 import VoiceSettingsModal from './VoiceSettingsModal'
@@ -26,7 +25,8 @@ export default function VoiceControls() {
     const DECAY = 0.12
     const GATE = 0.05  // ignore noise floor below this level
 
-    const setupAnalyser = () => {
+    const setupAnalyser = async () => {
+      const { Track } = await import('livekit-client')
       const micTrack = room.localParticipant.getTrackPublication(Track.Source.Microphone)
       const mediaStreamTrack = micTrack?.track?.mediaStreamTrack
       if (!mediaStreamTrack) return false
@@ -53,11 +53,22 @@ export default function VoiceControls() {
       return Math.min(Math.sqrt(sum / dataArray.length) * 4, 1)
     }
 
-    let analyserReady = setupAnalyser()
+    let analyserReady = false
+    let setupPending = false
+
+    const trySetup = () => {
+      if (analyserReady || setupPending) return
+      setupPending = true
+      setupAnalyser().then((ok) => {
+        analyserReady = ok
+        setupPending = false
+      })
+    }
+    trySetup()
 
     const poll = () => {
       // Retry setup if mic track wasn't ready on first attempt
-      if (!analyserReady) analyserReady = setupAnalyser()
+      if (!analyserReady) trySetup()
 
       const rms = analyserReady ? getRMS() : 0
       const raw = rms < GATE ? 0 : rms
