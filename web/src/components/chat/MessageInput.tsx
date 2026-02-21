@@ -4,15 +4,24 @@ import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import { useHasPermission } from '@/stores/permissionStore'
 import { PermSendMessages } from '@/types/permissions'
+import { isLargeFile, isFileTooLarge, uploadLargeFile, abortUpload, type UploadProgress } from '@/services/uploadService'
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
 const StickerPicker = lazy(() => import('./StickerPicker'))
 const ScheduledMessagesPanel = lazy(() => import('./ScheduledMessagesPanel'))
 
+interface PendingFile {
+  file: File
+  isLarge: boolean
+  uploadProgress?: UploadProgress
+  pendingUploadId?: string
+  abortController?: AbortController
+}
+
 interface MessageInputProps {
   channelName: string
-  onSend: (content: string, files?: File[], msgType?: string) => Promise<void>
+  onSend: (content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => Promise<void>
   channelId?: string
   dmConversationId?: string
 }
@@ -29,7 +38,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
   const canSend = useHasPermission(PermSendMessages)
   const { replyingTo, setReplyingTo } = useMessageStore()
   const [input, setInput] = useState('')
-  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showSticker, setShowSticker] = useState(false)
@@ -41,6 +50,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
   const [slowModeCountdown, setSlowModeCountdown] = useState(0)
+  const [fileError, setFileError] = useState<string | null>(null)
   const slowModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -138,12 +148,102 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
     }, 1000)
   }, [])
 
+  // Start background upload for a large file
+  const startLargeUpload = useCallback((pendingFile: PendingFile, index: number) => {
+    const controller = new AbortController()
+
+    setPendingFiles((prev) =>
+      prev.map((f, i) => i === index ? { ...f, abortController: controller } : f)
+    )
+
+    uploadLargeFile(
+      pendingFile.file,
+      (progress) => {
+        setPendingFiles((prev) =>
+          prev.map((f, i) => i === index ? { ...f, uploadProgress: progress } : f)
+        )
+      },
+      controller.signal
+    )
+      .then(({ pendingUploadId }) => {
+        setPendingFiles((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? { ...f, pendingUploadId, uploadProgress: { ...f.uploadProgress!, status: 'done' } }
+              : f
+          )
+        )
+      })
+      .catch((err) => {
+        if (err instanceof DOMException && err.name === 'AbortError') return
+        setPendingFiles((prev) =>
+          prev.map((f, i) =>
+            i === index
+              ? { ...f, uploadProgress: { ...f.uploadProgress!, status: 'error', error: err.message } }
+              : f
+          )
+        )
+      })
+  }, [])
+
+  const addFiles = useCallback((files: File[]) => {
+    setFileError(null)
+    const newPending: PendingFile[] = []
+
+    for (const file of files) {
+      if (isFileTooLarge(file)) {
+        setFileError(`${file.name} exceeds 500MB limit`)
+        continue
+      }
+      newPending.push({
+        file,
+        isLarge: isLargeFile(file)
+      })
+    }
+
+    setPendingFiles((prev) => {
+      const combined = [...prev, ...newPending].slice(0, 10)
+      // Start background uploads for newly added large files
+      const startIndex = prev.length
+      combined.forEach((pf, i) => {
+        if (i >= startIndex && pf.isLarge && !pf.pendingUploadId && !pf.abortController) {
+          // Use setTimeout to ensure state is updated first
+          setTimeout(() => startLargeUpload(pf, i), 0)
+        }
+      })
+      return combined
+    })
+  }, [startLargeUpload])
+
   const handleSend = async () => {
     const trimmed = input.trim()
     if (!trimmed && pendingFiles.length === 0) return
     if (slowModeCountdown > 0) return
+
+    // Check if any large files are still uploading
+    const stillUploading = pendingFiles.some(
+      (f) => f.isLarge && f.uploadProgress?.status === 'uploading'
+    )
+    if (stillUploading) return
+
+    // Check for failed large uploads
+    const failedUploads = pendingFiles.some(
+      (f) => f.isLarge && f.uploadProgress?.status === 'error'
+    )
+    if (failedUploads) return
+
     try {
-      await onSend(trimmed, pendingFiles.length > 0 ? pendingFiles : undefined)
+      const smallFiles = pendingFiles.filter((f) => !f.isLarge).map((f) => f.file)
+      const largePendingIds = pendingFiles
+        .filter((f) => f.isLarge && f.pendingUploadId)
+        .map((f) => f.pendingUploadId!)
+
+      await onSend(
+        trimmed,
+        smallFiles.length > 0 ? smallFiles : undefined,
+        undefined,
+        largePendingIds.length > 0 ? largePendingIds : undefined
+      )
       setInput('')
       setPendingFiles([])
       requestAnimationFrame(() => {
@@ -187,14 +287,14 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    setPendingFiles((prev) => [...prev, ...files].slice(0, 10))
+    addFiles(files)
     e.target.value = ''
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     const files = Array.from(e.dataTransfer.files)
-    setPendingFiles((prev) => [...prev, ...files].slice(0, 10))
+    addFiles(files)
   }
 
   const handlePaste = (e: React.ClipboardEvent) => {
@@ -204,11 +304,19 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
       .map((item) => item.getAsFile())
       .filter((f): f is File => f !== null)
     if (imageFiles.length > 0) {
-      setPendingFiles((prev) => [...prev, ...imageFiles].slice(0, 10))
+      addFiles(imageFiles)
     }
   }
 
   const removeFile = (index: number) => {
+    const file = pendingFiles[index]
+    // If it's a large file with an active upload, abort it
+    if (file.isLarge && file.abortController) {
+      file.abortController.abort()
+    }
+    if (file.isLarge && file.pendingUploadId) {
+      abortUpload(file.pendingUploadId).catch(() => {})
+    }
     setPendingFiles((prev) => prev.filter((_, i) => i !== index))
   }
 
@@ -273,6 +381,16 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
     setShowSchedulePicker(!showSchedulePicker)
   }
 
+  // Compute whether send should be disabled
+  const hasContent = input.trim().length > 0 || pendingFiles.length > 0
+  const stillUploading = pendingFiles.some(
+    (f) => f.isLarge && f.uploadProgress?.status === 'uploading'
+  )
+  const hasFailedUploads = pendingFiles.some(
+    (f) => f.isLarge && f.uploadProgress?.status === 'error'
+  )
+  const sendDisabled = !hasContent || stillUploading || hasFailedUploads
+
   return (
     <div
       className="px-4 pb-4"
@@ -303,20 +421,55 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
         </div>
       )}
 
+      {/* File error message */}
+      {fileError && (
+        <div className="mb-2 px-3 py-1.5 bg-sol-coral/10 border border-sol-coral/20 rounded text-xs text-sol-coral">
+          {fileError}
+        </div>
+      )}
+
       {/* Pending file previews */}
       {pendingFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
-          {pendingFiles.map((file, i) => (
+          {pendingFiles.map((pf, i) => (
             <div key={i} className="relative group">
-              {file.type.startsWith('image/') ? (
+              {pf.file.type.startsWith('image/') ? (
                 <img
-                  src={URL.createObjectURL(file)}
-                  alt={file.name}
+                  src={URL.createObjectURL(pf.file)}
+                  alt={pf.file.name}
                   className="w-16 h-16 object-cover rounded-lg border border-sol-bg-elevated"
                 />
               ) : (
                 <div className="w-16 h-16 flex items-center justify-center rounded-lg border border-sol-bg-elevated bg-sol-bg-elevated">
-                  <span className="text-xs text-sol-text-muted truncate px-1">{file.name.split('.').pop()}</span>
+                  <span className="text-xs text-sol-text-muted truncate px-1">{pf.file.name.split('.').pop()}</span>
+                </div>
+              )}
+              {/* Progress bar for large files */}
+              {pf.isLarge && pf.uploadProgress && (
+                <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-sol-bg-primary/50 rounded-b-lg overflow-hidden">
+                  <div
+                    className={`h-full transition-all duration-300 ${
+                      pf.uploadProgress.status === 'error' ? 'bg-sol-coral' :
+                      pf.uploadProgress.status === 'done' ? 'bg-sol-green' :
+                      'bg-sol-amber'
+                    }`}
+                    style={{
+                      width: `${Math.round((pf.uploadProgress.uploadedBytes / pf.uploadProgress.totalBytes) * 100)}%`
+                    }}
+                  />
+                </div>
+              )}
+              {/* Upload status indicator */}
+              {pf.isLarge && pf.uploadProgress?.status === 'uploading' && (
+                <div className="absolute top-0 left-0 right-0 text-center">
+                  <span className="text-[9px] text-sol-amber bg-sol-bg-primary/80 px-1 rounded-b">
+                    {Math.round((pf.uploadProgress.uploadedBytes / pf.uploadProgress.totalBytes) * 100)}%
+                  </span>
+                </div>
+              )}
+              {pf.isLarge && pf.uploadProgress?.status === 'error' && (
+                <div className="absolute top-0 left-0 right-0 text-center">
+                  <span className="text-[9px] text-sol-coral bg-sol-bg-primary/80 px-1 rounded-b">Failed</span>
                 </div>
               )}
               <button
@@ -494,12 +647,18 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
           <button
             type="button"
             onClick={handleSend}
-            disabled={!input.trim() && pendingFiles.length === 0}
+            disabled={sendDisabled}
             className="px-3 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-            </svg>
+            {stillUploading ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                <circle cx="12" cy="12" r="10" strokeDasharray="50" strokeDashoffset="15" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+              </svg>
+            )}
           </button>
         )}
       </div>

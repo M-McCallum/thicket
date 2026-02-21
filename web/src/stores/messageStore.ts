@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Message } from '@/types/models'
 import { messages as messagesApi, pins as pinsApi, reactions as reactionsApi } from '@/services/api'
+import { finalizeUpload } from '@/services/uploadService'
 
 interface MessageState {
   messages: Message[]
@@ -18,7 +19,7 @@ interface MessageState {
   fetchMoreMessages: (channelId: string) => Promise<void>
   jumpToDate: (channelId: string, date: Date) => Promise<void>
   jumpToPresent: (channelId: string) => Promise<void>
-  sendMessage: (channelId: string, content: string, files?: File[], msgType?: string) => Promise<void>
+  sendMessage: (channelId: string, content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => Promise<void>
   addMessage: (message: Message) => void
   updateMessage: (message: Message) => void
   removeMessage: (messageId: string) => void
@@ -114,10 +115,17 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  sendMessage: async (channelId, content, files, msgType) => {
+  sendMessage: async (channelId, content, files, msgType, largePendingIds) => {
     const { replyingTo } = get()
-    await messagesApi.send(channelId, content, files, msgType, replyingTo?.id)
+    const msg = await messagesApi.send(channelId, content, files, msgType, replyingTo?.id)
     set({ replyingTo: null })
+
+    // Finalize large file uploads with the new message ID
+    if (largePendingIds && largePendingIds.length > 0 && msg?.id) {
+      await Promise.all(
+        largePendingIds.map((id) => finalizeUpload(id, msg.id).catch(console.error))
+      )
+    }
   },
 
   addMessage: (message) =>

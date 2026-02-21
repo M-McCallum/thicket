@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { DMConversationWithParticipants, DMMessage } from '@/types/models'
 import { dm as dmApi } from '@/services/api'
+import { finalizeUpload } from '@/services/uploadService'
 
 const emptyReactions: DMMessage['reactions'] = []
 
@@ -37,7 +38,7 @@ interface DMState {
   createGroupConversation: (participantIds: string[]) => Promise<DMConversationWithParticipants>
   setActiveConversation: (id: string | null) => void
   fetchMessages: (conversationId: string, before?: string) => Promise<void>
-  sendMessage: (conversationId: string, content: string, files?: File[], msgType?: string) => Promise<void>
+  sendMessage: (conversationId: string, content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => Promise<void>
   addMessage: (message: DMMessage) => void
   updateMessage: (update: Partial<DMMessage> & { id: string }) => void
   removeMessage: (messageId: string) => void
@@ -189,7 +190,7 @@ export const useDMStore = create<DMState>((set, get) => ({
     }
   },
 
-  sendMessage: async (conversationId, content, files, msgType) => {
+  sendMessage: async (conversationId, content, files, msgType, largePendingIds) => {
     // Check if conversation is encrypted
     const conv = get().conversations.find((c) => c.id === conversationId)
     if (conv?.encrypted) {
@@ -205,7 +206,14 @@ export const useDMStore = create<DMState>((set, get) => ({
         }
       }
     }
-    await dmApi.sendMessage(conversationId, content, files, msgType)
+    const msg = await dmApi.sendMessage(conversationId, content, files, msgType)
+
+    // Finalize large file uploads with the new DM message ID
+    if (largePendingIds && largePendingIds.length > 0 && msg?.id) {
+      await Promise.all(
+        largePendingIds.map((id) => finalizeUpload(id, undefined, msg.id).catch(console.error))
+      )
+    }
   },
 
   addMessage: (message) =>

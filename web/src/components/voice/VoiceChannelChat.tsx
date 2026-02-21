@@ -68,9 +68,9 @@ export default function VoiceChannelChat() {
     prevCountRef.current = messages.length
   }, [messages.length])
 
-  const handleSend = async (content: string, files?: File[], msgType?: string) => {
+  const handleSend = async (content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => {
     if (!activeChannelId) return
-    await sendMessage(activeChannelId, content, files, msgType)
+    await sendMessage(activeChannelId, content, files, msgType, largePendingIds)
   }
 
   if (!activeChannelId) return null

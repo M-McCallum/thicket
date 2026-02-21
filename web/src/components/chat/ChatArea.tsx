@@ -13,6 +13,7 @@ import PollCreator from './PollCreator'
 import ForumChannelView from '@/components/forum/ForumChannelView'
 import { useSearchStore } from '@/stores/searchStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useLayoutStore } from '@/stores/layoutStore'
 import { readState } from '@/services/api'
 
 const PinnedMessagesPanel = lazy(() => import('./PinnedMessagesPanel'))
@@ -125,9 +126,9 @@ export default function ChatArea() {
     prevMessageCountRef.current = messages.length
   }, [messages.length, isFetchingMore])
 
-  const handleSend = async (content: string, files?: File[], msgType?: string) => {
+  const handleSend = async (content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => {
     if (!activeChannelId) return
-    await sendMessage(activeChannelId, content, files, msgType)
+    await sendMessage(activeChannelId, content, files, msgType, largePendingIds)
   }
 
   const handleTogglePins = () => {
@@ -175,6 +176,18 @@ export default function ChatArea() {
         {/* Channel header */}
         <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated justify-between">
           <div className="flex items-center gap-3 min-w-0">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => useLayoutStore.getState().toggleSidebar()}
+              className="lg:hidden p-1.5 -ml-1.5 rounded text-sol-text-muted hover:text-sol-text-primary transition-colors"
+              aria-label="Open sidebar"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <div className="flex items-center">
               {activeChannel?.is_announcement ? (
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-text-muted mr-2 shrink-0">
@@ -282,6 +295,19 @@ export default function ChatArea() {
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="17" x2="12" y2="22" />
                 <path d="M5 17h14v-1.76a2 2 0 00-1.11-1.79l-1.78-.9A2 2 0 0115 10.76V6h1a2 2 0 000-4H8a2 2 0 000 4h1v4.76a2 2 0 01-1.11 1.79l-1.78.9A2 2 0 005 15.24V17z" />
+              </svg>
+            </button>
+            {/* Mobile members toggle */}
+            <button
+              onClick={() => useLayoutStore.getState().toggleMemberList()}
+              className="lg:hidden p-1.5 rounded transition-colors text-sol-text-muted hover:text-sol-text-primary"
+              title="Members"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+                <path d="M23 21v-2a4 4 0 00-3-3.87" />
+                <path d="M16 3.13a4 4 0 010 7.75" />
               </svg>
             </button>
           </div>

@@ -10,6 +10,7 @@ import MessageItem from '@/components/chat/MessageItem'
 import MessageInput from '@/components/chat/MessageInput'
 import DMCallUI from './DMCallUI'
 import GroupDMSettingsPanel from './GroupDMSettingsPanel'
+import { useLayoutStore } from '@/stores/layoutStore'
 
 export default function DMChatArea() {
   const messages = useDMStore((s) => s.messages)
@@ -99,7 +100,7 @@ export default function DMChatArea() {
     return () => observer.disconnect()
   }, [hasMore, isLoading, messages.length, activeConversationId])
 
-  const handleSend = async (content: string, files?: File[], msgType?: string) => {
+  const handleSend = async (content: string, files?: File[], msgType?: string, largePendingIds?: string[]) => {
     if (!activeConversationId) return
     const { replyingTo: rt } = useDMStore.getState()
     // For DM send with reply, we use the sendMessage API but include reply_to_id
@@ -128,7 +129,7 @@ export default function DMChatArea() {
       }
       useDMStore.getState().setReplyingTo(null)
     } else {
-      await useDMStore.getState().sendMessage(activeConversationId, content, files, msgType)
+      await useDMStore.getState().sendMessage(activeConversationId, content, files, msgType, largePendingIds)
     }
   }
 
@@ -218,6 +219,18 @@ export default function DMChatArea() {
         {/* DM header */}
         <div className="h-12 flex items-center justify-between px-4 border-b border-sol-bg-elevated">
           <div className="flex items-center">
+            {/* Mobile hamburger */}
+            <button
+              onClick={() => useLayoutStore.getState().toggleSidebar()}
+              className="lg:hidden p-1.5 -ml-1.5 mr-2 rounded text-sol-text-muted hover:text-sol-text-primary transition-colors"
+              aria-label="Open sidebar"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
             <span className="text-sol-text-muted mr-2">{isGroup ? '#' : '@'}</span>
             <h3 className="font-medium text-sol-text-primary">{otherName}</h3>
             {isGroup && (
