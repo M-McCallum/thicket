@@ -14,9 +14,13 @@ import (
 )
 
 var (
-	ErrInviteNotFound = errors.New("invite not found")
-	ErrInviteExpired  = errors.New("invite has expired")
-	ErrInviteMaxUsed  = errors.New("invite has reached maximum uses")
+	ErrInviteNotFound          = errors.New("invite not found")
+	ErrInviteExpired           = errors.New("invite has expired")
+	ErrInviteMaxUsed           = errors.New("invite has reached maximum uses")
+	ErrInvitationNotFound      = errors.New("invitation not found")
+	ErrInvitationAlreadySent   = errors.New("invitation already sent to this user")
+	ErrCannotInviteSelf        = errors.New("cannot invite yourself")
+	ErrRecipientAlreadyMember  = errors.New("user is already a server member")
 )
 
 type InviteService struct {
@@ -35,6 +39,15 @@ func (s *InviteService) CreateInvite(ctx context.Context, serverID, userID uuid.
 			return nil, ErrNotMember
 		}
 		return nil, err
+	}
+
+	// Check PermCreateInvite
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermCreateInvite)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrInsufficientRole
 	}
 
 	code, err := generateInviteCode8()
@@ -137,6 +150,154 @@ func (s *InviteService) GetPublicServers(ctx context.Context, query string, limi
 		offset = 0
 	}
 	return s.queries.GetPublicServers(ctx, query, limit, offset)
+}
+
+// SendInviteByUsername sends a server invitation to a user by their username.
+// Returns the invitation and recipient user ID (for WS + DM).
+func (s *InviteService) SendInviteByUsername(ctx context.Context, serverID, senderID uuid.UUID, recipientUsername string) (*models.ServerInvitationWithDetails, uuid.UUID, error) {
+	// Check sender membership
+	if _, err := s.queries.GetServerMember(ctx, serverID, senderID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, uuid.Nil, ErrNotMember
+		}
+		return nil, uuid.Nil, err
+	}
+
+	// Check PermCreateInvite
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, senderID, models.PermCreateInvite)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+	if !ok {
+		return nil, uuid.Nil, ErrInsufficientRole
+	}
+
+	// Look up recipient
+	recipient, err := s.queries.GetUserByUsername(ctx, recipientUsername)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, uuid.Nil, ErrUserNotFound
+		}
+		return nil, uuid.Nil, err
+	}
+
+	if recipient.ID == senderID {
+		return nil, uuid.Nil, ErrCannotInviteSelf
+	}
+
+	// Check recipient not already a member
+	if _, err := s.queries.GetServerMember(ctx, serverID, recipient.ID); err == nil {
+		return nil, uuid.Nil, ErrRecipientAlreadyMember
+	}
+
+	// Check no existing pending invitation
+	if _, err := s.queries.FindPendingServerInvitation(ctx, serverID, senderID, recipient.ID); err == nil {
+		return nil, uuid.Nil, ErrInvitationAlreadySent
+	}
+
+	// Create invitation
+	inv, err := s.queries.CreateServerInvitation(ctx, serverID, senderID, recipient.ID)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+
+	// Get server and sender details for the response
+	server, err := s.queries.GetServerByID(ctx, serverID)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+	sender, err := s.queries.GetUserByID(ctx, senderID)
+	if err != nil {
+		return nil, uuid.Nil, err
+	}
+
+	details := &models.ServerInvitationWithDetails{
+		ServerInvitation: inv,
+		ServerName:       server.Name,
+		ServerIconURL:    server.IconURL,
+		SenderUsername:   sender.Username,
+		RecipientUsername: recipient.Username,
+	}
+
+	return details, recipient.ID, nil
+}
+
+// AcceptInvitation accepts a pending server invitation.
+func (s *InviteService) AcceptInvitation(ctx context.Context, invitationID, recipientID uuid.UUID) (*models.Server, *models.ServerInvitation, error) {
+	inv, err := s.queries.GetServerInvitationByID(ctx, invitationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil, ErrInvitationNotFound
+		}
+		return nil, nil, err
+	}
+
+	if inv.RecipientID != recipientID {
+		return nil, nil, ErrInvitationNotFound
+	}
+	if inv.Status != "pending" {
+		return nil, nil, ErrInvitationNotFound
+	}
+
+	// Check not already a member
+	if _, err := s.queries.GetServerMember(ctx, inv.ServerID, recipientID); err == nil {
+		return nil, nil, ErrAlreadyMember
+	}
+
+	// Update status
+	if err := s.queries.UpdateServerInvitationStatus(ctx, invitationID, "accepted"); err != nil {
+		return nil, nil, err
+	}
+
+	// Add server member
+	if err := s.queries.AddServerMember(ctx, models.AddServerMemberParams{
+		ServerID: inv.ServerID,
+		UserID:   recipientID,
+		Role:     "member",
+	}); err != nil {
+		return nil, nil, err
+	}
+
+	server, err := s.queries.GetServerByID(ctx, inv.ServerID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return &server, &inv, nil
+}
+
+// DeclineInvitation declines a pending server invitation.
+func (s *InviteService) DeclineInvitation(ctx context.Context, invitationID, recipientID uuid.UUID) (*models.ServerInvitation, error) {
+	inv, err := s.queries.GetServerInvitationByID(ctx, invitationID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrInvitationNotFound
+		}
+		return nil, err
+	}
+
+	if inv.RecipientID != recipientID {
+		return nil, ErrInvitationNotFound
+	}
+	if inv.Status != "pending" {
+		return nil, ErrInvitationNotFound
+	}
+
+	if err := s.queries.UpdateServerInvitationStatus(ctx, invitationID, "declined"); err != nil {
+		return nil, err
+	}
+
+	return &inv, nil
+}
+
+// GetReceivedInvitations returns pending invitations for a user.
+func (s *InviteService) GetReceivedInvitations(ctx context.Context, userID uuid.UUID) ([]models.ServerInvitationWithDetails, error) {
+	return s.queries.GetPendingInvitationsForUser(ctx, userID)
+}
+
+// GetSentInvitations returns sent invitations for a server by a user.
+func (s *InviteService) GetSentInvitations(ctx context.Context, userID, serverID uuid.UUID) ([]models.ServerInvitationWithDetails, error) {
+	return s.queries.GetSentInvitationsForServer(ctx, userID, serverID)
 }
 
 func generateInviteCode8() (string, error) {

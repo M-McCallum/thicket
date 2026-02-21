@@ -11,6 +11,7 @@ import ConversationList from '@/components/dm/ConversationList'
 import DMChatArea from '@/components/dm/DMChatArea'
 import FriendsList from '@/components/dm/FriendsList'
 import FriendRequests from '@/components/dm/FriendRequests'
+import ServerInvites from '@/components/dm/ServerInvites'
 import AddFriendModal from '@/components/dm/AddFriendModal'
 import IncomingCallOverlay from '@/components/dm/IncomingCallOverlay'
 import SearchModal from '@/components/search/SearchModal'
@@ -25,7 +26,7 @@ import { onboarding as onboardingApi } from '@/services/api'
 
 const DiscoverPage = lazy(() => import('@/components/server/DiscoverPage'))
 
-type DMTab = 'conversations' | 'friends' | 'requests'
+type DMTab = 'conversations' | 'friends' | 'requests' | 'invites'
 
 export default function MainLayout() {
   const { activeServerId, activeChannelId, channels, fetchServers, servers, setActiveChannel } = useServerStore()
@@ -140,7 +141,7 @@ export default function MainLayout() {
 
           {/* Tab buttons */}
           <div className="flex border-b border-sol-bg-elevated">
-            {(['conversations', 'friends', 'requests'] as DMTab[]).map((tab) => (
+            {(['conversations', 'friends', 'requests', 'invites'] as DMTab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setDMTab(tab)}
@@ -150,7 +151,7 @@ export default function MainLayout() {
                     : 'text-sol-text-muted hover:text-sol-text-primary'
                 }`}
               >
-                {tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : 'Requests'}
+                {tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : tab === 'requests' ? 'Requests' : 'Invites'}
               </button>
             ))}
           </div>
@@ -159,6 +160,7 @@ export default function MainLayout() {
             {dmTab === 'conversations' && <ConversationList />}
             {dmTab === 'friends' && <FriendsList />}
             {dmTab === 'requests' && <FriendRequests />}
+            {dmTab === 'invites' && <ServerInvites />}
           </div>
 
           {/* Add friend button */}

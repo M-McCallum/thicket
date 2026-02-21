@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import type { ServerInvite } from '@/types/models'
-import { serverInvites } from '@/services/api'
+import { serverInvites, serverInvitations } from '@/services/api'
 
 interface InviteModalProps {
   serverId: string
@@ -17,6 +17,12 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
   // Create form state
   const [maxUses, setMaxUses] = useState('')
   const [expiresIn, setExpiresIn] = useState('')
+
+  // Username invite state
+  const [inviteUsername, setInviteUsername] = useState('')
+  const [sendingUsername, setSendingUsername] = useState(false)
+  const [usernameSuccess, setUsernameSuccess] = useState('')
+  const [usernameError, setUsernameError] = useState('')
 
   const fetchInvites = useCallback(async () => {
     try {
@@ -39,7 +45,6 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
     setError('')
     try {
       const parsedMaxUses = maxUses ? parseInt(maxUses, 10) : undefined
-      // Convert expiresIn (hours) to ISO timestamp
       let expiresAt: string | undefined
       if (expiresIn) {
         const hours = parseInt(expiresIn, 10)
@@ -74,6 +79,24 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  const handleUsernameInvite = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!inviteUsername.trim()) return
+    setSendingUsername(true)
+    setUsernameError('')
+    setUsernameSuccess('')
+    try {
+      await serverInvitations.sendByUsername(serverId, inviteUsername.trim())
+      setUsernameSuccess(`Invite sent to ${inviteUsername.trim()}!`)
+      setInviteUsername('')
+      setTimeout(() => setUsernameSuccess(''), 3000)
+    } catch (err) {
+      setUsernameError(err instanceof Error ? err.message : 'Failed to send invite')
+    } finally {
+      setSendingUsername(false)
+    }
+  }
+
   const formatExpiry = (expiresAt: string | null) => {
     if (!expiresAt) return 'Never'
     const date = new Date(expiresAt)
@@ -105,9 +128,33 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
           </button>
         </div>
 
-        {/* Create new invite form */}
+        {/* Invite by username */}
+        <form onSubmit={handleUsernameInvite} className="mb-4 p-3 bg-sol-bg/50 rounded-lg border border-sol-border">
+          <p className="text-sm text-sol-text-secondary mb-2">Invite by username</p>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={inviteUsername}
+              onChange={(e) => setInviteUsername(e.target.value)}
+              placeholder="Enter username"
+              className="flex-1 bg-sol-bg-tertiary text-sol-text-primary border border-sol-border rounded px-2 py-1.5 text-sm focus:outline-none focus:border-sol-amber/30"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={sendingUsername || !inviteUsername.trim()}
+              className="px-3 py-1.5 bg-sol-amber/20 text-sol-amber rounded-lg hover:bg-sol-amber/30 disabled:opacity-50 transition-colors text-sm font-medium whitespace-nowrap"
+            >
+              {sendingUsername ? 'Sending...' : 'Send Invite'}
+            </button>
+          </div>
+          {usernameSuccess && <p className="text-xs text-sol-sage mt-2">{usernameSuccess}</p>}
+          {usernameError && <p className="text-xs text-sol-coral mt-2">{usernameError}</p>}
+        </form>
+
+        {/* Create new invite link form */}
         <form onSubmit={handleCreate} className="mb-4 p-3 bg-sol-bg/50 rounded-lg border border-sol-border">
-          <p className="text-sm text-sol-text-secondary mb-3">Create a new invite link</p>
+          <p className="text-sm text-sol-text-secondary mb-3">Create a shareable invite link</p>
           <div className="flex gap-2 mb-3">
             <div className="flex-1">
               <label className="block text-xs text-sol-text-muted mb-1">Max Uses (optional)</label>
@@ -154,7 +201,7 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
           {loading ? (
             <p className="text-sol-text-muted text-sm text-center py-4">Loading invites...</p>
           ) : invites.length === 0 ? (
-            <p className="text-sol-text-muted text-sm text-center py-4">No invites yet. Create one above.</p>
+            <p className="text-sol-text-muted text-sm text-center py-4">No invite links yet. Create one above.</p>
           ) : (
             <div className="space-y-2">
               {invites.map((invite) => (

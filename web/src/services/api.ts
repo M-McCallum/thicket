@@ -623,6 +623,24 @@ export const serverInvites = {
     })
 }
 
+// Server invitations (user-to-user)
+import type { ServerInvitationWithDetails } from '@/types/models'
+export const serverInvitations = {
+  sendByUsername: (serverId: string, username: string) =>
+    request<ServerInvitationWithDetails>(`/servers/${serverId}/invites/username`, {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    }),
+  received: () =>
+    request<ServerInvitationWithDetails[]>('/invitations/received'),
+  sent: (serverId: string) =>
+    request<ServerInvitationWithDetails[]>(`/servers/${serverId}/invitations/sent`),
+  accept: (id: string) =>
+    request<Server>(`/invitations/${id}/accept`, { method: 'POST' }),
+  decline: (id: string) =>
+    request<{ message: string }>(`/invitations/${id}/decline`, { method: 'POST' }),
+}
+
 // User preferences (theme, compact mode)
 export const userPreferences = {
   get: () =>

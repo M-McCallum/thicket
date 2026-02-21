@@ -12,6 +12,7 @@ const (
 	PermManageServer   int64 = 1 << 7
 	PermAddReactions   int64 = 1 << 8
 	PermAttachFiles    int64 = 1 << 9
+	PermCreateInvite   int64 = 1 << 10
 	PermPinMessages    int64 = 1 << 12
 	PermVoiceConnect   int64 = 1 << 13
 	PermVoiceSpeak     int64 = 1 << 14
@@ -19,7 +20,7 @@ const (
 )
 
 // PermAllDefault is the default permission set for @everyone.
-var PermAllDefault int64 = PermViewChannels | PermSendMessages | PermAddReactions | PermAttachFiles | PermPinMessages | PermVoiceConnect | PermVoiceSpeak
+var PermAllDefault int64 = PermViewChannels | PermSendMessages | PermAddReactions | PermAttachFiles | PermCreateInvite | PermPinMessages | PermVoiceConnect | PermVoiceSpeak
 
 // HasPermission checks if `perms` includes `check`. Administrator bypasses all.
 func HasPermission(perms, check int64) bool {

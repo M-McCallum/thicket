@@ -185,6 +185,12 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Delete("/servers/:id/invites/:inviteId", cfg.InviteHandler.DeleteInvite)
 		protected.Post("/servers/join/invite", cfg.InviteHandler.UseInvite)
 		protected.Get("/servers/discover", cfg.InviteHandler.DiscoverServers)
+		// Username invitations
+		protected.Post("/servers/:id/invites/username", cfg.InviteHandler.InviteByUsername)
+		protected.Get("/servers/:id/invitations/sent", cfg.InviteHandler.GetSentInvitations)
+		protected.Get("/invitations/received", cfg.InviteHandler.GetReceivedInvitations)
+		protected.Post("/invitations/:id/accept", cfg.InviteHandler.AcceptInvitation)
+		protected.Post("/invitations/:id/decline", cfg.InviteHandler.DeclineInvitation)
 	}
 
 	// Channels

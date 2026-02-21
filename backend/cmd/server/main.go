@@ -184,7 +184,7 @@ func main() {
 	emojiHandler := handler.NewEmojiHandler(emojiService, serverService)
 
 	friendHandler := handler.NewFriendHandler(friendService, hub)
-	inviteHandler := handler.NewInviteHandler(inviteService, serverService, hub)
+	inviteHandler := handler.NewInviteHandler(inviteService, serverService, dmService, hub)
 	roleHandler := handler.NewRoleHandler(roleService, serverService, hub)
 	linkPreviewHandler := handler.NewLinkPreviewHandler(linkPreviewService)
 	searchService := service.NewSearchService(queries)

@@ -11,6 +11,7 @@ export const PermBanMembers     = 1n << 6n
 export const PermManageServer   = 1n << 7n
 export const PermAddReactions   = 1n << 8n
 export const PermAttachFiles    = 1n << 9n
+export const PermCreateInvite   = 1n << 10n
 export const PermPinMessages    = 1n << 12n
 export const PermVoiceConnect   = 1n << 13n
 export const PermVoiceSpeak     = 1n << 14n
@@ -36,6 +37,7 @@ export const PERMISSION_LABELS: { perm: bigint; name: string; description: strin
   { perm: PermManageMessages, name: 'Manage Messages', description: 'Allows deleting messages from other members', category: 'Text' },
   { perm: PermAddReactions, name: 'Add Reactions', description: 'Allows adding reactions to messages', category: 'Text' },
   { perm: PermAttachFiles, name: 'Attach Files', description: 'Allows uploading files and images', category: 'Text' },
+  { perm: PermCreateInvite, name: 'Create Invite', description: 'Allows creating invite links and inviting users', category: 'General' },
   { perm: PermPinMessages, name: 'Pin Messages', description: 'Allows pinning messages in a channel', category: 'Text' },
   { perm: PermManageChannels, name: 'Manage Channels', description: 'Allows creating, editing, and deleting channels', category: 'Management' },
   { perm: PermManageRoles, name: 'Manage Roles', description: 'Allows creating and editing roles below their highest role', category: 'Management' },

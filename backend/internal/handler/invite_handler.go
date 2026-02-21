@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"log"
 	"strconv"
 	"time"
@@ -17,11 +19,12 @@ import (
 type InviteHandler struct {
 	inviteService *service.InviteService
 	serverService *service.ServerService
+	dmService     *service.DMService
 	hub           *ws.Hub
 }
 
-func NewInviteHandler(is *service.InviteService, ss *service.ServerService, hub *ws.Hub) *InviteHandler {
-	return &InviteHandler{inviteService: is, serverService: ss, hub: hub}
+func NewInviteHandler(is *service.InviteService, ss *service.ServerService, ds *service.DMService, hub *ws.Hub) *InviteHandler {
+	return &InviteHandler{inviteService: is, serverService: ss, dmService: ds, hub: hub}
 }
 
 func (h *InviteHandler) CreateInvite(c fiber.Ctx) error {
@@ -130,9 +133,149 @@ func (h *InviteHandler) DiscoverServers(c fiber.Ctx) error {
 	return c.JSON(results)
 }
 
+func (h *InviteHandler) InviteByUsername(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	var body struct {
+		Username string `json:"username"`
+	}
+	if err := c.Bind().JSON(&body); err != nil || body.Username == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "username is required"})
+	}
+
+	senderID := auth.GetUserID(c)
+	invitation, recipientID, err := h.inviteService.SendInviteByUsername(c.Context(), serverID, senderID, body.Username)
+	if err != nil {
+		return handleInviteError(c, err)
+	}
+
+	// Send WS event to recipient
+	invEvent, _ := ws.NewEvent(ws.EventServerInvitationReceived, invitation)
+	if invEvent != nil {
+		h.hub.SendToUser(recipientID, invEvent)
+	}
+
+	// Auto-create or find DM conversation and send system message
+	go func() {
+		ctx := context.Background()
+		conv, err := h.dmService.CreateConversation(ctx, senderID, recipientID)
+		if err != nil {
+			log.Printf("Failed to create DM for server invitation: %v", err)
+			return
+		}
+		content := fmt.Sprintf("Hey! I've invited you to join **%s**. Check your server invites to accept!", invitation.ServerName)
+		msg, err := h.dmService.SendDM(ctx, conv.ID, senderID, content)
+		if err != nil {
+			log.Printf("Failed to send invite DM: %v", err)
+			return
+		}
+		dmEvent, _ := ws.NewEvent(ws.EventDMMessageCreate, msg)
+		if dmEvent != nil {
+			h.hub.SendToUser(recipientID, dmEvent)
+			h.hub.SendToUser(senderID, dmEvent)
+		}
+	}()
+
+	return c.Status(fiber.StatusCreated).JSON(invitation)
+}
+
+func (h *InviteHandler) AcceptInvitation(c fiber.Ctx) error {
+	invitationID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid invitation ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	username := auth.GetUsername(c)
+	server, inv, err := h.inviteService.AcceptInvitation(c.Context(), invitationID, userID)
+	if err != nil {
+		return handleInviteError(c, err)
+	}
+
+	// Broadcast MEMBER_JOIN to server members
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), server.ID); err == nil {
+		event, _ := ws.NewEvent(ws.EventMemberJoin, fiber.Map{
+			"server_id": server.ID,
+			"user_id":   userID,
+			"username":  username,
+		})
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	} else {
+		log.Printf("Failed to get member IDs for MEMBER_JOIN broadcast: %v", err)
+	}
+
+	// Notify sender
+	acceptEvent, _ := ws.NewEvent(ws.EventServerInvitationAccepted, fiber.Map{
+		"invitation_id": inv.ID,
+		"server_id":     inv.ServerID,
+		"recipient_id":  userID,
+		"username":      username,
+	})
+	if acceptEvent != nil {
+		h.hub.SendToUser(inv.SenderID, acceptEvent)
+	}
+
+	return c.JSON(server)
+}
+
+func (h *InviteHandler) DeclineInvitation(c fiber.Ctx) error {
+	invitationID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid invitation ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	inv, err := h.inviteService.DeclineInvitation(c.Context(), invitationID, userID)
+	if err != nil {
+		return handleInviteError(c, err)
+	}
+
+	// Notify sender
+	declineEvent, _ := ws.NewEvent(ws.EventServerInvitationDeclined, fiber.Map{
+		"invitation_id": inv.ID,
+		"server_id":     inv.ServerID,
+		"recipient_id":  userID,
+	})
+	if declineEvent != nil {
+		h.hub.SendToUser(inv.SenderID, declineEvent)
+	}
+
+	return c.JSON(fiber.Map{"message": "invitation declined"})
+}
+
+func (h *InviteHandler) GetReceivedInvitations(c fiber.Ctx) error {
+	userID := auth.GetUserID(c)
+	invitations, err := h.inviteService.GetReceivedInvitations(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get invitations"})
+	}
+	return c.JSON(invitations)
+}
+
+func (h *InviteHandler) GetSentInvitations(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	invitations, err := h.inviteService.GetSentInvitations(c.Context(), userID, serverID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get invitations"})
+	}
+	return c.JSON(invitations)
+}
+
 func handleInviteError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrInviteNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInvitationNotFound):
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrInviteExpired):
 		return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
@@ -142,6 +285,14 @@ func handleInviteError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrAlreadyMember):
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrRecipientAlreadyMember):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInvitationAlreadySent):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrCannotInviteSelf):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrUserNotFound):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrInsufficientRole):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	default:

@@ -81,8 +81,11 @@ const (
 	EventStageSpeakerRemove  = "STAGE_SPEAKER_REMOVE"
 	EventStageHandRaise      = "STAGE_HAND_RAISE"
 	EventStageHandLower      = "STAGE_HAND_LOWER"
-	EventForumPostDelete     = "FORUM_POST_DELETE"
-	EventForumPostMessageCreate = "FORUM_POST_MESSAGE_CREATE"
+	EventForumPostDelete            = "FORUM_POST_DELETE"
+	EventForumPostMessageCreate     = "FORUM_POST_MESSAGE_CREATE"
+	EventServerInvitationReceived   = "SERVER_INVITATION_RECEIVED"
+	EventServerInvitationAccepted   = "SERVER_INVITATION_ACCEPTED"
+	EventServerInvitationDeclined   = "SERVER_INVITATION_DECLINED"
 )
 
 type Event struct {

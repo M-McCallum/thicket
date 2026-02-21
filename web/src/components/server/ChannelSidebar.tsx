@@ -3,7 +3,7 @@ import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useHasPermission } from '@/stores/permissionStore'
-import { PermManageServer, PermManageChannels } from '@/types/permissions'
+import { PermManageServer, PermManageChannels, PermCreateInvite } from '@/types/permissions'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { categories as categoriesApi } from '@/services/api'
 import InviteModal from './InviteModal'
@@ -22,6 +22,7 @@ export default function ChannelSidebar() {
   const isOwner = activeServer?.owner_id === user?.id
   const canManageServer = useHasPermission(PermManageServer)
   const canManageChannels = useHasPermission(PermManageChannels)
+  const canCreateInvite = useHasPermission(PermCreateInvite)
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
 
@@ -421,18 +422,20 @@ export default function ChannelSidebar() {
       {/* Bottom actions */}
       {activeServer && (
         <div className="p-3 border-t border-sol-bg-elevated flex flex-col gap-1.5">
-          <button
-            onClick={() => setShowInvite(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-amber bg-sol-bg/50 hover:bg-sol-amber/10 rounded-lg transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-              <circle cx="8.5" cy="7" r="4" />
-              <line x1="20" y1="8" x2="20" y2="14" />
-              <line x1="23" y1="11" x2="17" y2="11" />
-            </svg>
-            Invite People
-          </button>
+          {canCreateInvite && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-amber bg-sol-bg/50 hover:bg-sol-amber/10 rounded-lg transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+                <circle cx="8.5" cy="7" r="4" />
+                <line x1="20" y1="8" x2="20" y2="14" />
+                <line x1="23" y1="11" x2="17" y2="11" />
+              </svg>
+              Invite People
+            </button>
+          )}
           {canManageChannels && (
             <button
               onClick={() => openCreateModal('forum')}

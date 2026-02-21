@@ -11,6 +11,7 @@ import { useStageStore } from '@renderer/stores/stageStore'
 import { useNotificationStore } from '@renderer/stores/notificationStore'
 import { useDMStore } from '@renderer/stores/dmStore'
 import { useThreadStore } from '@renderer/stores/threadStore'
+import { useServerInvitationStore } from '@renderer/stores/serverInvitationStore'
 import { soundService } from '@renderer/services/soundService'
 import type {
   ReadyData,
@@ -772,6 +773,25 @@ export function useWebSocketEvents() {
           fetchPinnedMessages(unpin.conversation_id)
         }
       })
+    )
+
+    // SERVER_INVITATION_RECEIVED
+    unsubs.push(
+      wsService.on('SERVER_INVITATION_RECEIVED', (data) => {
+        const inv = data as { id: string; server_id: string; sender_id: string; recipient_id: string; status: string; created_at: string; server_name: string; server_icon_url: string | null; sender_username: string; recipient_username: string }
+        useServerInvitationStore.getState().addReceivedInvitation(inv)
+        fireNativeNotification('Server Invite', `${inv.sender_username} invited you to ${inv.server_name}`)
+      })
+    )
+
+    // SERVER_INVITATION_ACCEPTED — no action needed client-side for now
+    unsubs.push(
+      wsService.on('SERVER_INVITATION_ACCEPTED', () => {})
+    )
+
+    // SERVER_INVITATION_DECLINED — no action needed client-side for now
+    unsubs.push(
+      wsService.on('SERVER_INVITATION_DECLINED', () => {})
     )
 
     // NOTIFICATION -- server-side notification based on user prefs

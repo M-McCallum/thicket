@@ -528,6 +528,23 @@ export interface Webhook {
   url?: string
 }
 
+// Server invitations (user-to-user)
+export interface ServerInvitation {
+  id: string
+  server_id: string
+  sender_id: string
+  recipient_id: string
+  status: string
+  created_at: string
+}
+
+export interface ServerInvitationWithDetails extends ServerInvitation {
+  server_name: string
+  server_icon_url: string | null
+  sender_username: string
+  recipient_username: string
+}
+
 export interface SlashCommand {
   id: string
   bot_id: string

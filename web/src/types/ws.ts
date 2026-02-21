@@ -74,6 +74,9 @@ export type WSEventType =
   | 'STAGE_HAND_LOWER'
   | 'FORUM_POST_DELETE'
   | 'FORUM_POST_MESSAGE_CREATE'
+  | 'SERVER_INVITATION_RECEIVED'
+  | 'SERVER_INVITATION_ACCEPTED'
+  | 'SERVER_INVITATION_DECLINED'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
