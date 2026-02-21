@@ -75,7 +75,29 @@ func main() {
 	hub := ws.NewHub()
 	hub.SetOnConnect(func(userID uuid.UUID, username string) {
 		ctx := context.Background()
-		_ = queries.UpdateUserStatus(ctx, userID, "online")
+		// Only set to "online" if the user was offline. Preserve preferred
+		// statuses like "dnd" or "idle" that were explicitly chosen.
+		user, err := queries.GetUserByID(ctx, userID)
+		status := "online"
+		if err == nil && user.Status != "offline" {
+			status = user.Status
+		} else {
+			_ = queries.UpdateUserStatus(ctx, userID, "online")
+		}
+		// Broadcast presence with actual status to co-members
+		coMemberIDs, err := queries.GetUserCoMemberIDs(ctx, userID)
+		if err != nil {
+			log.Printf("Failed to get co-member IDs for connect presence: %v", err)
+			return
+		}
+		presenceEvent, _ := ws.NewEvent(ws.EventPresenceUpdBcast, ws.PresenceData{
+			UserID:   userID.String(),
+			Username: username,
+			Status:   status,
+		})
+		if presenceEvent != nil {
+			ws.BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
+		}
 	})
 	hub.SetOnDisconnect(func(userID uuid.UUID, username string) {
 		ctx := context.Background()

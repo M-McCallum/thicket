@@ -109,24 +109,8 @@ func Handler(hub *Hub, jwksManager *auth.JWKSManager, coMemberIDsFn CoMemberIDsF
 				}
 			}
 
-			// Broadcast presence "online" to co-members
-			if coMemberIDsFn != nil {
-				go func() {
-					coMemberIDs, err := coMemberIDsFn(context.Background(), claims.Ext.UserID)
-					if err != nil {
-						log.Printf("Failed to get co-member IDs for presence: %v", err)
-						return
-					}
-					presenceEvent, _ := NewEvent(EventPresenceUpdBcast, PresenceData{
-						UserID:   claims.Ext.UserID.String(),
-						Username: claims.Ext.Username,
-						Status:   "online",
-					})
-					if presenceEvent != nil {
-						BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
-					}
-				}()
-			}
+			// Presence broadcast moved to onConnect callback in main.go
+			// so it can read the user's actual preferred status from the DB.
 
 			go client.WritePump()
 			client.ReadPump()

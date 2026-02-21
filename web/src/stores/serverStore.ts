@@ -76,7 +76,12 @@ export const useServerStore = create<ServerState>((set, get) => ({
       // Apply online statuses from READY data (may have arrived before members loaded)
       const { onlineUserIds } = get()
       const updatedMembers = onlineUserIds.size > 0
-        ? members.map((m) => ({ ...m, status: onlineUserIds.has(m.id) ? 'online' : m.status }))
+        ? members.map((m) => ({
+            ...m,
+            status: onlineUserIds.has(m.id)
+              ? (m.status === 'offline' ? 'online' : m.status)
+              : 'offline'
+          }))
         : members
       set({
         channels,
@@ -149,7 +154,8 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   updateMemberStatus: (userId, status) =>
     set((state) => ({
-      onlineUserIds: status === 'online'
+      // onlineUserIds tracks connected users — any status other than 'offline' means connected
+      onlineUserIds: status !== 'offline'
         ? new Set([...state.onlineUserIds, userId])
         : new Set([...state.onlineUserIds].filter((id) => id !== userId)),
       members: state.members.map((m) =>
@@ -163,7 +169,11 @@ export const useServerStore = create<ServerState>((set, get) => ({
       onlineUserIds: onlineSet,
       members: state.members.map((m) => ({
         ...m,
-        status: onlineSet.has(m.id) ? 'online' : 'offline'
+        // If user is connected, keep their existing status (dnd/idle/online)
+        // but upgrade "offline" to "online". If not connected, mark offline.
+        status: onlineSet.has(m.id)
+          ? (m.status === 'offline' ? 'online' : m.status)
+          : 'offline'
       }))
     }))
   },
