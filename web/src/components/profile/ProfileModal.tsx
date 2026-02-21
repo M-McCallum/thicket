@@ -117,7 +117,7 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={onClose}>
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-h-[90vh] overflow-y-auto animate-grow-in"
+        className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto animate-grow-in"
         role="dialog"
         aria-modal="true"
         aria-label="User profile"

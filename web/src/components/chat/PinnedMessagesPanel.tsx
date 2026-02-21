@@ -18,7 +18,7 @@ export default function PinnedMessagesPanel({ channelId, onClose }: PinnedMessag
   }
 
   return (
-    <div className="w-80 border-l border-sol-bg-elevated flex flex-col bg-sol-bg-secondary">
+    <div className="w-full sm:w-80 border-l border-sol-bg-elevated flex flex-col bg-sol-bg-secondary">
       <div className="h-12 flex items-center justify-between px-4 border-b border-sol-bg-elevated">
         <h3 className="font-medium text-sol-text-primary text-sm">Pinned Messages</h3>
         <button

@@ -395,7 +395,7 @@ export default function ServerSidebar() {
           <form
             onSubmit={handleCreateServer}
             onClick={(e) => e.stopPropagation()}
-            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-w-[calc(100vw-2rem)] animate-grow-in"
             role="dialog"
             aria-modal="true"
             aria-label="Create server"
@@ -433,7 +433,7 @@ export default function ServerSidebar() {
           <form
             onSubmit={handleJoinServer}
             onClick={(e) => e.stopPropagation()}
-            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-w-[calc(100vw-2rem)] animate-grow-in"
             role="dialog"
             aria-modal="true"
             aria-label="Join server"
@@ -466,7 +466,7 @@ export default function ServerSidebar() {
           <form
             onSubmit={handleCreateFolder}
             onClick={(e) => e.stopPropagation()}
-            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-w-[calc(100vw-2rem)] animate-grow-in"
           >
             <h3 className="font-display text-lg text-sol-amber mb-4">Create Folder</h3>
             <input

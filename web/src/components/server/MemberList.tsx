@@ -161,7 +161,7 @@ export default function MemberList() {
   }, [activeServerId])
 
   return (
-    <aside className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col" aria-label="Members">
+    <aside className="w-60 max-w-[80vw] bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col" aria-label="Members">
       <div className="flex-1 overflow-y-auto py-2" role="list">
         {grouped.sections.map((section) => (
           <div key={section.label} className="mb-2">

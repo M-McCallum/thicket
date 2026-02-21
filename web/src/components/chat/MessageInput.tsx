@@ -538,7 +538,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
         />
 
         {/* Toolbar buttons */}
-        <div className="flex items-center relative">
+        <div className="flex items-center relative pr-1.5">
           <Suspense fallback={null}>
             {showEmoji && <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmoji(false)} />}
             {showGif && <GifPicker onSelect={handleGifSelect} onClose={() => setShowGif(false)} />}
@@ -637,30 +637,30 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </button>
-        </div>
 
-        {slowModeCountdown > 0 ? (
-          <span className="px-3 py-3 text-xs font-mono text-sol-coral whitespace-nowrap">
-            Slow mode: {slowModeCountdown}s
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={handleSend}
-            disabled={sendDisabled}
-            className="px-3 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
-          >
-            {stillUploading ? (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                <circle cx="12" cy="12" r="10" strokeDasharray="50" strokeDashoffset="15" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-              </svg>
-            )}
-          </button>
-        )}
+          {slowModeCountdown > 0 ? (
+            <span className="px-1.5 py-3 text-xs font-mono text-sol-coral whitespace-nowrap">
+              {slowModeCountdown}s
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSend}
+              disabled={sendDisabled}
+              className="px-1.5 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
+            >
+              {stillUploading ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                  <circle cx="12" cy="12" r="10" strokeDasharray="50" strokeDashoffset="15" />
+                </svg>
+              ) : (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+                </svg>
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )

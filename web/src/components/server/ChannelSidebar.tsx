@@ -5,10 +5,12 @@ import { useAuthStore } from '@/stores/authStore'
 import { useHasPermission } from '@/stores/permissionStore'
 import { PermManageServer, PermManageChannels } from '@/types/permissions'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { categories as categoriesApi } from '@/services/api'
 import InviteModal from './InviteModal'
 import StickerManager from './StickerManager'
 import ChannelSettingsModal from './ChannelSettingsModal'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
+import { useLayoutStore } from '@/stores/layoutStore'
 
 const ServerSettingsModal = lazy(() => import('./ServerSettingsModal'))
 export default function ChannelSidebar() {
@@ -29,6 +31,7 @@ export default function ChannelSidebar() {
   const [isAnnouncement, setIsAnnouncement] = useState(false)
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channelId: string } | null>(null)
   const [channelSettingsId, setChannelSettingsId] = useState<string | null>(null)
+  const [confirmDeleteCategoryId, setConfirmDeleteCategoryId] = useState<string | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const prefs = useNotificationStore((s) => s.prefs)
   const setPref = useNotificationStore((s) => s.setPref)
@@ -86,6 +89,11 @@ export default function ChannelSidebar() {
     const pref = prefs.find((p) => p.scope_type === 'channel' && p.scope_id === channelId)
     return pref?.setting ?? 'all'
   }
+
+  const handleChannelSelect = useCallback((channelId: string) => {
+    setActiveChannel(channelId)
+    useLayoutStore.getState().closeAll()
+  }, [setActiveChannel])
 
   const openCreateModal = (type: 'text' | 'voice' | 'forum') => {
     setCreateType(type)
@@ -167,7 +175,7 @@ export default function ChannelSidebar() {
                 return (
                   <button
                     key={channel.id}
-                    onClick={() => setActiveChannel(channel.id)}
+                    onClick={() => handleChannelSelect(channel.id)}
                     onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
                     className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
                       ${
@@ -233,15 +241,50 @@ export default function ChannelSidebar() {
                   )}
                 </button>
                 {canManageChannels && (
-                  <button
-                    onClick={() => openCreateModal('text')}
-                    className="text-sol-text-muted hover:text-sol-amber transition-colors"
-                    title="Create Channel"
-                  >
-                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M10 3v14M3 10h14" />
-                    </svg>
-                  </button>
+                  <div className="flex items-center gap-1">
+                    {confirmDeleteCategoryId === category.id ? (
+                      <>
+                        <button
+                          onClick={async () => {
+                            try {
+                              await categoriesApi.delete(activeServerId!, category.id)
+                              useServerStore.getState().removeCategory(category.id)
+                            } catch { /* ignored */ }
+                            setConfirmDeleteCategoryId(null)
+                          }}
+                          className="text-[10px] text-sol-coral hover:text-sol-coral/80 font-medium"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteCategoryId(null)}
+                          className="text-[10px] text-sol-text-muted hover:text-sol-text-primary"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteCategoryId(category.id)}
+                        className="text-sol-text-muted hover:text-sol-coral transition-colors"
+                        title="Delete Category"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    )}
+                    <button
+                      onClick={() => openCreateModal('text')}
+                      className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                      title="Create Channel"
+                    >
+                      <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M10 3v14M3 10h14" />
+                      </svg>
+                    </button>
+                  </div>
                 )}
               </div>
               {!collapsed && catChannels.map((channel) => {
@@ -249,7 +292,7 @@ export default function ChannelSidebar() {
                 return (
                   <button
                     key={channel.id}
-                    onClick={() => setActiveChannel(channel.id)}
+                    onClick={() => handleChannelSelect(channel.id)}
                     onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
                     className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
                       ${
@@ -501,7 +544,7 @@ export default function ChannelSidebar() {
           <form
             onSubmit={handleCreateChannel}
             onClick={(e) => e.stopPropagation()}
-            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-w-[calc(100vw-2rem)] animate-grow-in"
             role="dialog"
             aria-modal="true"
             aria-label="Create channel"

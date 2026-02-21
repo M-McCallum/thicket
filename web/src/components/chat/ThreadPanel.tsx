@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useThreadStore } from '@/stores/threadStore'
 import { useAuthStore } from '@/stores/authStore'
+import { threads as threadsApi } from '@/services/api'
 import UserAvatar from '@/components/common/UserAvatar'
 import MarkdownRenderer from './MarkdownRenderer'
 
@@ -14,8 +15,10 @@ export default function ThreadPanel() {
   const sendThreadMessage = useThreadStore((s) => s.sendThreadMessage)
   const fetchMoreThreadMessages = useThreadStore((s) => s.fetchMoreThreadMessages)
 
+  const removeThreadMessage = useThreadStore((s) => s.removeThreadMessage)
   const user = useAuthStore((s) => s.user)
   const [input, setInput] = useState('')
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
@@ -72,7 +75,7 @@ export default function ThreadPanel() {
   const isArchived = activeThread.archived
 
   return (
-    <div className="w-80 border-l border-sol-bg-elevated flex flex-col bg-sol-bg-secondary">
+    <div className="w-full sm:w-80 border-l border-sol-bg-elevated flex flex-col bg-sol-bg-secondary">
       {/* Header */}
       <div className="h-12 flex items-center justify-between px-3 border-b border-sol-bg-elevated shrink-0">
         <div className="flex items-center gap-2 min-w-0">
@@ -116,7 +119,7 @@ export default function ThreadPanel() {
           const isOwn = msg.author_id === user?.id
 
           return (
-            <div key={msg.id} className="flex gap-2 py-1.5 hover:bg-sol-bg-elevated/20 rounded-lg">
+            <div key={msg.id} className="flex gap-2 py-1.5 hover:bg-sol-bg-elevated/20 rounded-lg group">
               <UserAvatar
                 avatarUrl={msg.author_avatar_url}
                 username={displayName}
@@ -129,6 +132,41 @@ export default function ThreadPanel() {
                     {displayName}
                   </span>
                   <span className="text-[10px] font-mono text-sol-text-muted">{time}</span>
+                  {isOwn && (
+                    confirmDeleteId === msg.id ? (
+                      <span className="flex items-center gap-1 ml-auto">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await threadsApi.deleteMessage(activeThread.id, msg.id)
+                              removeThreadMessage(msg.id)
+                            } catch { /* ignored */ }
+                            setConfirmDeleteId(null)
+                          }}
+                          className="text-[10px] text-sol-coral hover:text-sol-coral/80 font-medium"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-[10px] text-sol-text-muted hover:text-sol-text-primary"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteId(msg.id)}
+                        className="ml-auto opacity-0 group-hover:opacity-100 text-sol-text-muted hover:text-sol-coral transition-all p-0.5"
+                        title="Delete message"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    )
+                  )}
                 </div>
                 <div className="text-xs text-sol-text-primary/90">
                   <MarkdownRenderer content={msg.content} />

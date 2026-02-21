@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useDMStore } from '@/stores/dmStore'
 import { useAuthStore } from '@/stores/authStore'
 import CreateGroupDMModal from './CreateGroupDMModal'
+import { useLayoutStore } from '@/stores/layoutStore'
 
 export default function ConversationList() {
   const conversations = useDMStore((s) => s.conversations)
@@ -87,7 +88,7 @@ export default function ConversationList() {
       {acceptedConversations.map((conv) => (
         <button
           key={conv.id}
-          onClick={() => setActiveConversation(conv.id)}
+          onClick={() => { setActiveConversation(conv.id); useLayoutStore.getState().closeAll() }}
           className={`flex items-center gap-3 px-3 py-2 text-left transition-colors rounded-lg ${
             conv.id === activeConversationId
               ? 'bg-sol-bg-elevated text-sol-amber'
@@ -125,7 +126,7 @@ export default function ConversationList() {
           {pendingConversations.map((conv) => (
             <button
               key={conv.id}
-              onClick={() => setActiveConversation(conv.id)}
+              onClick={() => { setActiveConversation(conv.id); useLayoutStore.getState().closeAll() }}
               className={`flex items-center gap-3 px-3 py-2 text-left transition-colors rounded-lg ${
                 conv.id === activeConversationId
                   ? 'bg-sol-bg-elevated text-sol-amber'
