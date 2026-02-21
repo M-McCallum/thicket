@@ -1,17 +1,23 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
+import { useAuthStore } from '@/stores/authStore'
 import InviteModal from './InviteModal'
 import StickerManager from './StickerManager'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
 
+const ServerSettingsModal = lazy(() => import('./ServerSettingsModal'))
+
 export default function ChannelSidebar() {
-  const { channels, activeChannelId, setActiveChannel, servers, activeServerId, createChannel } = useServerStore()
+  const { channels, categories, activeChannelId, setActiveChannel, servers, activeServerId, createChannel } = useServerStore()
   const { activeChannelId: voiceChannelId, participants, joinVoiceChannel, speakingUserIds } = useVoiceStore()
+  const { user } = useAuthStore()
   const activeServer = servers.find((s) => s.id === activeServerId)
+  const isOwner = activeServer?.owner_id === user?.id
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice'>('text')
   const [newChannelName, setNewChannelName] = useState('')
 
@@ -31,39 +37,98 @@ export default function ChannelSidebar() {
   const textChannels = channels.filter((c) => c.type === 'text')
   const voiceChannels = channels.filter((c) => c.type === 'voice')
 
+  // Group text channels by category
+  const uncategorizedChannels = textChannels.filter((c) => !c.category_id)
+  const sortedCategories = [...categories].sort((a, b) => a.position - b.position)
+  const channelsByCategory = sortedCategories.map((cat) => ({
+    category: cat,
+    channels: textChannels.filter((c) => c.category_id === cat.id)
+  }))
+
   const handleVoiceChannelClick = (channelId: string) => {
     if (!activeServerId) return
     setActiveChannel(channelId)
-    joinVoiceChannel(activeServerId, channelId)
+    // Only join if not already connected to this voice channel
+    if (voiceChannelId !== channelId) {
+      joinVoiceChannel(activeServerId, channelId)
+    }
   }
 
   return (
     <div className="flex-1 flex flex-col bg-sol-bg-secondary overflow-hidden">
       {/* Server name header */}
-      <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated">
+      <div className="h-12 flex items-center justify-between px-4 border-b border-sol-bg-elevated">
         <h2 className="font-display text-sm font-bold text-sol-text-primary truncate tracking-wide">
           {activeServer?.name ?? 'Server'}
         </h2>
+        {isOwner && (
+          <button
+            onClick={() => setShowSettings(true)}
+            className="text-sol-text-muted hover:text-sol-amber transition-colors"
+            title="Server Settings"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+            </svg>
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto py-2">
-        {/* Text channels */}
-        <div className="mb-2">
-          <div className="px-3 py-1 flex items-center justify-between">
-            <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
-              Text Channels
-            </span>
-            <button
-              onClick={() => openCreateModal('text')}
-              className="text-sol-text-muted hover:text-sol-amber transition-colors"
-              title="Create Text Channel"
-            >
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M10 3v14M3 10h14" />
-              </svg>
-            </button>
+        {/* Uncategorized text channels */}
+        {uncategorizedChannels.length > 0 && (
+          <div className="mb-2">
+            <div className="px-3 py-1 flex items-center justify-between">
+              <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
+                Text Channels
+              </span>
+              <button
+                onClick={() => openCreateModal('text')}
+                className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                title="Create Text Channel"
+              >
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10 3v14M3 10h14" />
+                </svg>
+              </button>
+            </div>
+              {uncategorizedChannels.map((channel) => (
+                <button
+                  key={channel.id}
+                  onClick={() => setActiveChannel(channel.id)}
+                  className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
+                    ${
+                      activeChannelId === channel.id
+                        ? 'text-sol-amber bg-sol-amber/10'
+                        : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                    }`}
+                >
+                  <span className="text-sol-text-muted">#</span>
+                  <span className="text-sm truncate">{channel.name}</span>
+                </button>
+              ))}
           </div>
-            {textChannels.map((channel) => (
+        )}
+
+        {/* Categorized text channels */}
+        {channelsByCategory.map(({ category, channels: catChannels }) => (
+          <div key={category.id} className="mb-2">
+            <div className="px-3 py-1 flex items-center justify-between">
+              <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
+                {category.name}
+              </span>
+              <button
+                onClick={() => openCreateModal('text')}
+                className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                title="Create Channel"
+              >
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10 3v14M3 10h14" />
+                </svg>
+              </button>
+            </div>
+            {catChannels.map((channel) => (
               <button
                 key={channel.id}
                 onClick={() => setActiveChannel(channel.id)}
@@ -78,7 +143,8 @@ export default function ChannelSidebar() {
                 <span className="text-sm truncate">{channel.name}</span>
               </button>
             ))}
-        </div>
+          </div>
+        ))}
 
         {/* Voice channels */}
         <div>
@@ -194,6 +260,13 @@ export default function ChannelSidebar() {
       {/* Sticker manager */}
       {showStickers && activeServerId && (
         <StickerManager serverId={activeServerId} onClose={() => { setShowStickers(false); invalidateStickerCache() }} />
+      )}
+
+      {/* Server settings modal */}
+      {showSettings && activeServer && (
+        <Suspense fallback={null}>
+          <ServerSettingsModal server={activeServer} onClose={() => setShowSettings(false)} />
+        </Suspense>
       )}
 
       {/* Create channel modal */}
