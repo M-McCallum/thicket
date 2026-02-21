@@ -8,6 +8,7 @@ interface ServerState {
   channels: Channel[]
   activeChannelId: string | null
   members: ServerMember[]
+  onlineUserIds: Set<string>
   isLoading: boolean
   error: string | null
 
@@ -24,6 +25,7 @@ interface ServerState {
   addMember: (member: ServerMember) => void
   removeMember: (userId: string) => void
   updateMemberStatus: (userId: string, status: string) => void
+  setOnlineUserIds: (ids: string[]) => void
   updateMemberProfile: (userId: string, updates: Partial<ServerMember>) => void
   setActiveServerNull: () => void
   clearError: () => void
@@ -35,6 +37,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   channels: [],
   activeChannelId: null,
   members: [],
+  onlineUserIds: new Set(),
   isLoading: false,
   error: null,
 
@@ -70,9 +73,14 @@ export const useServerStore = create<ServerState>((set, get) => ({
       const textChannels = channels.filter((c) => c.type === 'text')
       const activeChannelId = restoredChannel?.id ?? textChannels[0]?.id ?? null
       if (activeChannelId) localStorage.setItem('app:activeChannelId', activeChannelId)
+      // Apply online statuses from READY data (may have arrived before members loaded)
+      const { onlineUserIds } = get()
+      const updatedMembers = onlineUserIds.size > 0
+        ? members.map((m) => ({ ...m, status: onlineUserIds.has(m.id) ? 'online' : m.status }))
+        : members
       set({
         channels,
-        members,
+        members: updatedMembers,
         activeChannelId,
         isLoading: false
       })
@@ -141,10 +149,24 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   updateMemberStatus: (userId, status) =>
     set((state) => ({
+      onlineUserIds: status === 'online'
+        ? new Set([...state.onlineUserIds, userId])
+        : new Set([...state.onlineUserIds].filter((id) => id !== userId)),
       members: state.members.map((m) =>
         m.id === userId ? { ...m, status } : m
       )
     })),
+
+  setOnlineUserIds: (ids) => {
+    const onlineSet = new Set(ids)
+    set((state) => ({
+      onlineUserIds: onlineSet,
+      members: state.members.map((m) => ({
+        ...m,
+        status: onlineSet.has(m.id) ? 'online' : 'offline'
+      }))
+    }))
+  },
 
   updateMemberProfile: (userId, updates) =>
     set((state) => ({

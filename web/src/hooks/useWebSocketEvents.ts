@@ -28,19 +28,13 @@ export function useWebSocketEvents() {
   useEffect(() => {
     const unsubs: (() => void)[] = []
 
-    // READY — apply online user IDs to member statuses
+    // READY — store online user IDs (applied immediately if members are loaded,
+    // otherwise applied when members arrive in setActiveServer)
     unsubs.push(
       wsService.on('READY', (data) => {
         const ready = data as ReadyData
-        const { members } = useServerStore.getState()
-        if (members.length > 0 && ready.online_user_ids) {
-          const onlineSet = new Set(ready.online_user_ids)
-          members.forEach((m) => {
-            useServerStore.getState().updateMemberStatus(
-              m.id,
-              onlineSet.has(m.id) ? 'online' : 'offline'
-            )
-          })
+        if (ready.online_user_ids) {
+          useServerStore.getState().setOnlineUserIds(ready.online_user_ids)
         }
       })
     )
