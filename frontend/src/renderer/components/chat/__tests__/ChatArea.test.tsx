@@ -6,9 +6,9 @@ import { useServerStore } from '../../../stores/serverStore'
 import { useMessageStore } from '../../../stores/messageStore'
 import { useAuthStore } from '../../../stores/authStore'
 
-const mockSubscribe = vi.fn()
-const mockUnsubscribe = vi.fn()
-const mockOn = vi.fn(() => vi.fn())
+const mockSubscribe = vi.fn<(...args: any[]) => any>()
+const mockUnsubscribe = vi.fn<(...args: any[]) => any>()
+const mockOn = vi.fn<(...args: any[]) => any>(() => vi.fn())
 
 vi.mock('../../../services/api', () => ({
   servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
@@ -24,9 +24,9 @@ vi.mock('../../../services/ws', () => ({
   wsService: {
     connect: vi.fn(),
     disconnect: vi.fn(),
-    subscribe: (...args: unknown[]) => mockSubscribe(...args),
-    unsubscribe: (...args: unknown[]) => mockUnsubscribe(...args),
-    on: (...args: unknown[]) => mockOn(...args),
+    subscribe: (...args: any[]) => mockSubscribe(...args),
+    unsubscribe: (...args: any[]) => mockUnsubscribe(...args),
+    on: (...args: any[]) => mockOn(...args),
     send: vi.fn()
   }
 }))
@@ -67,7 +67,7 @@ describe('ChatArea', () => {
   it('renders channel header with name', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -79,7 +79,7 @@ describe('ChatArea', () => {
 
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -92,7 +92,7 @@ describe('ChatArea', () => {
   it('subscribes to WS channel', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -102,7 +102,7 @@ describe('ChatArea', () => {
   it('unsubscribes on unmount', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     const { unmount } = render(<ChatArea />)
@@ -122,7 +122,7 @@ describe('ChatArea', () => {
 
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -137,7 +137,7 @@ describe('ChatArea', () => {
   it('renders input with channel name placeholder', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -152,7 +152,7 @@ describe('ChatArea', () => {
 
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     const user = userEvent.setup()
@@ -174,7 +174,7 @@ describe('ChatArea', () => {
   it('disabled send when input empty', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)
@@ -185,7 +185,7 @@ describe('ChatArea', () => {
   it('registers MESSAGE_CREATE handler', () => {
     useServerStore.setState({
       activeChannelId: 'c1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }]
     })
 
     render(<ChatArea />)

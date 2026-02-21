@@ -1,15 +1,22 @@
 import { useEffect, useState } from 'react'
-import { useAuthStore } from './stores/authStore'
-import LoginForm from './components/auth/LoginForm'
-import MainLayout from './components/layout/MainLayout'
+import { useAuthStore } from '@renderer/stores/authStore'
+import { useThemeStore } from '@renderer/stores/themeStore'
+import LoginForm from '@renderer/components/auth/LoginForm'
+import MainLayout from '@renderer/components/layout/MainLayout'
+import SettingsOverlay from '@renderer/components/settings/SettingsOverlay'
 
-export default function App(): JSX.Element {
+export default function App() {
   const { isAuthenticated, initAuth, handleCallback } = useAuthStore()
+  const initTheme = useThemeStore((s) => s.initTheme)
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
     initAuth().finally(() => setInitialized(true))
   }, [initAuth])
+
+  useEffect(() => {
+    initTheme()
+  }, [initTheme])
 
   // Listen for OAuth callback from main process
   useEffect(() => {
@@ -36,5 +43,10 @@ export default function App(): JSX.Element {
     return <LoginForm />
   }
 
-  return <MainLayout />
+  return (
+    <>
+      <MainLayout />
+      <SettingsOverlay />
+    </>
+  )
 }

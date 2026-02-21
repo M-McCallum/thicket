@@ -19,6 +19,8 @@ const mockConversation: DMConversationWithParticipants = {
   is_group: false,
   name: null,
   created_at: '2024-01-01T00:00:00Z',
+  accepted: true,
+  encrypted: false,
   participants: [
     { id: 'user-1', username: 'alice', display_name: null, avatar_url: null, status: 'online' },
     { id: 'user-2', username: 'bob', display_name: null, avatar_url: null, status: 'online' }

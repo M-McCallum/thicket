@@ -52,7 +52,7 @@ describe('serverStore', () => {
   it('should fetchServers success', async () => {
     const { servers } = await import('../../services/api')
     const mockServers = [
-      { id: '1', name: 'Server 1', icon_url: null, owner_id: 'u1', invite_code: 'abc', created_at: '' }
+      { id: '1', name: 'Server 1', icon_url: null, owner_id: 'u1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }
     ]
     vi.mocked(servers.list).mockResolvedValue(mockServers as any)
 
@@ -234,7 +234,7 @@ describe('serverStore', () => {
   })
 
   it('should addChannel', () => {
-    const channel = { id: 'ch1', server_id: 's1', name: 'new', type: 'text' as const, position: 0, created_at: '' }
+    const channel = { id: 'ch1', server_id: 's1', name: 'new', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
     useServerStore.getState().addChannel(channel)
     expect(useServerStore.getState().channels).toHaveLength(1)
   })

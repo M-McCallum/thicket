@@ -1,6 +1,6 @@
 import { useAuthStore } from '../../stores/authStore'
 
-export default function LoginForm(): JSX.Element {
+export default function LoginForm() {
   const { startLogin, isLoading, error } = useAuthStore()
 
   const handleOAuthLogin = async () => {

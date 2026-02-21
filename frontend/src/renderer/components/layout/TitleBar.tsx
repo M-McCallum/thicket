@@ -1,4 +1,4 @@
-export default function TitleBar(): JSX.Element {
+export default function TitleBar() {
   return (
     <div className="h-8 bg-sol-bg flex items-center justify-between px-3 titlebar-drag border-b border-sol-bg-elevated">
       <div className="flex items-center gap-2">

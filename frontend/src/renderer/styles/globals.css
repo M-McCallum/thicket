@@ -1,3 +1,181 @@
+/* ===== Theme definitions — space-separated RGB values for Tailwind opacity support ===== */
+
+/* Default / Solarized Dark (forest theme) */
+:root {
+  --sol-bg: 20 30 19;
+  --sol-bg-secondary: 28 42 26;
+  --sol-bg-tertiary: 36 50 34;
+  --sol-bg-elevated: 47 61 44;
+  --sol-amber: 232 169 38;
+  --sol-amber-dim: 176 128 32;
+  --sol-rose: 196 122 138;
+  --sol-rose-dim: 154 90 104;
+  --sol-green: 92 186 92;
+  --sol-green-dim: 61 138 61;
+  --sol-coral: 217 104 80;
+  --sol-coral-dim: 160 72 56;
+  --sol-sage: 138 173 120;
+  --sol-sage-dim: 106 138 94;
+  --sol-text-primary: 232 224 208;
+  --sol-text-secondary: 154 146 128;
+  --sol-text-muted: 96 88 72;
+}
+
+.theme-solarized-dark {
+  --sol-bg: 20 30 19;
+  --sol-bg-secondary: 28 42 26;
+  --sol-bg-tertiary: 36 50 34;
+  --sol-bg-elevated: 47 61 44;
+  --sol-amber: 232 169 38;
+  --sol-amber-dim: 176 128 32;
+  --sol-rose: 196 122 138;
+  --sol-rose-dim: 154 90 104;
+  --sol-green: 92 186 92;
+  --sol-green-dim: 61 138 61;
+  --sol-coral: 217 104 80;
+  --sol-coral-dim: 160 72 56;
+  --sol-sage: 138 173 120;
+  --sol-sage-dim: 106 138 94;
+  --sol-text-primary: 232 224 208;
+  --sol-text-secondary: 154 146 128;
+  --sol-text-muted: 96 88 72;
+}
+
+.theme-solarized-light {
+  --sol-bg: 253 246 227;
+  --sol-bg-secondary: 238 232 213;
+  --sol-bg-tertiary: 224 218 200;
+  --sol-bg-elevated: 210 205 188;
+  --sol-amber: 181 137 0;
+  --sol-amber-dim: 140 106 0;
+  --sol-rose: 160 80 100;
+  --sol-rose-dim: 130 55 75;
+  --sol-green: 42 150 42;
+  --sol-green-dim: 30 110 30;
+  --sol-coral: 203 75 22;
+  --sol-coral-dim: 160 55 15;
+  --sol-sage: 88 110 117;
+  --sol-sage-dim: 65 85 92;
+  --sol-text-primary: 40 40 40;
+  --sol-text-secondary: 88 110 117;
+  --sol-text-muted: 147 161 161;
+}
+
+.theme-nord {
+  --sol-bg: 46 52 64;
+  --sol-bg-secondary: 59 66 82;
+  --sol-bg-tertiary: 67 76 94;
+  --sol-bg-elevated: 76 86 106;
+  --sol-amber: 235 203 139;
+  --sol-amber-dim: 200 170 110;
+  --sol-rose: 180 142 173;
+  --sol-rose-dim: 150 112 143;
+  --sol-green: 163 190 140;
+  --sol-green-dim: 130 160 110;
+  --sol-coral: 191 97 106;
+  --sol-coral-dim: 160 70 80;
+  --sol-sage: 136 192 208;
+  --sol-sage-dim: 106 162 178;
+  --sol-text-primary: 236 239 244;
+  --sol-text-secondary: 216 222 233;
+  --sol-text-muted: 127 140 160;
+}
+
+.theme-amoled {
+  --sol-bg: 0 0 0;
+  --sol-bg-secondary: 10 10 10;
+  --sol-bg-tertiary: 16 16 16;
+  --sol-bg-elevated: 24 24 24;
+  --sol-amber: 255 179 0;
+  --sol-amber-dim: 200 140 0;
+  --sol-rose: 255 105 180;
+  --sol-rose-dim: 200 75 140;
+  --sol-green: 0 200 83;
+  --sol-green-dim: 0 150 60;
+  --sol-coral: 255 69 58;
+  --sol-coral-dim: 200 45 38;
+  --sol-sage: 100 210 255;
+  --sol-sage-dim: 70 170 220;
+  --sol-text-primary: 220 220 220;
+  --sol-text-secondary: 160 160 160;
+  --sol-text-muted: 100 100 100;
+}
+
+/* ===== Theme-aware syntax highlighting ===== */
+.theme-solarized-light .hljs {
+  background: rgb(238 232 213);
+  color: rgb(88 110 117);
+}
+.theme-solarized-light .hljs-comment,
+.theme-solarized-light .hljs-quote {
+  color: rgb(147 161 161);
+}
+.theme-solarized-light .hljs-keyword {
+  color: rgb(133 153 0);
+}
+.theme-solarized-light .hljs-string,
+.theme-solarized-light .hljs-number {
+  color: rgb(42 161 152);
+}
+.theme-solarized-light .hljs-title,
+.theme-solarized-light .hljs-section {
+  color: rgb(38 139 210);
+}
+.theme-solarized-light .hljs-attribute,
+.theme-solarized-light .hljs-variable {
+  color: rgb(181 137 0);
+}
+
+.theme-nord .hljs {
+  background: rgb(59 66 82);
+  color: rgb(216 222 233);
+}
+.theme-nord .hljs-comment,
+.theme-nord .hljs-quote {
+  color: rgb(127 140 160);
+  font-style: italic;
+}
+.theme-nord .hljs-keyword {
+  color: rgb(129 161 193);
+}
+.theme-nord .hljs-string,
+.theme-nord .hljs-number {
+  color: rgb(163 190 140);
+}
+.theme-nord .hljs-title,
+.theme-nord .hljs-section {
+  color: rgb(136 192 208);
+}
+.theme-nord .hljs-attribute,
+.theme-nord .hljs-variable {
+  color: rgb(235 203 139);
+}
+
+.theme-amoled .hljs {
+  background: rgb(10 10 10);
+  color: rgb(200 200 200);
+}
+.theme-amoled .hljs-comment,
+.theme-amoled .hljs-quote {
+  color: rgb(100 100 100);
+  font-style: italic;
+}
+.theme-amoled .hljs-keyword {
+  color: rgb(255 105 180);
+}
+.theme-amoled .hljs-string,
+.theme-amoled .hljs-number {
+  color: rgb(0 200 83);
+}
+.theme-amoled .hljs-title,
+.theme-amoled .hljs-section {
+  color: rgb(100 210 255);
+}
+.theme-amoled .hljs-attribute,
+.theme-amoled .hljs-variable {
+  color: rgb(255 179 0);
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -72,6 +250,8 @@
   unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 
+/* ===== Base styles ===== */
+
 @layer base {
   * {
     @apply box-border;
@@ -80,6 +260,8 @@
   body {
     @apply m-0 overflow-hidden select-none;
     font-family: 'Nunito', sans-serif;
+    --font-size-base: 15px;
+    font-size: var(--font-size-base);
   }
 
   ::-webkit-scrollbar {
@@ -96,6 +278,21 @@
 
   ::-webkit-scrollbar-thumb:hover {
     @apply bg-sol-amber-dim;
+  }
+
+  /* Focus visible outlines for keyboard navigation */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-sol-amber;
+    outline-style: solid;
+  }
+
+  /* Skip link (screen reader / keyboard users) */
+  .skip-link {
+    @apply absolute -top-10 left-4 bg-sol-amber text-sol-bg px-4 py-2 rounded-b-lg z-[100] font-medium;
+    transition: top 0.2s;
+  }
+  .skip-link:focus {
+    @apply top-0;
   }
 }
 
@@ -133,5 +330,35 @@
 
   .titlebar-no-drag {
     -webkit-app-region: no-drag;
+  }
+}
+
+/* Compact mode */
+@layer utilities {
+  .compact .message-item {
+    @apply py-1 gap-2;
+  }
+  .compact .message-avatar {
+    @apply w-6 h-6;
+  }
+  .compact .message-list {
+    @apply gap-0.5;
+  }
+
+  /* Ultra-compact mode */
+  .ultra-compact .message-item {
+    @apply py-0.5 flex-row items-baseline gap-1.5;
+  }
+  .ultra-compact .message-avatar {
+    @apply w-5 h-5;
+  }
+  .ultra-compact .message-list {
+    @apply gap-0;
+  }
+  .ultra-compact .message-content-wrap {
+    @apply flex flex-row items-baseline gap-2;
+  }
+  .ultra-compact .message-header {
+    @apply flex-shrink-0;
   }
 }

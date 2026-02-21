@@ -62,9 +62,9 @@ describe('ServerSidebar', () => {
   it('renders server icons from store', () => {
     useServerStore.setState({
       servers: [
-        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' },
-        { id: '2', name: 'Beta', icon_url: null, owner_id: 'o2', invite_code: 'def', created_at: '' },
-        { id: '3', name: 'Gamma', icon_url: null, owner_id: 'o3', invite_code: 'ghi', created_at: '' }
+        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] },
+        { id: '2', name: 'Beta', icon_url: null, owner_id: 'o2', invite_code: 'def', created_at: '', welcome_message: '', welcome_channels: [] },
+        { id: '3', name: 'Gamma', icon_url: null, owner_id: 'o3', invite_code: 'ghi', created_at: '', welcome_message: '', welcome_channels: [] }
       ]
     })
 
@@ -81,8 +81,8 @@ describe('ServerSidebar', () => {
   it('highlights active server', () => {
     useServerStore.setState({
       servers: [
-        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' },
-        { id: '2', name: 'Beta', icon_url: null, owner_id: 'o2', invite_code: 'def', created_at: '' }
+        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] },
+        { id: '2', name: 'Beta', icon_url: null, owner_id: 'o2', invite_code: 'def', created_at: '', welcome_message: '', welcome_channels: [] }
       ],
       activeServerId: '1'
     })
@@ -101,7 +101,7 @@ describe('ServerSidebar', () => {
 
     useServerStore.setState({
       servers: [
-        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }
+        { id: '1', name: 'Alpha', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }
       ]
     })
 
@@ -133,8 +133,8 @@ describe('ServerSidebar', () => {
 
   it('create modal submits', async () => {
     const { servers } = await import('../../../services/api')
-    const mockServer = { id: 's1', name: 'New', icon_url: null, owner_id: 'o1', invite_code: 'xyz', created_at: '' }
-    vi.mocked(servers.create).mockResolvedValue({ server: mockServer, channel: { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' } })
+    const mockServer = { id: 's1', name: 'New', icon_url: null, owner_id: 'o1', invite_code: 'xyz', created_at: '', welcome_message: '', welcome_channels: [] }
+    vi.mocked(servers.create).mockResolvedValue({ server: mockServer, channel: { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false } })
     vi.mocked(servers.members).mockResolvedValue([])
     const { channels } = await import('../../../services/api')
     vi.mocked(channels.list).mockResolvedValue([])
@@ -184,7 +184,7 @@ describe('ServerSidebar', () => {
 
   it('join modal opens and submits', async () => {
     const { servers } = await import('../../../services/api')
-    const mockServer = { id: 's2', name: 'Joined', icon_url: null, owner_id: 'o2', invite_code: 'code123', created_at: '' }
+    const mockServer = { id: 's2', name: 'Joined', icon_url: null, owner_id: 'o2', invite_code: 'code123', created_at: '', welcome_message: '', welcome_channels: [] }
     vi.mocked(servers.join).mockResolvedValue(mockServer)
 
     const user = userEvent.setup()

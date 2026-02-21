@@ -40,7 +40,7 @@ describe('ChannelSidebar', () => {
 
   it('renders active server name', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'My Server', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'My Server', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1'
     })
 
@@ -55,11 +55,11 @@ describe('ChannelSidebar', () => {
 
   it('renders text channels', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
       channels: [
-        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' },
-        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '' }
+        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false },
+        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
       ]
     })
 
@@ -71,10 +71,10 @@ describe('ChannelSidebar', () => {
 
   it('renders voice channels', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
       channels: [
-        { id: 'c3', server_id: 's1', name: 'voice-chat', type: 'voice' as const, position: 0, created_at: '' }
+        { id: 'c3', server_id: 's1', name: 'voice-chat', type: 'voice' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
       ]
     })
 
@@ -85,10 +85,10 @@ describe('ChannelSidebar', () => {
 
   it('hides empty sections', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
       channels: [
-        { id: 'c3', server_id: 's1', name: 'voice-only', type: 'voice' as const, position: 0, created_at: '' }
+        { id: 'c3', server_id: 's1', name: 'voice-only', type: 'voice' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
       ]
     })
 
@@ -99,11 +99,11 @@ describe('ChannelSidebar', () => {
 
   it('highlights active channel', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
       channels: [
-        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' },
-        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '' }
+        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false },
+        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
       ],
       activeChannelId: 'c1'
     })
@@ -119,11 +119,11 @@ describe('ChannelSidebar', () => {
 
   it('clicking channel updates activeChannelId', async () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
       channels: [
-        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' },
-        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '' }
+        { id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false },
+        { id: 'c2', server_id: 's1', name: 'random', type: 'text' as const, position: 1, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }
       ],
       activeChannelId: 'c1'
     })
@@ -138,7 +138,7 @@ describe('ChannelSidebar', () => {
 
   it('renders invite code', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'INVITE-XYZ', created_at: '' }],
+      servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'INVITE-XYZ', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1'
     })
 

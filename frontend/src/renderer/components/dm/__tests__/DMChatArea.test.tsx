@@ -5,7 +5,7 @@ import DMChatArea from '../DMChatArea'
 import { useDMStore } from '../../../stores/dmStore'
 import { useAuthStore } from '../../../stores/authStore'
 
-const mockOn = vi.fn(() => vi.fn())
+const mockOn = vi.fn<(...args: any[]) => any>(() => vi.fn())
 
 vi.mock('../../../services/api', () => ({
   dm: {
@@ -29,7 +29,7 @@ vi.mock('../../../services/ws', () => ({
     disconnect: vi.fn(),
     subscribe: vi.fn(),
     unsubscribe: vi.fn(),
-    on: (...args: unknown[]) => mockOn(...args),
+    on: (...args: any[]) => mockOn(...args),
     send: vi.fn()
   }
 }))
@@ -39,6 +39,8 @@ const mockConversation = {
   is_group: false,
   name: null,
   created_at: '2024-01-01T00:00:00Z',
+  accepted: true,
+  encrypted: false,
   participants: [
     { id: 'user-1', username: 'alice', display_name: null, avatar_url: null, status: 'online' },
     { id: 'user-2', username: 'bob', display_name: 'Bob D', avatar_url: null, status: 'online' }

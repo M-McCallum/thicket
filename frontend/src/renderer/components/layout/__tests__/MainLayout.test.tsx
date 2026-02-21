@@ -64,9 +64,9 @@ describe('MainLayout', () => {
 
   it('shows content when server is active', () => {
     useServerStore.setState({
-      servers: [{ id: 's1', name: 'Test', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '' }],
+      servers: [{ id: 's1', name: 'Test', icon_url: null, owner_id: 'o1', invite_code: 'abc', created_at: '', welcome_message: '', welcome_channels: [] }],
       activeServerId: 's1',
-      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }],
+      channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '', topic: '', category_id: null, slow_mode_interval: 0, voice_status: '', is_announcement: false }],
       activeChannelId: 'c1'
     })
 
