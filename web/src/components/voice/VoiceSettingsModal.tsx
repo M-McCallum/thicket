@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Room } from 'livekit-client'
 import { useVoiceStore } from '@/stores/voiceStore'
 import type { VideoQuality } from '@/stores/voiceStore'
+import { soundService } from '@/services/soundService'
 
 interface VoiceSettingsModalProps {
   onClose: () => void
@@ -12,7 +13,7 @@ interface DeviceInfo {
   label: string
 }
 
-type SettingsTab = 'audio' | 'video'
+type SettingsTab = 'audio' | 'video' | 'sounds'
 
 export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps) {
   const {
@@ -25,6 +26,13 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
   const [videoDevices, setVideoDevices] = useState<DeviceInfo[]>([])
   const [previewStream, setPreviewStream] = useState<MediaStream | null>(null)
   const previewRef = useRef<HTMLVideoElement>(null)
+
+  // Sound settings state
+  const [soundsEnabled, setSoundsEnabled] = useState(soundService.isEnabled())
+  const [hasCustomJoin, setHasCustomJoin] = useState(!!soundService.getCustomSound('join'))
+  const [hasCustomLeave, setHasCustomLeave] = useState(!!soundService.getCustomSound('leave'))
+  const joinInputRef = useRef<HTMLInputElement>(null)
+  const leaveInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     async function loadDevices() {
@@ -76,6 +84,24 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
     onClose()
   }
 
+  const handleToggleSounds = () => {
+    const next = !soundsEnabled
+    soundService.setEnabled(next)
+    setSoundsEnabled(next)
+  }
+
+  const handleUpload = async (type: 'join' | 'leave', file: File) => {
+    await soundService.setCustomSound(type, file)
+    if (type === 'join') setHasCustomJoin(true)
+    else setHasCustomLeave(true)
+  }
+
+  const handleReset = (type: 'join' | 'leave') => {
+    soundService.clearCustomSound(type)
+    if (type === 'join') setHasCustomJoin(false)
+    else setHasCustomLeave(false)
+  }
+
   const qualityOptions: { value: VideoQuality; label: string }[] = [
     { value: 'auto', label: 'Auto' },
     { value: '720p', label: '720p' },
@@ -93,7 +119,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
 
         {/* Tab bar */}
         <div className="flex border-b border-sol-bg-elevated mb-4">
-          {(['audio', 'video'] as SettingsTab[]).map((tab) => (
+          {(['audio', 'video', 'sounds'] as SettingsTab[]).map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -138,7 +164,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
               </select>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'video' ? (
           <div className="flex flex-col gap-4">
             {/* Camera preview */}
             <div className="rounded-lg overflow-hidden bg-sol-bg aspect-video">
@@ -179,6 +205,113 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
               </select>
             </div>
           </div>
+        ) : (
+          <div className="flex flex-col gap-4">
+            {/* Enable/disable toggle */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm text-sol-text-primary">Notification Sounds</label>
+              <button
+                onClick={handleToggleSounds}
+                className={`relative w-10 h-5 rounded-full transition-colors ${
+                  soundsEnabled ? 'bg-sol-green' : 'bg-sol-bg-elevated'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                    soundsEnabled ? 'translate-x-5' : ''
+                  }`}
+                />
+              </button>
+            </div>
+
+            {/* Join sound */}
+            <SoundRow
+              label="Join Sound"
+              hasCustom={hasCustomJoin}
+              onPreview={() => soundService.previewSound('join')}
+              onUpload={() => joinInputRef.current?.click()}
+              onReset={() => handleReset('join')}
+            />
+            <input
+              ref={joinInputRef}
+              type="file"
+              accept=".mp3,.wav,.ogg"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleUpload('join', file)
+                e.target.value = ''
+              }}
+            />
+
+            {/* Leave sound */}
+            <SoundRow
+              label="Leave Sound"
+              hasCustom={hasCustomLeave}
+              onPreview={() => soundService.previewSound('leave')}
+              onUpload={() => leaveInputRef.current?.click()}
+              onReset={() => handleReset('leave')}
+            />
+            <input
+              ref={leaveInputRef}
+              type="file"
+              accept=".mp3,.wav,.ogg"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0]
+                if (file) handleUpload('leave', file)
+                e.target.value = ''
+              }}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function SoundRow({
+  label,
+  hasCustom,
+  onPreview,
+  onUpload,
+  onReset
+}: {
+  label: string
+  hasCustom: boolean
+  onPreview: () => void
+  onUpload: () => void
+  onReset: () => void
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex flex-col">
+        <span className="text-sm text-sol-text-primary">{label}</span>
+        <span className="text-xs text-sol-text-muted">{hasCustom ? 'Custom' : 'Default'}</span>
+      </div>
+      <div className="flex gap-2">
+        <button
+          onClick={onPreview}
+          className="px-2 py-1 text-xs rounded bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
+          title="Preview"
+        >
+          Preview
+        </button>
+        <button
+          onClick={onUpload}
+          className="px-2 py-1 text-xs rounded bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
+          title="Upload custom sound"
+        >
+          Upload
+        </button>
+        {hasCustom && (
+          <button
+            onClick={onReset}
+            className="px-2 py-1 text-xs rounded bg-sol-bg-elevated text-sol-red hover:text-sol-red/80 transition-colors"
+            title="Reset to default"
+          >
+            Reset
+          </button>
         )}
       </div>
     </div>
