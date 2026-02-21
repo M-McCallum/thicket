@@ -130,6 +130,9 @@ export function useHasPermission(perm: bigint): boolean {
 
   if (!userId) return false
 
+  // No server context (e.g. DMs) — no permission restrictions
+  if (!activeServerId) return true
+
   const activeServer = servers.find((s) => s.id === activeServerId)
   if (activeServer?.owner_id === userId) return true
 
