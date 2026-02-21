@@ -20,6 +20,7 @@ selfservice:
   default_browser_return_url: http://localhost:8080/auth/login
   allowed_return_urls:
     - http://localhost:8080/auth/login
+    - http://localhost:4433/auth/login
     - thicket://auth/callback
 
   methods:

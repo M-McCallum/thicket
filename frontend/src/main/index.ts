@@ -8,7 +8,7 @@ import Store from 'electron-store'
 const store = new Store<Record<string, string>>({ name: 'auth-tokens' })
 
 // Derive API origin for CSP from the same env var the renderer uses
-const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:8080/api'
+const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
 const apiOrigin = new URL(apiUrl).origin
 
 let mainWindow: BrowserWindow | null = null
@@ -144,10 +144,10 @@ app.whenReady().then(() => {
     : null
   const wsScheme = apiOrigin.startsWith('https') ? 'wss' : 'ws'
   const wsOrigin = apiOrigin.replace(/^https?/, wsScheme)
-  const livekitUrl = process.env['VITE_LIVEKIT_URL'] || 'ws://localhost:7880'
+  const livekitUrl = import.meta.env.VITE_LIVEKIT_URL || 'ws://localhost:7880'
   const livekitOrigin = new URL(livekitUrl).origin
   const livekitWsOrigin = livekitOrigin.replace(/^https?/, wsScheme)
-  const oidcAuthority = process.env['VITE_OIDC_AUTHORITY'] || 'http://localhost:4444'
+  const oidcAuthority = import.meta.env.VITE_OIDC_AUTHORITY || 'http://localhost:4444'
   const oidcOrigin = new URL(oidcAuthority).origin
   const devSrc = devServerOrigin ? ` ${devServerOrigin}` : ''
   const csp = [
