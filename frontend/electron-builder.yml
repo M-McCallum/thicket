@@ -1,5 +1,6 @@
-appId: com.thicket
+appId: land.mitchell.thicket
 productName: Thicket
+copyright: "Copyright (c) 2026 Mitchell McCallum"
 
 directories:
   output: dist
@@ -7,6 +8,12 @@ directories:
 files:
   - "out/**/*"
   - "!out/**/*.map"
+
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - "*.png"
 
 npmRebuild: false
 
@@ -32,9 +39,22 @@ mac:
   entitlementsInherit: build/entitlements.mac.plist
   hardenedRuntime: true
   gatekeeperAssess: false
+  identity: null
 
 dmg:
   artifactName: "${productName}-${version}-mac.${ext}"
+  background: build/dmg-background.png
+  window:
+    width: 660
+    height: 400
+  contents:
+    - x: 180
+      y: 170
+      type: file
+    - x: 480
+      y: 170
+      type: link
+      path: /Applications
 
 win:
   target:

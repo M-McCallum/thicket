@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electr
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
+import { setupNotifications } from './notifications'
 import Store from 'electron-store'
 
 const store = new Store<Record<string, string>>({ name: 'auth-tokens' })
@@ -92,7 +93,7 @@ app.commandLine.appendSwitch('enable-zero-copy')
 app.commandLine.appendSwitch('ignore-gpu-blocklist')
 
 app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.thicket')
+  electronApp.setAppUserModelId('land.mitchell.thicket')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
@@ -146,6 +147,8 @@ app.whenReady().then(() => {
   const livekitUrl = process.env['VITE_LIVEKIT_URL'] || 'ws://localhost:7880'
   const livekitOrigin = new URL(livekitUrl).origin
   const livekitWsOrigin = livekitOrigin.replace(/^https?/, wsScheme)
+  const oidcAuthority = process.env['VITE_OIDC_AUTHORITY'] || 'http://localhost:4444'
+  const oidcOrigin = new URL(oidcAuthority).origin
   const devSrc = devServerOrigin ? ` ${devServerOrigin}` : ''
   const csp = [
     `default-src 'self'${devSrc}`,
@@ -154,7 +157,7 @@ app.whenReady().then(() => {
     `font-src 'self'${devSrc}`,
     `img-src 'self' ${apiOrigin} https://*.giphy.com data: blob:`,
     `media-src 'self' ${apiOrigin} blob: mediastream:`,
-    `connect-src 'self' ${apiOrigin} ${wsOrigin}${devSrc ? ` ${devServerOrigin!.replace('http', 'ws')}` : ''} ${livekitWsOrigin} ${livekitOrigin} wss://*.livekit.cloud https://*.turn.livekit.cloud https://global.stun.twilio.com`,
+    `connect-src 'self' ${apiOrigin} ${wsOrigin} ${oidcOrigin}${devSrc ? ` ${devServerOrigin!.replace('http', 'ws')}` : ''} ${livekitWsOrigin} ${livekitOrigin} wss://*.livekit.cloud https://*.turn.livekit.cloud https://global.stun.twilio.com`,
     "frame-ancestors 'none'"
   ].join('; ')
 
@@ -169,6 +172,7 @@ app.whenReady().then(() => {
 
   createWindow()
   if (mainWindow) setupAutoUpdater(mainWindow)
+  if (mainWindow) setupNotifications(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()

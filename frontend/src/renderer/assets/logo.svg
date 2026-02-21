@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <defs>
+    <linearGradient id="t" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#8b6914"/>
+      <stop offset="100%" stop-color="#5c4510"/>
+    </linearGradient>
+    <linearGradient id="c" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#e8a926"/>
+      <stop offset="100%" stop-color="#c4871e"/>
+    </linearGradient>
+  </defs>
+  <!-- Trunk -->
+  <path d="M120 155 L136 155 L139 205 L117 205 Z" fill="url(#t)"/>
+  <!-- Left branch -->
+  <path d="M128 140 Q110 125 100 105" stroke="url(#t)" stroke-width="7" stroke-linecap="round"/>
+  <!-- Right branch -->
+  <path d="M128 140 Q146 125 156 105" stroke="url(#t)" stroke-width="7" stroke-linecap="round"/>
+  <!-- Central canopy -->
+  <circle cx="128" cy="85" r="40" fill="url(#c)"/>
+  <!-- Left canopy -->
+  <circle cx="92" cy="95" r="28" fill="url(#c)"/>
+  <!-- Right canopy -->
+  <circle cx="164" cy="95" r="28" fill="url(#c)"/>
+  <!-- Highlight -->
+  <circle cx="122" cy="75" r="20" fill="#f0c040" opacity="0.35"/>
+  <!-- Ground -->
+  <ellipse cx="128" cy="208" rx="35" ry="3" fill="#5c4510" opacity="0.4"/>
+</svg>

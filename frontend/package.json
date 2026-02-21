@@ -1,9 +1,12 @@
 {
   "name": "thicket",
   "version": "0.1.0",
-  "description": "Thicket - Cyberpunk Discord Clone",
+  "description": "Thicket — Group Chat",
   "main": "./out/main/index.js",
-  "author": "mitchell",
+  "author": {
+    "name": "Mitchell McCallum",
+    "email": "mitchell@mitchell.land"
+  },
   "license": "MIT",
   "scripts": {
     "dev": "electron-vite dev",
@@ -50,6 +53,7 @@
     "eslint": "^9.0.0",
     "jsdom": "^25.0.0",
     "postcss": "^8.4.0",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
