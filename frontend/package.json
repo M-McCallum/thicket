@@ -12,10 +12,16 @@
     "lint": "eslint src/ --ext .ts,.tsx",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest watch"
+    "test:watch": "vitest watch",
+    "pack": "electron-vite build && electron-builder --dir",
+    "dist": "electron-vite build && electron-builder",
+    "dist:mac": "electron-vite build && electron-builder --mac",
+    "dist:win": "electron-vite build && electron-builder --win",
+    "dist:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
     "electron-store": "^11.0.2",
+    "electron-updater": "^6.8.3",
     "emoji-picker-react": "^4.18.0",
     "highlight.js": "^11.11.1",
     "livekit-client": "^2.17.2",
@@ -39,6 +45,7 @@
     "@vitejs/plugin-react": "^4.3.0",
     "autoprefixer": "^10.4.0",
     "electron": "^33.0.0",
+    "electron-builder": "^26.8.1",
     "electron-vite": "^5.0.0",
     "eslint": "^9.0.0",
     "jsdom": "^25.0.0",

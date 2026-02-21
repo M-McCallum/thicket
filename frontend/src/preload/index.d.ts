@@ -17,6 +17,12 @@ declare global {
         clearTokens: () => Promise<void>
         onCallback: (callback: (url: string) => void) => () => void
       }
+      updater: {
+        checkForUpdates: () => Promise<void>
+        downloadUpdate: () => Promise<void>
+        installUpdate: () => Promise<void>
+        onStatus: (callback: (data: Record<string, unknown>) => void) => () => void
+      }
     }
   }
 }

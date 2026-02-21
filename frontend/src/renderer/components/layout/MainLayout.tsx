@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
 import TitleBar from './TitleBar'
+import UpdateNotification from './UpdateNotification'
 import ServerSidebar from '@renderer/components/server/ServerSidebar'
 import ChannelSidebar from '@renderer/components/server/ChannelSidebar'
 import ChatArea from '@renderer/components/chat/ChatArea'
@@ -184,6 +185,7 @@ export default function MainLayout() {
   return (
     <div className="h-screen w-screen flex flex-col bg-sol-bg overflow-hidden">
       <TitleBar />
+      <UpdateNotification />
 
       {/* Warm accent line */}
       <div className="h-1 bg-gradient-to-r from-transparent via-sol-amber/50 to-transparent" />

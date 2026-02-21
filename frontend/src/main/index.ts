@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { autoUpdater } from 'electron-updater'
 import Store from 'electron-store'
 
 const store = new Store<Record<string, string>>({ name: 'auth-tokens' })
@@ -167,11 +168,53 @@ app.whenReady().then(() => {
   })
 
   createWindow()
+  if (mainWindow) setupAutoUpdater(mainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })
 })
+
+function setupAutoUpdater(win: BrowserWindow): void {
+  if (is.dev) return
+
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = true
+
+  function sendStatus(data: Record<string, unknown>): void {
+    win.webContents.send('updater:status', data)
+  }
+
+  autoUpdater.on('checking-for-update', () => {
+    sendStatus({ status: 'checking' })
+  })
+
+  autoUpdater.on('update-available', (info) => {
+    sendStatus({ status: 'available', version: info.version })
+  })
+
+  autoUpdater.on('update-not-available', () => {
+    sendStatus({ status: 'up-to-date' })
+  })
+
+  autoUpdater.on('download-progress', (progress) => {
+    sendStatus({ status: 'downloading', percent: progress.percent })
+  })
+
+  autoUpdater.on('update-downloaded', () => {
+    sendStatus({ status: 'ready' })
+  })
+
+  autoUpdater.on('error', (err) => {
+    sendStatus({ status: 'error', errorMessage: err.message })
+  })
+
+  ipcMain.handle('updater:check', () => autoUpdater.checkForUpdates())
+  ipcMain.handle('updater:download', () => autoUpdater.downloadUpdate())
+  ipcMain.handle('updater:install', () => autoUpdater.quitAndInstall())
+
+  setTimeout(() => autoUpdater.checkForUpdates(), 5000)
+}
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

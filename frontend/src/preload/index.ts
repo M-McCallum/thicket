@@ -21,6 +21,18 @@ const api = {
       ipcRenderer.on('auth-callback', handler)
       return () => ipcRenderer.removeListener('auth-callback', handler)
     }
+  },
+
+  updater: {
+    checkForUpdates: (): Promise<void> => ipcRenderer.invoke('updater:check'),
+    downloadUpdate: (): Promise<void> => ipcRenderer.invoke('updater:download'),
+    installUpdate: (): Promise<void> => ipcRenderer.invoke('updater:install'),
+    onStatus: (callback: (data: Record<string, unknown>) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: Record<string, unknown>): void =>
+        callback(data)
+      ipcRenderer.on('updater:status', handler)
+      return () => ipcRenderer.removeListener('updater:status', handler)
+    }
   }
 }
 

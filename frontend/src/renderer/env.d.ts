@@ -3,6 +3,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
 declare global {
+  const __APP_VERSION__: string
   interface Window {
     electron: ElectronAPI
     api: {
@@ -18,6 +19,12 @@ declare global {
         getTokens: () => Promise<Record<string, string | null>>
         clearTokens: () => Promise<void>
         onCallback: (callback: (url: string) => void) => () => void
+      }
+      updater: {
+        checkForUpdates: () => Promise<void>
+        downloadUpdate: () => Promise<void>
+        installUpdate: () => Promise<void>
+        onStatus: (callback: (data: Record<string, unknown>) => void) => () => void
       }
     }
   }

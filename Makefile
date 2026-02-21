@@ -1,4 +1,4 @@
-.PHONY: dev dev-up dev-down test test-backend test-frontend test-web lint lint-backend lint-frontend build build-web migrate-up migrate-down seed sec-scan dev-web register-clients
+.PHONY: dev dev-up dev-down test test-backend test-frontend test-web lint lint-backend lint-frontend build build-web migrate-up migrate-down seed sec-scan dev-web register-clients dist-frontend dist-mac dist-win dist-linux release release-minor release-major
 
 # Development
 dev-up:
@@ -67,6 +67,32 @@ seed:
 # OAuth2 clients
 register-clients:
 	./ory/register-clients.sh
+
+# Distribution
+dist-frontend:
+	cd frontend && npm run dist
+
+dist-mac:
+	cd frontend && npm run dist:mac
+
+dist-win:
+	cd frontend && npm run dist:win
+
+dist-linux:
+	cd frontend && npm run dist:linux
+
+# Release (bumps version, commits, tags, pushes — triggers GitHub Actions)
+release:
+	cd frontend && npm version patch
+	git push && git push --tags
+
+release-minor:
+	cd frontend && npm version minor
+	git push && git push --tags
+
+release-major:
+	cd frontend && npm version major
+	git push && git push --tags
 
 # Security
 sec-scan:

@@ -10,7 +10,7 @@ export default function TitleBar() {
           Thicket
         </span>
         <div className="w-px h-3 bg-sol-bg-elevated" />
-        <span className="text-sol-text-muted text-xs font-mono">v0.1.0</span>
+        <span className="text-sol-text-muted text-xs font-mono">v{__APP_VERSION__}</span>
       </div>
 
       {/* Window controls — only needed on Windows/Linux; macOS uses native traffic lights */}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useAuthStore } from '@renderer/stores/authStore'
 import { useThemeStore } from '@renderer/stores/themeStore'
+import { useUpdateStore } from '@renderer/stores/updateStore'
 import LoginForm from '@renderer/components/auth/LoginForm'
 import MainLayout from '@renderer/components/layout/MainLayout'
 import SettingsOverlay from '@renderer/components/settings/SettingsOverlay'
@@ -8,6 +9,7 @@ import SettingsOverlay from '@renderer/components/settings/SettingsOverlay'
 export default function App() {
   const { isAuthenticated, initAuth, handleCallback } = useAuthStore()
   const initTheme = useThemeStore((s) => s.initTheme)
+  const initUpdater = useUpdateStore((s) => s.initUpdater)
   const [initialized, setInitialized] = useState(false)
 
   useEffect(() => {
@@ -17,6 +19,10 @@ export default function App() {
   useEffect(() => {
     initTheme()
   }, [initTheme])
+
+  useEffect(() => {
+    return initUpdater()
+  }, [initUpdater])
 
   // Listen for OAuth callback from main process
   useEffect(() => {
