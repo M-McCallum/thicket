@@ -51,6 +51,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
   const [mentionIndex, setMentionIndex] = useState(0)
   const [slowModeCountdown, setSlowModeCountdown] = useState(0)
   const [fileError, setFileError] = useState<string | null>(null)
+  const [sendError, setSendError] = useState<string | null>(null)
   const slowModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -246,12 +247,20 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
       )
       setInput('')
       setPendingFiles([])
+      setSendError(null)
       requestAnimationFrame(() => {
         if (textareaRef.current) textareaRef.current.style.height = 'auto'
       })
     } catch (err) {
-      if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
-        startSlowModeCountdown(err.retryAfter)
+      if (err instanceof ApiError) {
+        if (err.status === 429 && err.retryAfter) {
+          startSlowModeCountdown(err.retryAfter)
+        } else if (err.automod) {
+          const rule = err.ruleName ? ` (rule: ${err.ruleName})` : ''
+          setSendError(`Message blocked by AutoMod${rule}`)
+        } else if (err.status === 403) {
+          setSendError(err.message)
+        }
       }
     }
   }
@@ -425,6 +434,14 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
       {fileError && (
         <div className="mb-2 px-3 py-1.5 bg-sol-coral/10 border border-sol-coral/20 rounded text-xs text-sol-coral">
           {fileError}
+        </div>
+      )}
+
+      {/* Send error (AutoMod, timeout, etc.) */}
+      {sendError && (
+        <div className="mb-2 px-3 py-1.5 bg-sol-coral/10 border border-sol-coral/20 rounded text-xs text-sol-coral flex items-center justify-between">
+          <span>{sendError}</span>
+          <button onClick={() => setSendError(null)} className="ml-2 hover:text-sol-coral/70">&times;</button>
         </div>
       )}
 

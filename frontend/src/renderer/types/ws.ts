@@ -72,6 +72,8 @@ export type WSEventType =
   | 'STAGE_SPEAKER_REMOVE'
   | 'STAGE_HAND_RAISE'
   | 'STAGE_HAND_LOWER'
+  | 'FORUM_POST_DELETE'
+  | 'FORUM_POST_MESSAGE_CREATE'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -545,4 +547,25 @@ export interface StageHandRaiseData {
 export interface StageHandLowerData {
   channel_id: string
   user_id: string
+}
+
+export interface ForumPostDeleteData {
+  post_id: string
+  channel_id: string
+}
+
+export interface ForumPostMessageCreateData {
+  post_id: string
+  channel_id: string
+  message: {
+    id: string
+    post_id: string
+    author_id: string
+    content: string
+    created_at: string
+    updated_at: string | null
+    author_username: string
+    author_display_name: string | null
+    author_avatar_url: string | null
+  }
 }

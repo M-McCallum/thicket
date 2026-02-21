@@ -1,6 +1,8 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import type { ForumTag, ForumPost } from '@/types/models'
 import { forum as forumApi } from '@/services/api'
+import { wsService } from '@/services/ws'
+import type { ForumPostDeleteData } from '@/types/ws'
 import ForumPostCard from './ForumPostCard'
 import CreateForumPostModal from './CreateForumPostModal'
 import ForumPostView from './ForumPostView'
@@ -56,6 +58,21 @@ export default function ForumChannelView({ channelId, channelName }: ForumChanne
     fetchData()
   }, [fetchData])
 
+  // Listen for forum post deletions via WS to keep list in sync
+  useEffect(() => {
+    const unsub = wsService.on('FORUM_POST_DELETE', (data) => {
+      const d = data as ForumPostDeleteData
+      if (d.channel_id === channelId) {
+        setPosts((prev) => prev.filter((p) => p.id !== d.post_id))
+        // If viewing the deleted post, go back to listing
+        if (activePostId === d.post_id) {
+          setActivePostId(null)
+        }
+      }
+    })
+    return unsub
+  }, [channelId, activePostId])
+
   const toggleTagFilter = (tagId: string) => {
     setSelectedTagIds((prev) =>
       prev.includes(tagId)
@@ -70,12 +87,17 @@ export default function ForumChannelView({ channelId, channelName }: ForumChanne
     setShowCreateModal(false)
   }
 
+  const handleBackFromPost = useCallback(() => {
+    setActivePostId(null)
+    fetchData()
+  }, [fetchData])
+
   // If viewing a specific post, show the post view
   if (activePostId) {
     return (
       <ForumPostView
         postId={activePostId}
-        onBack={() => setActivePostId(null)}
+        onBack={handleBackFromPost}
       />
     )
   }

@@ -26,6 +26,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
   const [sending, setSending] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
 
@@ -57,7 +58,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
       await forumApi.deletePost(postId)
       onBack()
     } catch {
-      // error ignored
+      setError('Failed to delete post')
     }
   }
 
@@ -69,8 +70,9 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
       const msg = await forumApi.createPostMessage(postId, replyContent.trim())
       setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
       setReplyContent('')
+      setError(null)
     } catch {
-      // error ignored
+      setError('Failed to send reply')
     } finally {
       setSending(false)
     }
@@ -207,7 +209,10 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
                             try {
                               await forumApi.deletePostMessage(postId, msg.id)
                               setMessages((prev) => prev.filter((m) => m.id !== msg.id))
-                            } catch { /* ignored */ }
+                              setError(null)
+                            } catch {
+                              setError('Failed to delete message')
+                            }
                             setConfirmDeleteMsgId(null)
                           }}
                           className="text-[10px] text-sol-coral hover:text-sol-coral/80 font-medium"
@@ -244,6 +249,14 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
         })}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* Error banner */}
+      {error && (
+        <div className="mx-4 mt-2 px-3 py-2 rounded-lg bg-sol-coral/10 border border-sol-coral/30 text-sol-coral text-xs flex items-center justify-between">
+          <span>{error}</span>
+          <button onClick={() => setError(null)} className="ml-2 hover:text-sol-coral/70">&times;</button>
+        </div>
+      )}
 
       {/* Reply input */}
       <form onSubmit={handleReply} className="px-4 py-3 border-t border-sol-bg-elevated">

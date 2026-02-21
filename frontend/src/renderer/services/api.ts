@@ -77,7 +77,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after)
+    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after, error)
   }
 
   return response.json()
@@ -95,11 +95,19 @@ async function refreshAccessToken(): Promise<boolean> {
 export class ApiError extends Error {
   status: number
   retryAfter?: number
-  constructor(message: string, status: number, retryAfter?: number) {
+  automod?: boolean
+  ruleName?: string
+  action?: string
+  constructor(message: string, status: number, retryAfter?: number, extra?: { automod?: boolean; rule_name?: string; action?: string }) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.retryAfter = retryAfter
+    if (extra) {
+      this.automod = extra.automod
+      this.ruleName = extra.rule_name
+      this.action = extra.action
+    }
   }
 }
 
@@ -128,7 +136,7 @@ async function requestMultipart<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after)
+    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after, error)
   }
 
   return response.json()

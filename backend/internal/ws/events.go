@@ -81,6 +81,8 @@ const (
 	EventStageSpeakerRemove  = "STAGE_SPEAKER_REMOVE"
 	EventStageHandRaise      = "STAGE_HAND_RAISE"
 	EventStageHandLower      = "STAGE_HAND_LOWER"
+	EventForumPostDelete     = "FORUM_POST_DELETE"
+	EventForumPostMessageCreate = "FORUM_POST_MESSAGE_CREATE"
 )
 
 type Event struct {

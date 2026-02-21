@@ -60,6 +60,20 @@ var (
 	ErrMessageTooLong    = errors.New("message content cannot exceed 4000 characters")
 )
 
+// AutoModBlockedError carries the rule name that triggered the block.
+type AutoModBlockedError struct {
+	RuleName string
+	Action   string // "delete" or "timeout"
+}
+
+func (e *AutoModBlockedError) Error() string {
+	return "message blocked by automod"
+}
+
+func (e *AutoModBlockedError) Is(target error) bool {
+	return target == ErrAutoModBlocked
+}
+
 const MaxMessageLength = 4000
 
 type MessageService struct {
@@ -170,7 +184,7 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 		if action != nil && action.Triggered {
 			if action.Action == "delete" {
 				s.automodSvc.ExecuteAction(ctx, action, channel.ServerID, channelID, authorID, content)
-				return nil, ErrAutoModBlocked
+				return nil, &AutoModBlockedError{RuleName: action.RuleName, Action: action.Action}
 			}
 			// For timeout and alert, we still save the message but execute the action after
 			defer func() {

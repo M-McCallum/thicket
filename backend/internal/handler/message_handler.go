@@ -652,7 +652,13 @@ func handleMessageError(c fiber.Ctx, err error) error {
 	case errors.Is(err, service.ErrUserTimedOut):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrAutoModBlocked):
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "message blocked by automod"})
+		var amErr *service.AutoModBlockedError
+		resp := fiber.Map{"error": "message blocked by automod", "automod": true}
+		if errors.As(err, &amErr) {
+			resp["rule_name"] = amErr.RuleName
+			resp["action"] = amErr.Action
+		}
+		return c.Status(fiber.StatusForbidden).JSON(resp)
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}

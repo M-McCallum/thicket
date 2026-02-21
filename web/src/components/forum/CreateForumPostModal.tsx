@@ -12,6 +12,7 @@ export default function CreateForumPostModal({ tags, onSubmit, onClose }: Create
   const [content, setContent] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const toggleTag = (tagId: string) => {
     setSelectedTagIds((prev) =>
@@ -25,8 +26,11 @@ export default function CreateForumPostModal({ tags, onSubmit, onClose }: Create
     e.preventDefault()
     if (!title.trim() || !content.trim() || submitting) return
     setSubmitting(true)
+    setError(null)
     try {
       await onSubmit(title.trim(), content.trim(), selectedTagIds)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create post')
     } finally {
       setSubmitting(false)
     }
@@ -109,6 +113,13 @@ export default function CreateForumPostModal({ tags, onSubmit, onClose }: Create
           placeholder="Write the opening message for your post..."
           required
         />
+
+        {/* Error */}
+        {error && (
+          <div className="mb-4 px-3 py-2 rounded-lg bg-sol-coral/10 border border-sol-coral/30 text-sol-coral text-xs">
+            {error}
+          </div>
+        )}
 
         {/* Actions */}
         <div className="flex gap-2 justify-end">
