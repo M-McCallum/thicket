@@ -6,16 +6,19 @@ import (
 	"time"
 
 	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/storage"
 )
 
 type CleanupService struct {
 	queries *models.Queries
+	storage storage.ObjectStorage
 	done    chan struct{}
 }
 
-func NewCleanupService(q *models.Queries) *CleanupService {
+func NewCleanupService(q *models.Queries, sc storage.ObjectStorage) *CleanupService {
 	return &CleanupService{
 		queries: q,
+		storage: sc,
 		done:    make(chan struct{}),
 	}
 }
@@ -36,18 +39,24 @@ func (s *CleanupService) run() {
 	select {
 	case <-timer.C:
 		s.cleanup()
+		s.cleanupPendingUploads()
 	case <-s.done:
 		timer.Stop()
 		return
 	}
 
-	// Then run daily
-	ticker := time.NewTicker(24 * time.Hour)
-	defer ticker.Stop()
+	// Pending upload cleanup every 30 minutes
+	uploadTicker := time.NewTicker(30 * time.Minute)
+	// Message retention cleanup daily
+	retentionTicker := time.NewTicker(24 * time.Hour)
+	defer uploadTicker.Stop()
+	defer retentionTicker.Stop()
 
 	for {
 		select {
-		case <-ticker.C:
+		case <-uploadTicker.C:
+			s.cleanupPendingUploads()
+		case <-retentionTicker.C:
 			s.cleanup()
 		case <-s.done:
 			return
@@ -90,4 +99,25 @@ func (s *CleanupService) cleanup() {
 	if totalDeleted > 0 {
 		log.Printf("[Cleanup] Deleted %d expired messages across %d channels", totalDeleted, len(channels))
 	}
+}
+
+func (s *CleanupService) cleanupPendingUploads() {
+	ctx := context.Background()
+
+	expired, err := s.queries.GetExpiredPendingUploads(ctx)
+	if err != nil {
+		log.Printf("[Cleanup] Failed to get expired pending uploads: %v", err)
+		return
+	}
+
+	if len(expired) == 0 {
+		return
+	}
+
+	for _, p := range expired {
+		_ = s.storage.AbortMultipartUpload(ctx, p.ObjectKey, p.UploadID)
+		_ = s.queries.DeletePendingUpload(ctx, p.ID)
+	}
+
+	log.Printf("[Cleanup] Cleaned up %d expired pending uploads", len(expired))
 }

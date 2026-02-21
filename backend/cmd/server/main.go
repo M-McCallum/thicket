@@ -88,8 +88,8 @@ func main() {
 	// E2EE keys service
 	keysService := service.NewKeysService(queries)
 
-	// Cleanup service (message retention)
-	cleanupService := service.NewCleanupService(queries)
+	// Cleanup service (message retention + pending upload cleanup)
+	cleanupService := service.NewCleanupService(queries, storageClient)
 	cleanupService.Start()
 
 	// Scheduler service
@@ -193,10 +193,15 @@ func main() {
 	userPrefHandler := handler.NewUserPrefHandler(userPrefService)
 	serverFolderHandler := handler.NewServerFolderHandler(serverFolderService)
 
+	// Attachment + upload handlers
+	attachmentService := service.NewAttachmentService(queries, storageClient)
+	uploadHandler := handler.NewUploadHandler(attachmentService)
+
 	// Fiber app
 	app := fiber.New(fiber.Config{
 		AppName:        "Thicket API",
-		ReadBufferSize: 16384, // 16KB — OAuth flows carry large cookies + challenge params
+		ReadBufferSize: 16384,           // 16KB — OAuth flows carry large cookies + challenge params
+		BodyLimit:      15 * 1024 * 1024, // 15MB — covers small file + form overhead; large files bypass Fiber
 	})
 
 	// LiveKit handler
@@ -241,6 +246,7 @@ func main() {
 		BotHandler:         botHandler,
 		WebhookHandler:     webhookHandler,
 		ExportHandler:      exportHandler,
+		UploadHandler:      uploadHandler,
 		KeysHandler:        keysHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
