@@ -5,12 +5,14 @@ import (
 	"io"
 	"mime"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/models"
+	"github.com/M-McCallum/thicket/internal/service"
 	"github.com/M-McCallum/thicket/internal/storage"
 )
 
@@ -23,7 +25,8 @@ func NewAttachmentHandler(q *models.Queries, sc storage.ObjectStorage) *Attachme
 	return &AttachmentHandler{queries: q, storage: sc}
 }
 
-// ServeAttachment streams a file from object storage to the client.
+// ServeAttachment serves a file from object storage. Large files get a 307
+// redirect to a presigned MinIO URL; small files are streamed via io.Copy.
 func (h *AttachmentHandler) ServeAttachment(c fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
@@ -39,26 +42,38 @@ func (h *AttachmentHandler) ServeAttachment(c fiber.Ctx) error {
 		return c.Redirect().Status(fiber.StatusFound).To(att.ObjectKey)
 	}
 
+	// Large files: redirect to presigned MinIO URL (zero backend bandwidth)
+	if att.Size >= service.LargeFileThreshold {
+		presignedURL, err := h.storage.GetPresignedURL(c.Context(), att.ObjectKey)
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to generate download URL"})
+		}
+		return c.Redirect().Status(fiber.StatusTemporaryRedirect).To(presignedURL)
+	}
+
+	// Small files: stream via io.Copy
 	obj, err := h.storage.GetObject(c.Context(), att.ObjectKey)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to retrieve file"})
 	}
 	defer obj.Close()
 
-	data, err := io.ReadAll(obj)
+	info, err := obj.Stat()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to stat file"})
 	}
 
 	c.Set("Content-Type", att.ContentType)
+	c.Set("Content-Length", strconv.FormatInt(info.Size, 10))
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, att.OriginalFilename))
 	c.Set("Cache-Control", "public, max-age=86400, immutable")
 
-	return c.Send(data)
+	_, err = io.Copy(c.Response().BodyWriter(), obj)
+	return err
 }
 
 // ServeFile serves avatars, emojis, and stickers by their object key path.
-// Route: /api/files/:path+ where path is e.g. "avatars/uuid.png" or "emojis/uuid.png"
+// These are always small so we stream them via io.Copy.
 func (h *AttachmentHandler) ServeFile(c fiber.Ctx) error {
 	objectKey := c.Params("+")
 	if objectKey == "" {
@@ -83,9 +98,9 @@ func (h *AttachmentHandler) ServeFile(c fiber.Ctx) error {
 	}
 	defer obj.Close()
 
-	data, err := io.ReadAll(obj)
+	info, err := obj.Stat()
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to stat file"})
 	}
 
 	ct := mime.TypeByExtension(filepath.Ext(objectKey))
@@ -93,7 +108,9 @@ func (h *AttachmentHandler) ServeFile(c fiber.Ctx) error {
 		ct = "application/octet-stream"
 	}
 	c.Set("Content-Type", ct)
+	c.Set("Content-Length", strconv.FormatInt(info.Size, 10))
 	c.Set("Cache-Control", "public, max-age=86400, immutable")
 
-	return c.Send(data)
+	_, err = io.Copy(c.Response().BodyWriter(), obj)
+	return err
 }
