@@ -92,6 +92,7 @@ type OryHandler struct {
 	kratosPublicURL  string
 	cookieHMACKey    []byte // random key generated at startup to sign challenge cookies
 	consentStore     *challengeStore
+	loginStore       *challengeStore
 	loginTmpl        *template.Template
 	registrationTmpl *template.Template
 	errorTmpl        *template.Template
@@ -124,6 +125,7 @@ func NewOryHandler(hydraClient *ory.HydraClient, kratosClient *ory.KratosClient,
 		kratosPublicURL:  kratosPublicURL,
 		cookieHMACKey:    hmacKey,
 		consentStore:     newChallengeStore(),
+		loginStore:       newChallengeStore(),
 		loginTmpl:        mustParsePages("templates/base.html", "templates/login.html"),
 		registrationTmpl: mustParsePages("templates/base.html", "templates/registration.html"),
 		errorTmpl:        mustParsePages("templates/base.html", "templates/error.html"),
@@ -165,6 +167,21 @@ func (h *OryHandler) verifyChallenge(signed string) string {
 func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 	challenge := c.Query("login_challenge")
 	flowID := c.Query("flow")
+
+	// Phase 1: Long challenge from Hydra → store under short ID and redirect.
+	// This keeps the browser URL short to avoid Google Safe Browsing false positives.
+	if challenge != "" && c.Query("id") == "" {
+		id := h.loginStore.put(challenge)
+		return c.Redirect().To("/auth/login?id=" + id)
+	}
+
+	// Phase 2: Short ID → resolve the real challenge.
+	if shortID := c.Query("id"); shortID != "" {
+		challenge = h.loginStore.take(shortID)
+		if challenge == "" {
+			return c.Redirect().To(h.kratosPublicURL + "/self-service/login/browser")
+		}
+	}
 
 	// Case 1: Hydra login challenge — existing OAuth flow
 	if challenge != "" {
@@ -215,7 +232,7 @@ func (h *OryHandler) GetLogin(c fiber.Ctx) error {
 		// set return_to so that even if Kratos loses the challenge (e.g. during
 		// OIDC auto-registration), the browser comes back here with the challenge
 		// in the URL rather than the bare default_browser_return_url.
-		returnTo := h.kratosPublicURL + "/auth/login?login_challenge=" + url.QueryEscape(challenge)
+		returnTo := h.kratosPublicURL + "/auth/login"
 		kratosURL := h.kratosPublicURL + "/self-service/login/browser?login_challenge=" + url.QueryEscape(challenge) +
 			"&return_to=" + url.QueryEscape(returnTo)
 		return c.Redirect().To(kratosURL)

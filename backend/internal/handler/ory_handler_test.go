@@ -76,6 +76,31 @@ func newOryApp(h *OryHandler) *fiber.App {
 
 // --- Case 1: login_challenge + Hydra says skip=true ---
 
+// followLoginRedirect issues the initial request and, if the response is a Phase 1
+// redirect to /auth/login?id=..., follows it with a second request to resolve the
+// short ID. Returns the final response.
+func followLoginRedirect(t *testing.T, app *fiber.App, req *http.Request) *http.Response {
+	t.Helper()
+	resp, err := app.Test(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode == fiber.StatusSeeOther {
+		loc := resp.Header.Get("Location")
+		if strings.HasPrefix(loc, "/auth/login?id=") {
+			resp.Body.Close()
+			req2 := httptest.NewRequest(http.MethodGet, loc, nil)
+			// Forward cookies from the original request
+			req2.Header.Set("Cookie", req.Header.Get("Cookie"))
+			resp, err = app.Test(req2)
+			if err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	return resp
+}
+
 func TestGetLogin_ChallengeSkip(t *testing.T) {
 	hydra := mockHydra(t, &ory.LoginRequest{
 		Challenge: "ch1",
@@ -91,10 +116,7 @@ func TestGetLogin_ChallengeSkip(t *testing.T) {
 	app := newOryApp(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/login?login_challenge=ch1", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := followLoginRedirect(t, app, req)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != fiber.StatusSeeOther {
@@ -129,10 +151,7 @@ func TestGetLogin_ChallengeWithSession(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/login?login_challenge=ch2", nil)
 	req.Header.Set("Cookie", "ory_kratos_session=valid")
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := followLoginRedirect(t, app, req)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != fiber.StatusSeeOther {
@@ -160,10 +179,7 @@ func TestGetLogin_ChallengeNoSession(t *testing.T) {
 	app := newOryApp(h)
 
 	req := httptest.NewRequest(http.MethodGet, "/auth/login?login_challenge=ch3", nil)
-	resp, err := app.Test(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	resp := followLoginRedirect(t, app, req)
 	defer resp.Body.Close()
 
 	if resp.StatusCode != fiber.StatusSeeOther {
@@ -185,7 +201,7 @@ func TestGetLogin_ChallengeNoSession(t *testing.T) {
 		t.Fatalf("cookie should contain signed challenge, got: %s", challengeCookie.Value)
 	}
 
-	// Verify redirect URL contains both login_challenge and return_to
+	// Verify redirect URL contains login_challenge and return_to
 	loc, err := url.Parse(resp.Header.Get("Location"))
 	if err != nil {
 		t.Fatalf("parse location: %v", err)
@@ -200,7 +216,7 @@ func TestGetLogin_ChallengeNoSession(t *testing.T) {
 	if returnTo == "" {
 		t.Fatal("missing return_to in redirect")
 	}
-	// return_to should point back to /auth/login?login_challenge=ch3
+	// return_to should point back to /auth/login (no login_challenge — short ID pattern)
 	parsed, err := url.Parse(returnTo)
 	if err != nil {
 		t.Fatalf("parse return_to: %v", err)
@@ -208,8 +224,8 @@ func TestGetLogin_ChallengeNoSession(t *testing.T) {
 	if parsed.Path != "/auth/login" {
 		t.Fatalf("return_to path should be /auth/login, got: %s", parsed.Path)
 	}
-	if parsed.Query().Get("login_challenge") != "ch3" {
-		t.Fatalf("return_to should include login_challenge=ch3, got: %s", parsed.RawQuery)
+	if parsed.Query().Get("login_challenge") != "" {
+		t.Fatalf("return_to should NOT include login_challenge (short ID pattern), got: %s", parsed.RawQuery)
 	}
 }
 
