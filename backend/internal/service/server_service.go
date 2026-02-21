@@ -182,6 +182,146 @@ func (s *ServerService) GetServerPreview(ctx context.Context, inviteCode string)
 	}, nil
 }
 
+var (
+	ErrInvalidNickname    = errors.New("nickname must be 0-32 characters")
+	ErrCategoryNotFound   = errors.New("category not found")
+	ErrInvalidCategoryName = errors.New("category name must be 1-100 characters")
+)
+
+func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string) (*models.Server, error) {
+	member, err := s.queries.GetServerMember(ctx, serverID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if member.Role != "owner" {
+		return nil, ErrInsufficientRole
+	}
+	if name != nil && (len(*name) < 1 || len(*name) > 100) {
+		return nil, ErrInvalidServerName
+	}
+	server, err := s.queries.UpdateServer(ctx, models.UpdateServerParams{
+		ID:      serverID,
+		Name:    name,
+		IconURL: iconURL,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &server, nil
+}
+
+func (s *ServerService) SetNickname(ctx context.Context, serverID, userID uuid.UUID, nickname *string) error {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotMember
+		}
+		return err
+	}
+	if nickname != nil && len(*nickname) > 32 {
+		return ErrInvalidNickname
+	}
+	return s.queries.UpdateMemberNickname(ctx, serverID, userID, nickname)
+}
+
+func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, userID uuid.UUID, name *string, topic *string, categoryID *uuid.UUID) (*models.Channel, error) {
+	member, err := s.queries.GetServerMember(ctx, serverID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if member.Role != "owner" && member.Role != "admin" {
+		return nil, ErrInsufficientRole
+	}
+	if name != nil && (len(*name) < 1 || len(*name) > 100) {
+		return nil, ErrInvalidChannelName
+	}
+	ch, err := s.queries.UpdateChannel(ctx, models.UpdateChannelParams{
+		ID:         channelID,
+		Name:       name,
+		Topic:      topic,
+		CategoryID: categoryID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &ch, nil
+}
+
+func (s *ServerService) CreateCategory(ctx context.Context, serverID, userID uuid.UUID, name string, position int32) (*models.ChannelCategory, error) {
+	member, err := s.queries.GetServerMember(ctx, serverID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if member.Role != "owner" && member.Role != "admin" {
+		return nil, ErrInsufficientRole
+	}
+	if len(name) < 1 || len(name) > 100 {
+		return nil, ErrInvalidCategoryName
+	}
+	cat, err := s.queries.CreateCategory(ctx, models.CreateCategoryParams{
+		ServerID: serverID,
+		Name:     name,
+		Position: position,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &cat, nil
+}
+
+func (s *ServerService) GetCategories(ctx context.Context, serverID, userID uuid.UUID) ([]models.ChannelCategory, error) {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	return s.queries.GetServerCategories(ctx, serverID)
+}
+
+func (s *ServerService) UpdateCategory(ctx context.Context, serverID, categoryID, userID uuid.UUID, name *string, position *int32) (*models.ChannelCategory, error) {
+	member, err := s.queries.GetServerMember(ctx, serverID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if member.Role != "owner" && member.Role != "admin" {
+		return nil, ErrInsufficientRole
+	}
+	if name != nil && (len(*name) < 1 || len(*name) > 100) {
+		return nil, ErrInvalidCategoryName
+	}
+	cat, err := s.queries.UpdateCategory(ctx, categoryID, name, position)
+	if err != nil {
+		return nil, err
+	}
+	return &cat, nil
+}
+
+func (s *ServerService) DeleteCategory(ctx context.Context, serverID, categoryID, userID uuid.UUID) error {
+	member, err := s.queries.GetServerMember(ctx, serverID, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotMember
+		}
+		return err
+	}
+	if member.Role != "owner" && member.Role != "admin" {
+		return ErrInsufficientRole
+	}
+	return s.queries.DeleteCategory(ctx, categoryID)
+}
+
 func generateInviteCode() (string, error) {
 	bytes := make([]byte, 4)
 	if _, err := rand.Read(bytes); err != nil {

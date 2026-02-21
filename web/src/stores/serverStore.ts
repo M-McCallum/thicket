@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { Server, Channel, ServerMember } from '@/types/models'
-import { servers as serversApi, channels as channelsApi } from '@/services/api'
+import type { Server, Channel, ServerMember, ChannelCategory } from '@/types/models'
+import { servers as serversApi, channels as channelsApi, categories as categoriesApi } from '@/services/api'
 
 interface ServerState {
   servers: Server[]
   activeServerId: string | null
   channels: Channel[]
+  categories: ChannelCategory[]
   activeChannelId: string | null
   members: ServerMember[]
   onlineUserIds: Set<string>
@@ -20,8 +21,14 @@ interface ServerState {
   leaveServer: (serverId: string) => Promise<void>
   deleteServer: (serverId: string) => Promise<void>
   createChannel: (name: string, type: 'text' | 'voice') => Promise<void>
+  updateServer: (server: Server) => void
+  updateChannel: (channel: Channel) => void
   addChannel: (channel: Channel) => void
   removeChannel: (channelId: string) => void
+  addCategory: (category: ChannelCategory) => void
+  updateCategory: (category: ChannelCategory) => void
+  removeCategory: (categoryId: string) => void
+  updateMemberNickname: (userId: string, nickname: string | null) => void
   addMember: (member: ServerMember) => void
   removeMember: (userId: string) => void
   updateMemberStatus: (userId: string, status: string) => void
@@ -35,6 +42,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   servers: [],
   activeServerId: localStorage.getItem('app:activeServerId'),
   channels: [],
+  categories: [],
   activeChannelId: null,
   members: [],
   onlineUserIds: new Set(),
@@ -64,9 +72,10 @@ export const useServerStore = create<ServerState>((set, get) => ({
     localStorage.setItem('app:activeServerId', serverId)
     set({ activeServerId: serverId, isLoading: true })
     try {
-      const [channels, members] = await Promise.all([
+      const [channels, members, cats] = await Promise.all([
         channelsApi.list(serverId),
-        serversApi.members(serverId)
+        serversApi.members(serverId),
+        categoriesApi.list(serverId).catch(() => [] as ChannelCategory[])
       ])
       const savedChannelId = localStorage.getItem('app:activeChannelId')
       const restoredChannel = savedChannelId ? channels.find((c) => c.id === savedChannelId) : null
@@ -85,6 +94,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
         : members
       set({
         channels,
+        categories: cats,
         members: updatedMembers,
         activeChannelId,
         isLoading: false
@@ -133,6 +143,16 @@ export const useServerStore = create<ServerState>((set, get) => ({
     set((state) => ({ channels: [...state.channels, channel] }))
   },
 
+  updateServer: (server) =>
+    set((state) => ({
+      servers: state.servers.map((s) => (s.id === server.id ? server : s))
+    })),
+
+  updateChannel: (channel) =>
+    set((state) => ({
+      channels: state.channels.map((c) => (c.id === channel.id ? channel : c))
+    })),
+
   addChannel: (channel) =>
     set((state) => ({
       channels: state.channels.some((c) => c.id === channel.id)
@@ -144,6 +164,30 @@ export const useServerStore = create<ServerState>((set, get) => ({
     set((state) => ({
       channels: state.channels.filter((c) => c.id !== channelId),
       activeChannelId: state.activeChannelId === channelId ? null : state.activeChannelId
+    })),
+
+  addCategory: (category) =>
+    set((state) => ({
+      categories: state.categories.some((c) => c.id === category.id)
+        ? state.categories
+        : [...state.categories, category]
+    })),
+
+  updateCategory: (category) =>
+    set((state) => ({
+      categories: state.categories.map((c) => (c.id === category.id ? category : c))
+    })),
+
+  removeCategory: (categoryId) =>
+    set((state) => ({
+      categories: state.categories.filter((c) => c.id !== categoryId)
+    })),
+
+  updateMemberNickname: (userId, nickname) =>
+    set((state) => ({
+      members: state.members.map((m) =>
+        m.id === userId ? { ...m, nickname } : m
+      )
     })),
 
   addMember: (member) =>
@@ -188,7 +232,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   setActiveServerNull: () => {
     localStorage.removeItem('app:activeServerId')
     localStorage.removeItem('app:activeChannelId')
-    set({ activeServerId: null, channels: [], activeChannelId: null, members: [] })
+    set({ activeServerId: null, channels: [], categories: [], activeChannelId: null, members: [] })
   },
 
   clearError: () => set({ error: null })

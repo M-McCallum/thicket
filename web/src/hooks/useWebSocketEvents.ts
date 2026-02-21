@@ -5,6 +5,7 @@ import { useMessageStore } from '@/stores/messageStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { useDMCallStore } from '@/stores/dmCallStore'
+import { useAuthStore } from '@/stores/authStore'
 import type {
   ReadyData,
   PresenceData,
@@ -21,7 +22,16 @@ import type {
   FriendRemoveData,
   DMCallRingData,
   DMCallAcceptData,
-  DMCallEndData
+  DMCallEndData,
+  ServerUpdateData,
+  MemberUpdateData,
+  CategoryCreateData,
+  CategoryUpdateData,
+  CategoryDeleteData,
+  MessagePinData,
+  MessageUnpinData,
+  ReactionAddData,
+  ReactionRemoveData
 } from '@/types/ws'
 
 export function useWebSocketEvents() {
@@ -88,6 +98,28 @@ export function useWebSocketEvents() {
             name: channel.name,
             type: channel.type,
             position: channel.position,
+            topic: channel.topic || '',
+            category_id: channel.category_id,
+            created_at: channel.created_at
+          })
+        }
+      })
+    )
+
+    // CHANNEL_UPDATE
+    unsubs.push(
+      wsService.on('CHANNEL_UPDATE', (data) => {
+        const channel = data as ChannelCreateData
+        const { activeServerId } = useServerStore.getState()
+        if (channel.server_id === activeServerId) {
+          useServerStore.getState().updateChannel({
+            id: channel.id,
+            server_id: channel.server_id,
+            name: channel.name,
+            type: channel.type,
+            position: channel.position,
+            topic: channel.topic || '',
+            category_id: channel.category_id,
             created_at: channel.created_at
           })
         }
@@ -213,6 +245,113 @@ export function useWebSocketEvents() {
       wsService.on('FRIEND_REMOVE', (data) => {
         const remove = data as FriendRemoveData
         useFriendStore.getState().removeFriendById(remove.user_id)
+      })
+    )
+
+    // SERVER_UPDATE
+    unsubs.push(
+      wsService.on('SERVER_UPDATE', (data) => {
+        const server = data as ServerUpdateData
+        useServerStore.getState().updateServer({
+          id: server.id,
+          name: server.name,
+          icon_url: server.icon_url,
+          owner_id: server.owner_id,
+          invite_code: server.invite_code,
+          created_at: server.created_at
+        })
+      })
+    )
+
+    // MEMBER_UPDATE (nickname changes)
+    unsubs.push(
+      wsService.on('MEMBER_UPDATE', (data) => {
+        const update = data as MemberUpdateData
+        const { activeServerId } = useServerStore.getState()
+        if (update.server_id === activeServerId) {
+          useServerStore.getState().updateMemberNickname(update.user_id, update.nickname)
+        }
+      })
+    )
+
+    // CATEGORY_CREATE
+    unsubs.push(
+      wsService.on('CATEGORY_CREATE', (data) => {
+        const cat = data as CategoryCreateData
+        const { activeServerId } = useServerStore.getState()
+        if (cat.server_id === activeServerId) {
+          useServerStore.getState().addCategory(cat)
+        }
+      })
+    )
+
+    // CATEGORY_UPDATE
+    unsubs.push(
+      wsService.on('CATEGORY_UPDATE', (data) => {
+        const cat = data as CategoryUpdateData
+        const { activeServerId } = useServerStore.getState()
+        if (cat.server_id === activeServerId) {
+          useServerStore.getState().updateCategory(cat)
+        }
+      })
+    )
+
+    // CATEGORY_DELETE
+    unsubs.push(
+      wsService.on('CATEGORY_DELETE', (data) => {
+        const cat = data as CategoryDeleteData
+        const { activeServerId } = useServerStore.getState()
+        if (cat.server_id === activeServerId) {
+          useServerStore.getState().removeCategory(cat.id)
+        }
+      })
+    )
+
+    // MESSAGE_PIN
+    unsubs.push(
+      wsService.on('MESSAGE_PIN', (_data) => {
+        const pin = _data as MessagePinData
+        const { activeChannelId } = useServerStore.getState()
+        if (pin.channel_id === activeChannelId) {
+          const { showPinnedPanel, fetchPinnedMessages } = useMessageStore.getState()
+          if (showPinnedPanel) fetchPinnedMessages(pin.channel_id)
+        }
+      })
+    )
+
+    // MESSAGE_UNPIN
+    unsubs.push(
+      wsService.on('MESSAGE_UNPIN', (_data) => {
+        const unpin = _data as MessageUnpinData
+        const { activeChannelId } = useServerStore.getState()
+        if (unpin.channel_id === activeChannelId) {
+          const { showPinnedPanel, fetchPinnedMessages } = useMessageStore.getState()
+          if (showPinnedPanel) fetchPinnedMessages(unpin.channel_id)
+        }
+      })
+    )
+
+    // REACTION_ADD
+    unsubs.push(
+      wsService.on('REACTION_ADD', (data) => {
+        const reaction = data as ReactionAddData
+        const { activeChannelId } = useServerStore.getState()
+        if (reaction.channel_id === activeChannelId) {
+          const isMe = reaction.user_id === useAuthStore.getState().user?.id
+          useMessageStore.getState().addReaction(reaction.message_id, reaction.emoji, isMe)
+        }
+      })
+    )
+
+    // REACTION_REMOVE
+    unsubs.push(
+      wsService.on('REACTION_REMOVE', (data) => {
+        const reaction = data as ReactionRemoveData
+        const { activeChannelId } = useServerStore.getState()
+        if (reaction.channel_id === activeChannelId) {
+          const isMe = reaction.user_id === useAuthStore.getState().user?.id
+          useMessageStore.getState().removeReaction(reaction.message_id, reaction.emoji, isMe)
+        }
       })
     )
 

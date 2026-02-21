@@ -42,6 +42,15 @@ const (
 	EventDMCallRing          = "DM_CALL_RING"
 	EventDMCallAcceptBcast   = "DM_CALL_ACCEPT"
 	EventDMCallEndBcast      = "DM_CALL_END"
+	EventServerUpdate        = "SERVER_UPDATE"
+	EventMemberUpdate        = "MEMBER_UPDATE"
+	EventCategoryCreate      = "CATEGORY_CREATE"
+	EventCategoryUpdate      = "CATEGORY_UPDATE"
+	EventCategoryDelete      = "CATEGORY_DELETE"
+	EventMessagePin          = "MESSAGE_PIN"
+	EventMessageUnpin        = "MESSAGE_UNPIN"
+	EventReactionAdd         = "REACTION_ADD"
+	EventReactionRemove      = "REACTION_REMOVE"
 )
 
 type Event struct {

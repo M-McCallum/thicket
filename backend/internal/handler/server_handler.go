@@ -231,6 +231,215 @@ func (h *ServerHandler) DeleteChannel(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "channel deleted"})
 }
 
+func (h *ServerHandler) UpdateServer(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	var body struct {
+		Name    *string `json:"name"`
+		IconURL *string `json:"icon_url"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	userID := auth.GetUserID(c)
+	server, err := h.serverService.UpdateServer(c.Context(), serverID, userID, body.Name, body.IconURL)
+	if err != nil {
+		return handleServerError(c, err)
+	}
+
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventServerUpdate, server)
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
+	return c.JSON(server)
+}
+
+func (h *ServerHandler) SetNickname(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	var body struct {
+		Nickname *string `json:"nickname"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	userID := auth.GetUserID(c)
+	if err := h.serverService.SetNickname(c.Context(), serverID, userID, body.Nickname); err != nil {
+		return handleServerError(c, err)
+	}
+
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventMemberUpdate, fiber.Map{
+			"server_id": serverID,
+			"user_id":   userID,
+			"nickname":  body.Nickname,
+		})
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
+	return c.JSON(fiber.Map{"message": "nickname updated"})
+}
+
+func (h *ServerHandler) UpdateChannel(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+
+	var body struct {
+		Name       *string    `json:"name"`
+		Topic      *string    `json:"topic"`
+		CategoryID *uuid.UUID `json:"category_id"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	userID := auth.GetUserID(c)
+	channel, err := h.serverService.UpdateChannel(c.Context(), serverID, channelID, userID, body.Name, body.Topic, body.CategoryID)
+	if err != nil {
+		return handleServerError(c, err)
+	}
+
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventChannelUpdate, channel)
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
+	return c.JSON(channel)
+}
+
+// Category endpoints
+
+func (h *ServerHandler) CreateCategory(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	var body struct {
+		Name     string `json:"name"`
+		Position int32  `json:"position"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	userID := auth.GetUserID(c)
+	cat, err := h.serverService.CreateCategory(c.Context(), serverID, userID, body.Name, body.Position)
+	if err != nil {
+		return handleServerError(c, err)
+	}
+
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventCategoryCreate, cat)
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
+	return c.Status(fiber.StatusCreated).JSON(cat)
+}
+
+func (h *ServerHandler) GetCategories(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	categories, err := h.serverService.GetCategories(c.Context(), serverID, userID)
+	if err != nil {
+		return handleServerError(c, err)
+	}
+
+	return c.JSON(categories)
+}
+
+func (h *ServerHandler) UpdateCategory(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	categoryID, err := uuid.Parse(c.Params("categoryId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid category ID"})
+	}
+
+	var body struct {
+		Name     *string `json:"name"`
+		Position *int32  `json:"position"`
+	}
+	if err := c.Bind().JSON(&body); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	userID := auth.GetUserID(c)
+	cat, err := h.serverService.UpdateCategory(c.Context(), serverID, categoryID, userID, body.Name, body.Position)
+	if err != nil {
+		return handleServerError(c, err)
+	}
+
+	if memberIDs, err := h.serverService.GetServerMemberUserIDs(c.Context(), serverID); err == nil {
+		event, _ := ws.NewEvent(ws.EventCategoryUpdate, cat)
+		if event != nil {
+			ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+		}
+	}
+
+	return c.JSON(cat)
+}
+
+func (h *ServerHandler) DeleteCategory(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+
+	categoryID, err := uuid.Parse(c.Params("categoryId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid category ID"})
+	}
+
+	memberIDs, _ := h.serverService.GetServerMemberUserIDs(c.Context(), serverID)
+
+	userID := auth.GetUserID(c)
+	if err := h.serverService.DeleteCategory(c.Context(), serverID, categoryID, userID); err != nil {
+		return handleServerError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventCategoryDelete, fiber.Map{
+		"id":        categoryID,
+		"server_id": serverID,
+	})
+	if event != nil {
+		ws.BroadcastToServerMembers(h.hub, memberIDs, event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "category deleted"})
+}
+
 func (h *ServerHandler) GetServerPreview(c fiber.Ctx) error {
 	inviteCode := c.Params("code")
 	if inviteCode == "" {
@@ -262,6 +471,10 @@ func handleServerError(c fiber.Ctx, err error) error {
 	case errors.Is(err, service.ErrInvalidChannelName):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrInvalidChannelType):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInvalidNickname):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInvalidCategoryName):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})

@@ -14,9 +14,12 @@ import (
 )
 
 var (
-	ErrMessageNotFound = errors.New("message not found")
-	ErrNotAuthor       = errors.New("not the author of this message")
-	ErrEmptyMessage    = errors.New("message content cannot be empty")
+	ErrMessageNotFound   = errors.New("message not found")
+	ErrNotAuthor         = errors.New("not the author of this message")
+	ErrEmptyMessage      = errors.New("message content cannot be empty")
+	ErrTooManyPins       = errors.New("channel has reached the pin limit (50)")
+	ErrMessageNotInChannel = errors.New("message does not belong to this channel")
+	ErrReplyNotInChannel = errors.New("reply target is not in the same channel")
 )
 
 type MessageService struct {
@@ -35,7 +38,7 @@ func (s *MessageService) Queries() *models.Queries {
 	return s.queries
 }
 
-func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uuid.UUID, content string, msgType ...string) (*models.Message, error) {
+func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uuid.UUID, content string, replyToID *uuid.UUID, msgType ...string) (*models.Message, error) {
 	content = s.sanitizer.Sanitize(strings.TrimSpace(content))
 
 	mt := "text"
@@ -63,11 +66,26 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 		return nil, err
 	}
 
+	// Validate reply target
+	if replyToID != nil {
+		replyMsg, err := s.queries.GetMessageByID(ctx, *replyToID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil, ErrMessageNotFound
+			}
+			return nil, err
+		}
+		if replyMsg.ChannelID != channelID {
+			return nil, ErrReplyNotInChannel
+		}
+	}
+
 	msg, err := s.queries.CreateMessage(ctx, models.CreateMessageParams{
 		ChannelID: channelID,
 		AuthorID:  authorID,
 		Content:   content,
 		Type:      mt,
+		ReplyToID: replyToID,
 	})
 	if err != nil {
 		return nil, err
@@ -170,4 +188,159 @@ func (s *MessageService) DeleteMessage(ctx context.Context, messageID, userID uu
 	}
 
 	return s.queries.DeleteMessage(ctx, messageID)
+}
+
+// Pin operations
+
+func (s *MessageService) PinMessage(ctx context.Context, channelID, messageID, userID uuid.UUID) error {
+	channel, err := s.queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrChannelNotFound
+		}
+		return err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotMember
+		}
+		return err
+	}
+	msg, err := s.queries.GetMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrMessageNotFound
+		}
+		return err
+	}
+	if msg.ChannelID != channelID {
+		return ErrMessageNotInChannel
+	}
+	count, err := s.queries.GetPinnedMessageCount(ctx, channelID)
+	if err != nil {
+		return err
+	}
+	if count >= 50 {
+		return ErrTooManyPins
+	}
+	return s.queries.PinMessage(ctx, channelID, messageID, userID)
+}
+
+func (s *MessageService) UnpinMessage(ctx context.Context, channelID, messageID, userID uuid.UUID) error {
+	channel, err := s.queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrChannelNotFound
+		}
+		return err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrNotMember
+		}
+		return err
+	}
+	return s.queries.UnpinMessage(ctx, channelID, messageID)
+}
+
+func (s *MessageService) GetPinnedMessages(ctx context.Context, channelID, userID uuid.UUID) ([]models.MessageWithAuthor, error) {
+	channel, err := s.queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrChannelNotFound
+		}
+		return nil, err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	return s.queries.GetPinnedMessages(ctx, channelID)
+}
+
+// Reaction operations
+
+func (s *MessageService) AddReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (*models.Message, error) {
+	msg, err := s.queries.GetMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMessageNotFound
+		}
+		return nil, err
+	}
+	channel, err := s.queries.GetChannelByID(ctx, msg.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if err := s.queries.AddReaction(ctx, messageID, userID, emoji); err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
+func (s *MessageService) RemoveReaction(ctx context.Context, messageID, userID uuid.UUID, emoji string) (*models.Message, error) {
+	msg, err := s.queries.GetMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMessageNotFound
+		}
+		return nil, err
+	}
+	channel, err := s.queries.GetChannelByID(ctx, msg.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+	if err := s.queries.RemoveReaction(ctx, messageID, userID, emoji); err != nil {
+		return nil, err
+	}
+	return &msg, nil
+}
+
+func (s *MessageService) AttachReactionsToMessages(ctx context.Context, messages []models.MessageWithAuthor, currentUserID uuid.UUID) error {
+	if len(messages) == 0 {
+		return nil
+	}
+	ids := make([]uuid.UUID, len(messages))
+	for i, m := range messages {
+		ids[i] = m.ID
+	}
+	rows, err := s.queries.GetReactionsForMessages(ctx, ids)
+	if err != nil {
+		return err
+	}
+	byMsg := make(map[uuid.UUID][]models.ReactionCount)
+	for _, r := range rows {
+		me := false
+		for _, uid := range r.UserIDs {
+			if uid == currentUserID {
+				me = true
+				break
+			}
+		}
+		byMsg[r.MessageID] = append(byMsg[r.MessageID], models.ReactionCount{
+			Emoji: r.Emoji,
+			Count: r.Count,
+			Me:    me,
+		})
+	}
+	for i := range messages {
+		if rc, ok := byMsg[messages[i].ID]; ok {
+			messages[i].Reactions = rc
+		}
+	}
+	return nil
 }

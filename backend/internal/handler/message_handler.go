@@ -37,6 +37,7 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 	userID := auth.GetUserID(c)
 	content := c.FormValue("content")
 	msgType := c.FormValue("type", "text")
+	replyToStr := c.FormValue("reply_to_id")
 
 	// Parse file uploads
 	form, _ := c.MultipartForm()
@@ -59,15 +60,28 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 	// Also check for JSON body if no multipart
 	if form == nil {
 		var body struct {
-			Content string `json:"content"`
-			Type    string `json:"type"`
+			Content   string  `json:"content"`
+			Type      string  `json:"type"`
+			ReplyToID *string `json:"reply_to_id"`
 		}
 		if err := c.Bind().JSON(&body); err == nil {
 			content = body.Content
 			if body.Type != "" {
 				msgType = body.Type
 			}
+			if body.ReplyToID != nil {
+				replyToStr = *body.ReplyToID
+			}
 		}
+	}
+
+	var replyToID *uuid.UUID
+	if replyToStr != "" {
+		parsed, err := uuid.Parse(replyToStr)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid reply_to_id"})
+		}
+		replyToID = &parsed
 	}
 
 	// Allow empty content if files present
@@ -75,7 +89,7 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "message content or attachments required"})
 	}
 
-	msg, err := h.messageService.SendMessage(c.Context(), channelID, userID, content, msgType)
+	msg, err := h.messageService.SendMessage(c.Context(), channelID, userID, content, replyToID, msgType)
 	if err != nil {
 		// Close any open file handles
 		for _, fi := range fileInputs {
@@ -113,16 +127,36 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 		}
 	}
 
+	// Build reply snippet for broadcast
+	var replyTo interface{}
+	if msg.ReplyToID != nil {
+		replyMsg, err := h.messageService.Queries().GetMessageByID(c.Context(), *msg.ReplyToID)
+		if err == nil {
+			// Look up the reply author's username
+			replyAuthor, err2 := h.messageService.Queries().GetUserByID(c.Context(), replyMsg.AuthorID)
+			if err2 == nil {
+				replyTo = fiber.Map{
+					"id":              replyMsg.ID,
+					"author_id":       replyMsg.AuthorID,
+					"author_username": replyAuthor.Username,
+					"content":         replyMsg.Content,
+				}
+			}
+		}
+	}
+
 	// Broadcast via WebSocket
 	event, _ := ws.NewEvent(ws.EventMessageCreate, fiber.Map{
-		"id":          msg.ID,
-		"channel_id":  msg.ChannelID,
-		"author_id":   msg.AuthorID,
-		"content":     msg.Content,
-		"type":        msg.Type,
-		"created_at":  msg.CreatedAt,
-		"username":    auth.GetUsername(c),
-		"attachments": attachments,
+		"id":           msg.ID,
+		"channel_id":   msg.ChannelID,
+		"author_id":    msg.AuthorID,
+		"content":      msg.Content,
+		"type":         msg.Type,
+		"reply_to_id":  msg.ReplyToID,
+		"reply_to":     replyTo,
+		"created_at":   msg.CreatedAt,
+		"username":     auth.GetUsername(c),
+		"attachments":  attachments,
 	})
 	if event != nil {
 		h.hub.BroadcastToChannel(channelID.String(), event, nil)
@@ -160,8 +194,9 @@ func (h *MessageHandler) GetMessages(c fiber.Ctx) error {
 		return handleMessageError(c, err)
 	}
 
-	// Attach attachments
+	// Attach attachments and reactions
 	_ = h.attachmentService.AttachToMessages(c.Context(), messages)
+	_ = h.messageService.AttachReactionsToMessages(c.Context(), messages, userID)
 
 	return c.JSON(messages)
 }
@@ -221,6 +256,147 @@ func (h *MessageHandler) DeleteMessage(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "deleted"})
 }
 
+// Pin endpoints
+
+func (h *MessageHandler) PinMessage(c fiber.Ctx) error {
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+	messageID, err := uuid.Parse(c.Params("messageId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	if err := h.messageService.PinMessage(c.Context(), channelID, messageID, userID); err != nil {
+		return handleMessageError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventMessagePin, fiber.Map{
+		"channel_id": channelID,
+		"message_id": messageID,
+		"pinned_by":  userID,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(channelID.String(), event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "pinned"})
+}
+
+func (h *MessageHandler) UnpinMessage(c fiber.Ctx) error {
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+	messageID, err := uuid.Parse(c.Params("messageId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	if err := h.messageService.UnpinMessage(c.Context(), channelID, messageID, userID); err != nil {
+		return handleMessageError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventMessageUnpin, fiber.Map{
+		"channel_id": channelID,
+		"message_id": messageID,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(channelID.String(), event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "unpinned"})
+}
+
+func (h *MessageHandler) GetPinnedMessages(c fiber.Ctx) error {
+	channelID, err := uuid.Parse(c.Params("channelId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid channel ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	messages, err := h.messageService.GetPinnedMessages(c.Context(), channelID, userID)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	_ = h.attachmentService.AttachToMessages(c.Context(), messages)
+
+	return c.JSON(messages)
+}
+
+// Reaction endpoints
+
+func (h *MessageHandler) AddReaction(c fiber.Ctx) error {
+	messageID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+	emoji := c.Query("emoji")
+	if emoji == "" {
+		// Also try JSON body
+		var body struct {
+			Emoji string `json:"emoji"`
+		}
+		if err := c.Bind().JSON(&body); err == nil {
+			emoji = body.Emoji
+		}
+	}
+	if emoji == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "emoji is required"})
+	}
+
+	userID := auth.GetUserID(c)
+	msg, err := h.messageService.AddReaction(c.Context(), messageID, userID, emoji)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventReactionAdd, fiber.Map{
+		"message_id": messageID,
+		"channel_id": msg.ChannelID,
+		"user_id":    userID,
+		"emoji":      emoji,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(msg.ChannelID.String(), event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "reaction added"})
+}
+
+func (h *MessageHandler) RemoveReaction(c fiber.Ctx) error {
+	messageID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+	emoji := c.Query("emoji")
+	if emoji == "" {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "emoji is required"})
+	}
+
+	userID := auth.GetUserID(c)
+	msg, err := h.messageService.RemoveReaction(c.Context(), messageID, userID, emoji)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventReactionRemove, fiber.Map{
+		"message_id": messageID,
+		"channel_id": msg.ChannelID,
+		"user_id":    userID,
+		"emoji":      emoji,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(msg.ChannelID.String(), event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "reaction removed"})
+}
+
 func handleMessageError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrNotMember):
@@ -232,6 +408,12 @@ func handleMessageError(c fiber.Ctx, err error) error {
 	case errors.Is(err, service.ErrNotAuthor):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrEmptyMessage):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrTooManyPins):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrMessageNotInChannel):
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrReplyNotInChannel):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})

@@ -42,31 +42,57 @@ type ServerMember struct {
 }
 
 type Channel struct {
-	ID        uuid.UUID `json:"id"`
-	ServerID  uuid.UUID `json:"server_id"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"`
-	Position  int32     `json:"position"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	ServerID   uuid.UUID  `json:"server_id"`
+	Name       string     `json:"name"`
+	Type       string     `json:"type"`
+	Position   int32      `json:"position"`
+	Topic      string     `json:"topic"`
+	CategoryID *uuid.UUID `json:"category_id"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type Message struct {
-	ID        uuid.UUID `json:"id"`
-	ChannelID uuid.UUID `json:"channel_id"`
-	AuthorID  uuid.UUID `json:"author_id"`
-	Content   string    `json:"content"`
-	Type      string    `json:"type"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID         uuid.UUID  `json:"id"`
+	ChannelID  uuid.UUID  `json:"channel_id"`
+	AuthorID   uuid.UUID  `json:"author_id"`
+	Content    string     `json:"content"`
+	Type       string     `json:"type"`
+	ReplyToID  *uuid.UUID `json:"reply_to_id"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+}
+
+type ReplySnippet struct {
+	ID             uuid.UUID `json:"id"`
+	AuthorID       uuid.UUID `json:"author_id"`
+	AuthorUsername string    `json:"author_username"`
+	Content        string    `json:"content"`
+}
+
+type ReactionCount struct {
+	Emoji string `json:"emoji"`
+	Count int    `json:"count"`
+	Me    bool   `json:"me"`
 }
 
 type MessageWithAuthor struct {
 	Message
-	AuthorUsername    string        `json:"author_username"`
-	AuthorDisplayName *string       `json:"author_display_name"`
-	AuthorAvatarURL  *string        `json:"author_avatar_url"`
-	Attachments      []Attachment   `json:"attachments"`
+	AuthorUsername    string          `json:"author_username"`
+	AuthorDisplayName *string        `json:"author_display_name"`
+	AuthorAvatarURL  *string         `json:"author_avatar_url"`
+	Attachments      []Attachment    `json:"attachments"`
+	ReplyTo          *ReplySnippet   `json:"reply_to"`
+	Reactions        []ReactionCount `json:"reactions"`
+}
+
+type ChannelCategory struct {
+	ID        uuid.UUID `json:"id"`
+	ServerID  uuid.UUID `json:"server_id"`
+	Name      string    `json:"name"`
+	Position  int32     `json:"position"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type DMConversation struct {

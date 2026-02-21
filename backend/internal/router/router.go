@@ -90,21 +90,39 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Get("/servers", cfg.ServerHandler.GetUserServers)
 	protected.Post("/servers", cfg.ServerHandler.CreateServer)
 	protected.Get("/servers/:id", cfg.ServerHandler.GetServer)
+	protected.Patch("/servers/:id", cfg.ServerHandler.UpdateServer)
 	protected.Delete("/servers/:id", cfg.ServerHandler.DeleteServer)
 	protected.Post("/servers/join", cfg.ServerHandler.JoinServer)
 	protected.Post("/servers/:id/leave", cfg.ServerHandler.LeaveServer)
 	protected.Get("/servers/:id/members", cfg.ServerHandler.GetMembers)
+	protected.Patch("/servers/:id/members/me/nickname", cfg.ServerHandler.SetNickname)
 
 	// Channels
 	protected.Post("/servers/:id/channels", cfg.ServerHandler.CreateChannel)
 	protected.Get("/servers/:id/channels", cfg.ServerHandler.GetChannels)
+	protected.Patch("/servers/:id/channels/:channelId", cfg.ServerHandler.UpdateChannel)
 	protected.Delete("/servers/:id/channels/:channelId", cfg.ServerHandler.DeleteChannel)
+
+	// Categories
+	protected.Post("/servers/:id/categories", cfg.ServerHandler.CreateCategory)
+	protected.Get("/servers/:id/categories", cfg.ServerHandler.GetCategories)
+	protected.Patch("/servers/:id/categories/:categoryId", cfg.ServerHandler.UpdateCategory)
+	protected.Delete("/servers/:id/categories/:categoryId", cfg.ServerHandler.DeleteCategory)
 
 	// Messages
 	protected.Post("/channels/:channelId/messages", cfg.MessageHandler.SendMessage)
 	protected.Get("/channels/:channelId/messages", cfg.MessageHandler.GetMessages)
 	protected.Put("/messages/:id", cfg.MessageHandler.UpdateMessage)
 	protected.Delete("/messages/:id", cfg.MessageHandler.DeleteMessage)
+
+	// Pins
+	protected.Put("/channels/:channelId/pins/:messageId", cfg.MessageHandler.PinMessage)
+	protected.Delete("/channels/:channelId/pins/:messageId", cfg.MessageHandler.UnpinMessage)
+	protected.Get("/channels/:channelId/pins", cfg.MessageHandler.GetPinnedMessages)
+
+	// Reactions (emoji passed as query param ?emoji=...)
+	protected.Put("/messages/:id/reactions", cfg.MessageHandler.AddReaction)
+	protected.Delete("/messages/:id/reactions", cfg.MessageHandler.RemoveReaction)
 
 	// Direct Messages
 	protected.Post("/dm/conversations", cfg.DMHandler.CreateConversation)

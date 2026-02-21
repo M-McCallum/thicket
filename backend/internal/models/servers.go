@@ -142,6 +142,14 @@ func (q *Queries) GetServerMembers(ctx context.Context, serverID uuid.UUID) ([]S
 	return members, rows.Err()
 }
 
+func (q *Queries) UpdateMemberNickname(ctx context.Context, serverID, userID uuid.UUID, nickname *string) error {
+	_, err := q.db.Exec(ctx,
+		`UPDATE server_members SET nickname = $3 WHERE server_id = $1 AND user_id = $2`,
+		serverID, userID, nickname,
+	)
+	return err
+}
+
 func (q *Queries) UpdateMemberRole(ctx context.Context, serverID, userID uuid.UUID, role string) error {
 	_, err := q.db.Exec(ctx,
 		`UPDATE server_members SET role = $3 WHERE server_id = $1 AND user_id = $2`,

@@ -28,6 +28,16 @@ export interface Channel {
   name: string
   type: 'text' | 'voice'
   position: number
+  topic: string
+  category_id: string | null
+  created_at: string
+}
+
+export interface ChannelCategory {
+  id: string
+  server_id: string
+  name: string
+  position: number
   created_at: string
 }
 
@@ -43,12 +53,28 @@ export interface Attachment {
   is_external: boolean
 }
 
+export interface ReplySnippet {
+  id: string
+  author_id: string
+  author_username: string
+  content: string
+}
+
+export interface ReactionCount {
+  emoji: string
+  count: number
+  me: boolean
+}
+
 export interface Message {
   id: string
   channel_id: string
   author_id: string
   content: string
   type?: 'text' | 'sticker'
+  reply_to_id?: string | null
+  reply_to?: ReplySnippet | null
+  reactions?: ReactionCount[]
   created_at: string
   updated_at: string
   author_username?: string

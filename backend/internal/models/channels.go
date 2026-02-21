@@ -8,25 +8,27 @@ import (
 )
 
 type CreateChannelParams struct {
-	ServerID uuid.UUID
-	Name     string
-	Type     string
-	Position int32
+	ServerID   uuid.UUID
+	Name       string
+	Type       string
+	Position   int32
+	Topic      string
+	CategoryID *uuid.UUID
 }
 
 func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) (Channel, error) {
 	row := q.db.QueryRow(ctx,
-		`INSERT INTO channels (server_id, name, type, position)
-		VALUES ($1, $2, $3, $4)
-		RETURNING id, server_id, name, type, position, created_at, updated_at`,
-		arg.ServerID, arg.Name, arg.Type, arg.Position,
+		`INSERT INTO channels (server_id, name, type, position, topic, category_id)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		RETURNING id, server_id, name, type, position, topic, category_id, created_at, updated_at`,
+		arg.ServerID, arg.Name, arg.Type, arg.Position, arg.Topic, arg.CategoryID,
 	)
 	return scanChannel(row)
 }
 
 func (q *Queries) GetChannelByID(ctx context.Context, id uuid.UUID) (Channel, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, server_id, name, type, position, created_at, updated_at
+		`SELECT id, server_id, name, type, position, topic, category_id, created_at, updated_at
 		FROM channels WHERE id = $1`, id,
 	)
 	return scanChannel(row)
@@ -34,7 +36,7 @@ func (q *Queries) GetChannelByID(ctx context.Context, id uuid.UUID) (Channel, er
 
 func (q *Queries) GetServerChannels(ctx context.Context, serverID uuid.UUID) ([]Channel, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT id, server_id, name, type, position, created_at, updated_at
+		`SELECT id, server_id, name, type, position, topic, category_id, created_at, updated_at
 		FROM channels WHERE server_id = $1 ORDER BY position, name`, serverID,
 	)
 	if err != nil {
@@ -45,7 +47,7 @@ func (q *Queries) GetServerChannels(ctx context.Context, serverID uuid.UUID) ([]
 	var channels []Channel
 	for rows.Next() {
 		var ch Channel
-		if err := rows.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
+		if err := rows.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.CreatedAt, &ch.UpdatedAt); err != nil {
 			return nil, err
 		}
 		channels = append(channels, ch)
@@ -57,17 +59,24 @@ func (q *Queries) GetServerChannels(ctx context.Context, serverID uuid.UUID) ([]
 }
 
 type UpdateChannelParams struct {
-	ID       uuid.UUID
-	Name     *string
-	Position *int32
+	ID         uuid.UUID
+	Name       *string
+	Position   *int32
+	Topic      *string
+	CategoryID *uuid.UUID
 }
 
 func (q *Queries) UpdateChannel(ctx context.Context, arg UpdateChannelParams) (Channel, error) {
 	row := q.db.QueryRow(ctx,
-		`UPDATE channels SET name = COALESCE($2, name), position = COALESCE($3, position), updated_at = NOW()
+		`UPDATE channels SET
+			name = COALESCE($2, name),
+			position = COALESCE($3, position),
+			topic = COALESCE($4, topic),
+			category_id = COALESCE($5, category_id),
+			updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, server_id, name, type, position, created_at, updated_at`,
-		arg.ID, arg.Name, arg.Position,
+		RETURNING id, server_id, name, type, position, topic, category_id, created_at, updated_at`,
+		arg.ID, arg.Name, arg.Position, arg.Topic, arg.CategoryID,
 	)
 	return scanChannel(row)
 }
@@ -79,6 +88,6 @@ func (q *Queries) DeleteChannel(ctx context.Context, id uuid.UUID) error {
 
 func scanChannel(row pgx.Row) (Channel, error) {
 	var ch Channel
-	err := row.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.CreatedAt, &ch.UpdatedAt)
+	err := row.Scan(&ch.ID, &ch.ServerID, &ch.Name, &ch.Type, &ch.Position, &ch.Topic, &ch.CategoryID, &ch.CreatedAt, &ch.UpdatedAt)
 	return ch, err
 }

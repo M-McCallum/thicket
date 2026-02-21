@@ -21,7 +21,7 @@ func TestSendMessage_Success(t *testing.T) {
 	require.NoError(t, err)
 	_ = server
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "hello world")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "hello world", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "hello world", msg.Content)
 	assert.Equal(t, channel.ID, msg.ChannelID)
@@ -38,7 +38,7 @@ func TestSendMessage_NotMember(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	_, err = svc.SendMessage(ctx, channel.ID, outsider.User.ID, "hello")
+	_, err = svc.SendMessage(ctx, channel.ID, outsider.User.ID, "hello", nil)
 	assert.ErrorIs(t, err, ErrNotMember)
 }
 
@@ -50,7 +50,7 @@ func TestSendMessage_EmptyContent(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "")
+	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "", nil)
 	assert.ErrorIs(t, err, ErrEmptyMessage)
 }
 
@@ -62,7 +62,7 @@ func TestSendMessage_HTMLSanitized(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "<b>hello</b>")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "<b>hello</b>", nil)
 	require.NoError(t, err)
 	assert.Equal(t, "hello", msg.Content)
 }
@@ -75,7 +75,7 @@ func TestSendMessage_ScriptTagBecomesEmpty(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "<script>alert('x')</script>")
+	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "<script>alert('x')</script>", nil)
 	assert.ErrorIs(t, err, ErrEmptyMessage)
 }
 
@@ -87,9 +87,9 @@ func TestGetMessages_Success(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "msg1")
+	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "msg1", nil)
 	require.NoError(t, err)
-	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "msg2")
+	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "msg2", nil)
 	require.NoError(t, err)
 
 	messages, err := svc.GetMessages(ctx, channel.ID, owner.User.ID, nil, 50)
@@ -136,10 +136,10 @@ func TestGetMessages_CursorPagination(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "old")
+	_, err = svc.SendMessage(ctx, channel.ID, owner.User.ID, "old", nil)
 	require.NoError(t, err)
 	time.Sleep(10 * time.Millisecond) // ensure different timestamps
-	msg2, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "new")
+	msg2, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "new", nil)
 	require.NoError(t, err)
 
 	// Get messages before the newest
@@ -158,7 +158,7 @@ func TestUpdateMessage_Success(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original", nil)
 	require.NoError(t, err)
 
 	updated, err := svc.UpdateMessage(ctx, msg.ID, owner.User.ID, "edited")
@@ -177,7 +177,7 @@ func TestUpdateMessage_NotAuthor(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, testutil.AddTestMember(ctx, queries(), server.ID, other.User.ID, "member"))
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original", nil)
 	require.NoError(t, err)
 
 	_, err = svc.UpdateMessage(ctx, msg.ID, other.User.ID, "hacked")
@@ -200,7 +200,7 @@ func TestUpdateMessage_EmptyContent(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "original", nil)
 	require.NoError(t, err)
 
 	_, err = svc.UpdateMessage(ctx, msg.ID, owner.User.ID, "")
@@ -215,7 +215,7 @@ func TestDeleteMessage_ByAuthor(t *testing.T) {
 	_, channel, err := testutil.CreateTestServer(ctx, queries(), owner.User.ID)
 	require.NoError(t, err)
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "delete me")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "delete me", nil)
 	require.NoError(t, err)
 
 	err = svc.DeleteMessage(ctx, msg.ID, owner.User.ID)
@@ -232,7 +232,7 @@ func TestDeleteMessage_ByOwner(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, testutil.AddTestMember(ctx, queries(), server.ID, member.User.ID, "member"))
 
-	msg, err := svc.SendMessage(ctx, channel.ID, member.User.ID, "member msg")
+	msg, err := svc.SendMessage(ctx, channel.ID, member.User.ID, "member msg", nil)
 	require.NoError(t, err)
 
 	// Owner can delete any message
@@ -252,7 +252,7 @@ func TestDeleteMessage_ByAdmin(t *testing.T) {
 	require.NoError(t, testutil.AddTestMember(ctx, queries(), server.ID, admin.User.ID, "admin"))
 	require.NoError(t, testutil.AddTestMember(ctx, queries(), server.ID, member.User.ID, "member"))
 
-	msg, err := svc.SendMessage(ctx, channel.ID, member.User.ID, "member msg")
+	msg, err := svc.SendMessage(ctx, channel.ID, member.User.ID, "member msg", nil)
 	require.NoError(t, err)
 
 	// Admin can delete any message
@@ -270,7 +270,7 @@ func TestDeleteMessage_ByMember_Denied(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, testutil.AddTestMember(ctx, queries(), server.ID, member.User.ID, "member"))
 
-	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "owner msg")
+	msg, err := svc.SendMessage(ctx, channel.ID, owner.User.ID, "owner msg", nil)
 	require.NoError(t, err)
 
 	// Regular member can't delete others' messages

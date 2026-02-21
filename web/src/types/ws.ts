@@ -35,6 +35,15 @@ export type WSEventType =
   | 'DM_CALL_RING'
   | 'DM_CALL_ACCEPT'
   | 'DM_CALL_END'
+  | 'SERVER_UPDATE'
+  | 'MEMBER_UPDATE'
+  | 'CATEGORY_CREATE'
+  | 'CATEGORY_UPDATE'
+  | 'CATEGORY_DELETE'
+  | 'MESSAGE_PIN'
+  | 'MESSAGE_UNPIN'
+  | 'REACTION_ADD'
+  | 'REACTION_REMOVE'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -67,6 +76,8 @@ export interface MessageCreateData {
   author_id: string
   content: string
   type?: string
+  reply_to_id?: string | null
+  reply_to?: { id: string; author_id: string; author_username: string; content: string } | null
   created_at: string
   username: string
   attachments?: Attachment[]
@@ -92,6 +103,8 @@ export interface ChannelCreateData {
   name: string
   type: 'text' | 'voice'
   position: number
+  topic: string
+  category_id: string | null
   created_at: string
 }
 
@@ -189,4 +202,66 @@ export interface DMCallAcceptData {
 export interface DMCallEndData {
   conversation_id: string
   user_id: string
+}
+
+export interface ServerUpdateData {
+  id: string
+  name: string
+  icon_url: string | null
+  owner_id: string
+  invite_code: string
+  created_at: string
+  updated_at: string
+}
+
+export interface MemberUpdateData {
+  server_id: string
+  user_id: string
+  nickname: string | null
+}
+
+export interface CategoryCreateData {
+  id: string
+  server_id: string
+  name: string
+  position: number
+  created_at: string
+}
+
+export interface CategoryUpdateData {
+  id: string
+  server_id: string
+  name: string
+  position: number
+  created_at: string
+}
+
+export interface CategoryDeleteData {
+  id: string
+  server_id: string
+}
+
+export interface MessagePinData {
+  channel_id: string
+  message_id: string
+  pinned_by: string
+}
+
+export interface MessageUnpinData {
+  channel_id: string
+  message_id: string
+}
+
+export interface ReactionAddData {
+  message_id: string
+  channel_id: string
+  user_id: string
+  emoji: string
+}
+
+export interface ReactionRemoveData {
+  message_id: string
+  channel_id: string
+  user_id: string
+  emoji: string
 }

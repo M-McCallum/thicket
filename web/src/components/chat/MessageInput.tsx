@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { gifs, stickers as stickersApi } from '@/services/api'
+import { useMessageStore } from '@/stores/messageStore'
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
@@ -19,6 +20,7 @@ export function invalidateStickerCache() {
 }
 
 export default function MessageInput({ channelName, onSend }: MessageInputProps) {
+  const { replyingTo, setReplyingTo } = useMessageStore()
   const [input, setInput] = useState('')
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
@@ -135,6 +137,30 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
+      {/* Reply preview */}
+      {replyingTo && (
+        <div className="flex items-center gap-2 mb-1 px-3 py-1.5 bg-sol-bg-secondary rounded-t-lg border border-b-0 border-sol-bg-elevated">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-amber flex-shrink-0">
+            <polyline points="9 17 4 12 9 7" />
+            <path d="M20 18v-2a4 4 0 00-4-4H4" />
+          </svg>
+          <span className="text-xs text-sol-text-muted">Replying to</span>
+          <span className="text-xs font-medium text-sol-text-secondary">
+            {replyingTo.author_display_name ?? replyingTo.author_username ?? 'Unknown'}
+          </span>
+          <span className="text-xs text-sol-text-muted truncate flex-1">{replyingTo.content}</span>
+          <button
+            onClick={() => setReplyingTo(null)}
+            className="text-sol-text-muted hover:text-sol-text-primary transition-colors flex-shrink-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Pending file previews */}
       {pendingFiles.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-2">
