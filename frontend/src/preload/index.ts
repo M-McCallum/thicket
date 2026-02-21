@@ -46,6 +46,11 @@ const api = {
     }
   },
 
+  screen: {
+    getSources: (): Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>> =>
+      ipcRenderer.invoke('screen:get-sources')
+  },
+
   updater: {
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke('updater:check'),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('updater:download'),

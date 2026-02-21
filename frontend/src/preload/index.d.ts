@@ -35,6 +35,9 @@ declare global {
           ) => void
         ) => () => void
       }
+      screen: {
+        getSources: () => Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>>
+      }
       updater: {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>

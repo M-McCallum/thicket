@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack, AudioPresets, VideoCodec, TrackPublishOptions, type ScalabilityMode } from 'livekit-client'
+import { LocalTrack, Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack, AudioPresets, VideoCodec, TrackPublishOptions, type ScalabilityMode } from 'livekit-client'
 import { voice } from '@renderer/services/api'
 import { wsService } from '@renderer/services/ws'
 import { soundService } from '@renderer/services/soundService'
@@ -79,6 +79,7 @@ interface VoiceState {
   isPiPActive: boolean
   videoQuality: VideoQuality
   screenShareQuality: ScreenShareQuality
+  screenSharePickerSources: Array<{ id: string; name: string; thumbnailDataUrl: string }> | null
   localTrackVersion: number
 
   // Voice settings
@@ -107,6 +108,8 @@ interface VoiceState {
   togglePiP: () => void
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   setScreenShareQuality: (quality: ScreenShareQuality) => void
+  startScreenShareWithSource: (sourceId: string) => Promise<void>
+  dismissScreenSharePicker: () => void
 
   // Voice settings actions
   setInputMode: (mode: InputMode) => void
@@ -136,6 +139,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   isPiPActive: false,
   videoQuality: (localStorage.getItem('voice:videoQuality') as VideoQuality) || '720p',
   screenShareQuality: (localStorage.getItem('voice:screenShareQuality') as ScreenShareQuality) || '1080p_30',
+  screenSharePickerSources: null,
   localTrackVersion: 0,
 
   // Voice settings
@@ -459,19 +463,82 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   toggleScreenShare: async () => {
     const { room, isScreenSharing, screenShareQuality } = get()
     if (!room) return
-    const enabling = !isScreenSharing
-    set({ isScreenSharing: enabling })
+
+    // Stopping screen share — unpublish the screen share track
+    if (isScreenSharing) {
+      set({ isScreenSharing: false })
+      const pub = room.localParticipant.getTrackPublication(Track.Source.ScreenShare)
+      if (pub?.track) {
+        await room.localParticipant.unpublishTrack(pub.track.mediaStreamTrack)
+      }
+      return
+    }
+
+    // Electron: need to use desktopCapturer instead of getDisplayMedia
+    if (window.api?.screen) {
+      try {
+        const sources = await window.api.screen.getSources()
+        if (sources.length === 0) return
+        // If there's only one screen and no windows, auto-select it
+        if (sources.length === 1) {
+          await get().startScreenShareWithSource(sources[0].id)
+        } else {
+          set({ screenSharePickerSources: sources })
+        }
+      } catch (err) {
+        console.error('[ScreenShare] Failed to get sources:', err)
+      }
+      return
+    }
+
+    // Web: use standard getDisplayMedia via LiveKit
     const preset = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
     const { width, height, frameRate } = preset
+    set({ isScreenSharing: true })
     try {
-      await room.localParticipant.setScreenShareEnabled(enabling, {
+      await room.localParticipant.setScreenShareEnabled(true, {
         resolution: { width, height, frameRate },
         contentHint: frameRate >= 30 ? 'motion' : 'detail',
       }, buildPublishOptions(preset))
     } catch {
-      // User cancelled the screen share picker or error — revert
-      set({ isScreenSharing: !enabling })
+      set({ isScreenSharing: false })
     }
+  },
+
+  startScreenShareWithSource: async (sourceId: string) => {
+    const { room, screenShareQuality } = get()
+    if (!room) return
+    set({ screenSharePickerSources: null, isScreenSharing: true })
+    const preset = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
+    const { width, height, frameRate } = preset
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: sourceId,
+            maxWidth: width,
+            maxHeight: height,
+            maxFrameRate: frameRate,
+          },
+        } as unknown as MediaTrackConstraints,
+      })
+      const track = stream.getVideoTracks()[0]
+      track.contentHint = frameRate >= 30 ? 'motion' : 'detail'
+      const opts = buildPublishOptions(preset)
+      await room.localParticipant.publishTrack(track, {
+        source: Track.Source.ScreenShare,
+        ...opts,
+      })
+    } catch (err) {
+      console.error('[ScreenShare] Failed to publish screen track:', err)
+      set({ isScreenSharing: false })
+    }
+  },
+
+  dismissScreenSharePicker: () => {
+    set({ screenSharePickerSources: null })
   },
 
   setVideoDevice: (deviceId) => {

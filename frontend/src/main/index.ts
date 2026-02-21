@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron'
+import { app, BrowserWindow, desktopCapturer, ipcMain, safeStorage, session, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
@@ -138,6 +138,18 @@ app.whenReady().then(() => {
     return shell.openExternal(url)
   })
 
+  ipcMain.handle('screen:get-sources', async () => {
+    const sources = await desktopCapturer.getSources({
+      types: ['screen', 'window'],
+      thumbnailSize: { width: 320, height: 180 }
+    })
+    return sources.map((s) => ({
+      id: s.id,
+      name: s.name,
+      thumbnailDataUrl: s.thumbnail.toDataURL()
+    }))
+  })
+
   // Set CSP dynamically so the API origin works in both dev and production
   const devServerOrigin = is.dev && process.env['ELECTRON_RENDERER_URL']
     ? new URL(process.env['ELECTRON_RENDERER_URL']).origin
@@ -160,6 +172,18 @@ app.whenReady().then(() => {
     `connect-src 'self' ${apiOrigin} ${wsOrigin} ${oidcOrigin}${devSrc ? ` ${devServerOrigin!.replace('http', 'ws')}` : ''} ${livekitWsOrigin} ${livekitOrigin} wss://*.livekit.cloud https://*.turn.livekit.cloud https://global.stun.twilio.com`,
     "frame-ancestors 'none'"
   ].join('; ')
+
+  // Grant media permissions (microphone, camera, screen capture) to the renderer
+  session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+    const allowed = ['media', 'display-capture', 'mediaKeySystem'].includes(permission)
+    console.log(`[Permission] ${permission} → ${allowed ? 'granted' : 'denied'}`)
+    callback(allowed)
+  })
+
+  session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+    const allowed = ['media', 'display-capture', 'mediaKeySystem'].includes(permission)
+    return allowed
+  })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({

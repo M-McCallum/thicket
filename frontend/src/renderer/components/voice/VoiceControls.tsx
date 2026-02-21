@@ -4,6 +4,7 @@ import { useVoiceStore } from '@renderer/stores/voiceStore'
 import { useServerStore } from '@renderer/stores/serverStore'
 import VoiceSettingsModal from './VoiceSettingsModal'
 import SoundboardPanel from './SoundboardPanel'
+import { ScreenSharePicker } from './ScreenSharePicker'
 
 export default function VoiceControls() {
   const room = useVoiceStore((s) => s.room)
@@ -306,6 +307,7 @@ export default function VoiceControls() {
 
       {showSettings && <VoiceSettingsModal onClose={() => setShowSettings(false)} />}
       {showSoundboard && <SoundboardPanel onClose={() => setShowSoundboard(false)} />}
+      <ScreenSharePicker />
     </div>
   )
 }
