@@ -1,9 +1,13 @@
-import { app, BrowserWindow, ipcMain, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, safeStorage, session, shell } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import Store from 'electron-store'
 
 const store = new Store<Record<string, string>>({ name: 'auth-tokens' })
+
+// Derive API origin for CSP from the same env var the renderer uses
+const apiUrl = process.env['VITE_API_URL'] || 'http://localhost:8080/api'
+const apiOrigin = new URL(apiUrl).origin
 
 let mainWindow: BrowserWindow | null = null
 
@@ -130,6 +134,36 @@ app.whenReady().then(() => {
 
   ipcMain.handle('open-external', (_event, url: string) => {
     return shell.openExternal(url)
+  })
+
+  // Set CSP dynamically so the API origin works in both dev and production
+  const devServerOrigin = is.dev && process.env['ELECTRON_RENDERER_URL']
+    ? new URL(process.env['ELECTRON_RENDERER_URL']).origin
+    : null
+  const wsScheme = apiOrigin.startsWith('https') ? 'wss' : 'ws'
+  const wsOrigin = apiOrigin.replace(/^https?/, wsScheme)
+  const livekitUrl = process.env['VITE_LIVEKIT_URL'] || 'ws://localhost:7880'
+  const livekitOrigin = new URL(livekitUrl).origin
+  const livekitWsOrigin = livekitOrigin.replace(/^https?/, wsScheme)
+  const devSrc = devServerOrigin ? ` ${devServerOrigin}` : ''
+  const csp = [
+    `default-src 'self'${devSrc}`,
+    `script-src 'self'${devSrc}${devServerOrigin ? " 'unsafe-inline'" : ''} blob:`,
+    `style-src 'self'${devSrc} 'unsafe-inline'`,
+    `font-src 'self'${devSrc}`,
+    `img-src 'self' ${apiOrigin} https://*.giphy.com data: blob:`,
+    `media-src 'self' ${apiOrigin} blob: mediastream:`,
+    `connect-src 'self' ${apiOrigin} ${wsOrigin}${devSrc ? ` ${devServerOrigin!.replace('http', 'ws')}` : ''} ${livekitWsOrigin} ${livekitOrigin} wss://*.livekit.cloud https://*.turn.livekit.cloud https://global.stun.twilio.com`,
+    "frame-ancestors 'none'"
+  ].join('; ')
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [csp]
+      }
+    })
   })
 
   createWindow()
