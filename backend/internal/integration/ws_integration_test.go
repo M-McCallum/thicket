@@ -62,8 +62,9 @@ func startTestServer(t *testing.T) *testServer {
 	hub := ws.NewHub()
 	go hub.Run()
 
-	messageSvc := service.NewMessageService(q)
-	messageHandler := handler.NewMessageHandler(messageSvc, hub)
+	permSvc := service.NewPermissionService(q)
+	messageSvc := service.NewMessageService(q, permSvc)
+	messageHandler := handler.NewMessageHandler(messageSvc, hub, nil)
 
 	app := fiber.New()
 

@@ -108,3 +108,38 @@ func (q *Queries) DeleteMessage(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, `DELETE FROM messages WHERE id = $1`, id)
 	return err
 }
+
+// Edit history
+
+func (q *Queries) InsertMessageEdit(ctx context.Context, messageID uuid.UUID, content string) error {
+	_, err := q.db.Exec(ctx,
+		`INSERT INTO message_edits (message_id, content) VALUES ($1, $2)`,
+		messageID, content,
+	)
+	return err
+}
+
+func (q *Queries) GetMessageEdits(ctx context.Context, messageID uuid.UUID) ([]MessageEdit, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT id, message_id, content, edited_at
+		FROM message_edits WHERE message_id = $1
+		ORDER BY edited_at DESC`, messageID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var edits []MessageEdit
+	for rows.Next() {
+		var e MessageEdit
+		if err := rows.Scan(&e.ID, &e.MessageID, &e.Content, &e.EditedAt); err != nil {
+			return nil, err
+		}
+		edits = append(edits, e)
+	}
+	if edits == nil {
+		edits = []MessageEdit{}
+	}
+	return edits, rows.Err()
+}

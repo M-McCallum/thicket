@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useState, useMemo, lazy, Suspense } from 'react'
 import type { Message } from '@/types/models'
 import AttachmentPreview from './AttachmentPreview'
 import UserProfilePopup from '@/components/profile/UserProfilePopup'
+import MarkdownRenderer from './MarkdownRenderer'
+import LinkPreviewCard from './LinkPreviewCard'
 import { useMessageStore } from '@/stores/messageStore'
 import { pins as pinsApi } from '@/services/api'
+
+const EditHistoryModal = lazy(() => import('./EditHistoryModal'))
+
+const URL_REGEX = /https?:\/\/[^\s<]+/g
 
 interface MessageItemProps {
   message: Message
@@ -13,6 +19,7 @@ interface MessageItemProps {
 export default function MessageItem({ message, isOwn }: MessageItemProps) {
   const [showProfile, setShowProfile] = useState(false)
   const [showEmojiInput, setShowEmojiInput] = useState(false)
+  const [showEditHistory, setShowEditHistory] = useState(false)
   const { setReplyingTo, toggleReaction } = useMessageStore()
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
@@ -23,6 +30,14 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   const isSticker = message.type === 'sticker'
   const isGif = !isSticker && /^https?:\/\/.*\.(gif|gifv)(\?.*)?$/i.test(message.content) ||
     /^https?:\/\/media\d*\.giphy\.com\//i.test(message.content)
+
+  // Extract URLs for link previews (skip stickers/gifs)
+  const previewUrls = useMemo(() => {
+    if (isSticker || isGif) return []
+    const matches = message.content.match(URL_REGEX)
+    if (!matches) return []
+    return [...new Set(matches)].slice(0, 3)
+  }, [message.content, isSticker, isGif])
 
   const handlePin = async () => {
     try {
@@ -123,7 +138,12 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
           </button>
           <span className="text-xs font-mono text-sol-text-muted">{time}</span>
           {message.updated_at !== message.created_at && (
-            <span className="text-xs text-sol-text-muted">(edited)</span>
+            <button
+              onClick={() => setShowEditHistory(true)}
+              className="text-xs text-sol-text-muted hover:text-sol-text-secondary hover:underline"
+            >
+              (edited)
+            </button>
           )}
         </div>
         {isSticker ? (
@@ -145,9 +165,16 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
             />
           </div>
         ) : (
-          <p className="text-sm text-sol-text-primary/90 break-words whitespace-pre-wrap">{message.content}</p>
+          <div className="text-sm text-sol-text-primary/90">
+            <MarkdownRenderer content={message.content} />
+          </div>
         )}
         {message.attachments && <AttachmentPreview attachments={message.attachments} />}
+
+        {/* Link previews */}
+        {previewUrls.map((url) => (
+          <LinkPreviewCard key={url} url={url} />
+        ))}
 
         {/* Reactions */}
         {message.reactions && message.reactions.length > 0 && (
@@ -176,6 +203,12 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
           onClose={() => setShowProfile(false)}
           preloaded={{ display_name: message.author_display_name, username: message.author_username }}
         />
+      )}
+
+      {showEditHistory && (
+        <Suspense fallback={null}>
+          <EditHistoryModal messageId={message.id} onClose={() => setShowEditHistory(false)} />
+        </Suspense>
       )}
     </div>
   )

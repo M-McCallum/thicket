@@ -210,3 +210,55 @@ type FriendshipWithUser struct {
 	AvatarURL   *string `json:"avatar_url"`
 	UserStatus  string  `json:"user_status"`
 }
+
+// Role represents a server role with permission bitmask.
+type Role struct {
+	ID          uuid.UUID  `json:"id"`
+	ServerID    uuid.UUID  `json:"server_id"`
+	Name        string     `json:"name"`
+	Color       *string    `json:"color"`
+	Position    int        `json:"position"`
+	Permissions int64      `json:"permissions,string"`
+	Hoist       bool       `json:"hoist"`
+	CreatedAt   time.Time  `json:"created_at"`
+}
+
+// ChannelPermissionOverride represents a per-channel permission override for a role.
+type ChannelPermissionOverride struct {
+	ID        uuid.UUID `json:"id"`
+	ChannelID uuid.UUID `json:"channel_id"`
+	RoleID    uuid.UUID `json:"role_id"`
+	Allow     int64     `json:"allow,string"`
+	Deny      int64     `json:"deny,string"`
+}
+
+// MemberWithRoles extends ServerMemberWithUser with role information.
+type MemberWithRoles struct {
+	ID          uuid.UUID `json:"id"`
+	Username    string    `json:"username"`
+	DisplayName *string   `json:"display_name"`
+	AvatarURL   *string   `json:"avatar_url"`
+	Status      string    `json:"status"`
+	Role        string    `json:"role"`
+	Nickname    *string   `json:"nickname"`
+	Roles       []Role    `json:"roles"`
+}
+
+// MessageEdit represents a historical version of an edited message.
+type MessageEdit struct {
+	ID        uuid.UUID `json:"id"`
+	MessageID uuid.UUID `json:"message_id"`
+	Content   string    `json:"content"`
+	EditedAt  time.Time `json:"edited_at"`
+}
+
+// LinkPreview represents cached Open Graph metadata for a URL.
+type LinkPreview struct {
+	ID          uuid.UUID `json:"id"`
+	URL         string    `json:"url"`
+	Title       *string   `json:"title"`
+	Description *string   `json:"description"`
+	ImageURL    *string   `json:"image_url"`
+	SiteName    *string   `json:"site_name"`
+	FetchedAt   time.Time `json:"fetched_at"`
+}

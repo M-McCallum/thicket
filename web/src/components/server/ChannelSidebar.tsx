@@ -2,6 +2,8 @@ import { useState, lazy, Suspense } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useHasPermission } from '@/stores/permissionStore'
+import { PermManageServer, PermManageChannels } from '@/types/permissions'
 import InviteModal from './InviteModal'
 import StickerManager from './StickerManager'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
@@ -14,6 +16,8 @@ export default function ChannelSidebar() {
   const { user } = useAuthStore()
   const activeServer = servers.find((s) => s.id === activeServerId)
   const isOwner = activeServer?.owner_id === user?.id
+  const canManageServer = useHasPermission(PermManageServer)
+  const canManageChannels = useHasPermission(PermManageChannels)
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
@@ -61,7 +65,7 @@ export default function ChannelSidebar() {
         <h2 className="font-display text-sm font-bold text-sol-text-primary truncate tracking-wide">
           {activeServer?.name ?? 'Server'}
         </h2>
-        {isOwner && (
+        {canManageServer && (
           <button
             onClick={() => setShowSettings(true)}
             className="text-sol-text-muted hover:text-sol-amber transition-colors"
@@ -83,15 +87,17 @@ export default function ChannelSidebar() {
               <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
                 Text Channels
               </span>
-              <button
-                onClick={() => openCreateModal('text')}
-                className="text-sol-text-muted hover:text-sol-amber transition-colors"
-                title="Create Text Channel"
-              >
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M10 3v14M3 10h14" />
-                </svg>
-              </button>
+              {canManageChannels && (
+                <button
+                  onClick={() => openCreateModal('text')}
+                  className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                  title="Create Text Channel"
+                >
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10 3v14M3 10h14" />
+                  </svg>
+                </button>
+              )}
             </div>
               {uncategorizedChannels.map((channel) => (
                 <button
@@ -118,15 +124,17 @@ export default function ChannelSidebar() {
               <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
                 {category.name}
               </span>
-              <button
-                onClick={() => openCreateModal('text')}
-                className="text-sol-text-muted hover:text-sol-amber transition-colors"
-                title="Create Channel"
-              >
-                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M10 3v14M3 10h14" />
-                </svg>
-              </button>
+              {canManageChannels && (
+                <button
+                  onClick={() => openCreateModal('text')}
+                  className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                  title="Create Channel"
+                >
+                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M10 3v14M3 10h14" />
+                  </svg>
+                </button>
+              )}
             </div>
             {catChannels.map((channel) => (
               <button
@@ -152,15 +160,17 @@ export default function ChannelSidebar() {
             <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
               Voice Channels
             </span>
-            <button
-              onClick={() => openCreateModal('voice')}
-              className="text-sol-text-muted hover:text-sol-amber transition-colors"
-              title="Create Voice Channel"
-            >
-              <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M10 3v14M3 10h14" />
-              </svg>
-            </button>
+            {canManageChannels && (
+              <button
+                onClick={() => openCreateModal('voice')}
+                className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                title="Create Voice Channel"
+              >
+                <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M10 3v14M3 10h14" />
+                </svg>
+              </button>
+            )}
           </div>
             {voiceChannels.map((channel) => (
               <div key={channel.id}>

@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateServer_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	server, channel, err := svc.CreateServer(context.Background(), "My Server", user.User.ID)
@@ -32,7 +32,7 @@ func TestCreateServer_Success(t *testing.T) {
 }
 
 func TestCreateServer_InvalidName_Empty(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	_, _, err := svc.CreateServer(context.Background(), "", user.User.ID)
@@ -40,7 +40,7 @@ func TestCreateServer_InvalidName_Empty(t *testing.T) {
 }
 
 func TestCreateServer_InvalidName_TooLong(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	longName := strings.Repeat("a", 101)
@@ -49,7 +49,7 @@ func TestCreateServer_InvalidName_TooLong(t *testing.T) {
 }
 
 func TestGetServer_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 	ctx := context.Background()
 
@@ -63,7 +63,7 @@ func TestGetServer_Success(t *testing.T) {
 }
 
 func TestGetServer_NotMember(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	other := createUser(t)
 	ctx := context.Background()
@@ -76,7 +76,7 @@ func TestGetServer_NotMember(t *testing.T) {
 }
 
 func TestJoinServer_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	joiner := createUser(t)
 	ctx := context.Background()
@@ -94,7 +94,7 @@ func TestJoinServer_Success(t *testing.T) {
 }
 
 func TestJoinServer_AlreadyMember(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -106,7 +106,7 @@ func TestJoinServer_AlreadyMember(t *testing.T) {
 }
 
 func TestJoinServer_InvalidCode(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	_, err := svc.JoinServer(context.Background(), "nonexistent", user.User.ID)
@@ -114,7 +114,7 @@ func TestJoinServer_InvalidCode(t *testing.T) {
 }
 
 func TestLeaveServer_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -128,7 +128,7 @@ func TestLeaveServer_Success(t *testing.T) {
 }
 
 func TestLeaveServer_OwnerBlocked(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -140,7 +140,7 @@ func TestLeaveServer_OwnerBlocked(t *testing.T) {
 }
 
 func TestDeleteServer_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -156,7 +156,7 @@ func TestDeleteServer_Success(t *testing.T) {
 }
 
 func TestDeleteServer_NotOwner(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -170,7 +170,7 @@ func TestDeleteServer_NotOwner(t *testing.T) {
 }
 
 func TestGetUserServers_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 	ctx := context.Background()
 
@@ -185,7 +185,7 @@ func TestGetUserServers_Success(t *testing.T) {
 }
 
 func TestGetUserServers_Empty(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	servers, err := svc.GetUserServers(context.Background(), user.User.ID)
@@ -195,7 +195,7 @@ func TestGetUserServers_Empty(t *testing.T) {
 }
 
 func TestGetMembers_Success(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -210,7 +210,7 @@ func TestGetMembers_Success(t *testing.T) {
 }
 
 func TestGetMembers_NotMember(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	outsider := createUser(t)
 	ctx := context.Background()
@@ -223,7 +223,7 @@ func TestGetMembers_NotMember(t *testing.T) {
 }
 
 func TestGetServer_NotFound(t *testing.T) {
-	svc := NewServerService(queries())
+	svc := NewServerService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	_, err := svc.GetServer(context.Background(), uuid.New(), user.User.ID)

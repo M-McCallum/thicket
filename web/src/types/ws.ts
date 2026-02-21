@@ -44,6 +44,10 @@ export type WSEventType =
   | 'MESSAGE_UNPIN'
   | 'REACTION_ADD'
   | 'REACTION_REMOVE'
+  | 'ROLE_CREATE'
+  | 'ROLE_UPDATE'
+  | 'ROLE_DELETE'
+  | 'MEMBER_ROLE_UPDATE'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -264,4 +268,38 @@ export interface ReactionRemoveData {
   channel_id: string
   user_id: string
   emoji: string
+}
+
+export interface RoleCreateData {
+  id: string
+  server_id: string
+  name: string
+  color: string | null
+  position: number
+  permissions: string
+  hoist: boolean
+  created_at: string
+}
+
+export interface RoleUpdateData {
+  id: string
+  server_id: string
+  name: string
+  color: string | null
+  position: number
+  permissions: string
+  hoist: boolean
+  created_at: string
+}
+
+export interface RoleDeleteData {
+  id: string
+  server_id: string
+}
+
+export interface MemberRoleUpdateData {
+  server_id: string
+  user_id: string
+  role_id: string
+  action: 'assign' | 'remove'
 }

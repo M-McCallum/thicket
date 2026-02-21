@@ -397,6 +397,21 @@ func (h *MessageHandler) RemoveReaction(c fiber.Ctx) error {
 	return c.JSON(fiber.Map{"message": "reaction removed"})
 }
 
+func (h *MessageHandler) GetEditHistory(c fiber.Ctx) error {
+	messageID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	edits, err := h.messageService.GetEditHistory(c.Context(), messageID, userID)
+	if err != nil {
+		return handleMessageError(c, err)
+	}
+
+	return c.JSON(edits)
+}
+
 func handleMessageError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrNotMember):

@@ -23,13 +23,15 @@ var (
 )
 
 type MessageService struct {
-	queries  *models.Queries
+	queries   *models.Queries
+	permSvc   *PermissionService
 	sanitizer *bluemonday.Policy
 }
 
-func NewMessageService(q *models.Queries) *MessageService {
+func NewMessageService(q *models.Queries, permSvc *PermissionService) *MessageService {
 	return &MessageService{
 		queries:   q,
+		permSvc:   permSvc,
 		sanitizer: bluemonday.StrictPolicy(),
 	}
 }
@@ -139,12 +141,40 @@ func (s *MessageService) UpdateMessage(ctx context.Context, messageID, userID uu
 		return nil, ErrNotAuthor
 	}
 
+	// Save old content to edit history
+	_ = s.queries.InsertMessageEdit(ctx, messageID, msg.Content)
+
 	updated, err := s.queries.UpdateMessage(ctx, messageID, content)
 	if err != nil {
 		return nil, err
 	}
 
 	return &updated, nil
+}
+
+func (s *MessageService) GetEditHistory(ctx context.Context, messageID, userID uuid.UUID) ([]models.MessageEdit, error) {
+	// Verify the message exists and user is a member of the channel's server
+	msg, err := s.queries.GetMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMessageNotFound
+		}
+		return nil, err
+	}
+
+	channel, err := s.queries.GetChannelByID(ctx, msg.ChannelID)
+	if err != nil {
+		return nil, err
+	}
+
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrNotMember
+		}
+		return nil, err
+	}
+
+	return s.queries.GetMessageEdits(ctx, messageID)
 }
 
 func (s *MessageService) GetMessageChannelID(ctx context.Context, messageID uuid.UUID) (uuid.UUID, error) {
@@ -172,18 +202,17 @@ func (s *MessageService) DeleteMessage(ctx context.Context, messageID, userID uu
 		return s.queries.DeleteMessage(ctx, messageID)
 	}
 
-	// Admins and owners can delete any message
+	// Users with MANAGE_MESSAGES can delete any message
 	channel, err := s.queries.GetChannelByID(ctx, msg.ChannelID)
 	if err != nil {
 		return err
 	}
 
-	member, err := s.queries.GetServerMember(ctx, channel.ServerID, userID)
+	ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, userID, models.PermManageMessages)
 	if err != nil {
 		return ErrNotMember
 	}
-
-	if member.Role != "owner" && member.Role != "admin" {
+	if !ok {
 		return ErrNotAuthor
 	}
 
@@ -205,6 +234,13 @@ func (s *MessageService) PinMessage(ctx context.Context, channelID, messageID, u
 			return ErrNotMember
 		}
 		return err
+	}
+	ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, userID, models.PermPinMessages)
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return ErrInsufficientRole
 	}
 	msg, err := s.queries.GetMessageByID(ctx, messageID)
 	if err != nil {

@@ -13,7 +13,7 @@ import (
 )
 
 func TestSendMessage_Success(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -30,7 +30,7 @@ func TestSendMessage_Success(t *testing.T) {
 }
 
 func TestSendMessage_NotMember(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	outsider := createUser(t)
 	ctx := context.Background()
@@ -43,7 +43,7 @@ func TestSendMessage_NotMember(t *testing.T) {
 }
 
 func TestSendMessage_EmptyContent(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -55,7 +55,7 @@ func TestSendMessage_EmptyContent(t *testing.T) {
 }
 
 func TestSendMessage_HTMLSanitized(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -68,7 +68,7 @@ func TestSendMessage_HTMLSanitized(t *testing.T) {
 }
 
 func TestSendMessage_ScriptTagBecomesEmpty(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -80,7 +80,7 @@ func TestSendMessage_ScriptTagBecomesEmpty(t *testing.T) {
 }
 
 func TestGetMessages_Success(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -102,7 +102,7 @@ func TestGetMessages_Success(t *testing.T) {
 }
 
 func TestGetMessages_NotMember(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	outsider := createUser(t)
 	ctx := context.Background()
@@ -115,7 +115,7 @@ func TestGetMessages_NotMember(t *testing.T) {
 }
 
 func TestGetMessages_DefaultLimit(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -129,7 +129,7 @@ func TestGetMessages_DefaultLimit(t *testing.T) {
 }
 
 func TestGetMessages_CursorPagination(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -151,7 +151,7 @@ func TestGetMessages_CursorPagination(t *testing.T) {
 }
 
 func TestUpdateMessage_Success(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -168,7 +168,7 @@ func TestUpdateMessage_Success(t *testing.T) {
 }
 
 func TestUpdateMessage_NotAuthor(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	other := createUser(t)
 	ctx := context.Background()
@@ -185,7 +185,7 @@ func TestUpdateMessage_NotAuthor(t *testing.T) {
 }
 
 func TestUpdateMessage_NotFound(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	_, err := svc.UpdateMessage(context.Background(), uuid.New(), user.User.ID, "nope")
@@ -193,7 +193,7 @@ func TestUpdateMessage_NotFound(t *testing.T) {
 }
 
 func TestUpdateMessage_EmptyContent(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -208,7 +208,7 @@ func TestUpdateMessage_EmptyContent(t *testing.T) {
 }
 
 func TestDeleteMessage_ByAuthor(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -223,7 +223,7 @@ func TestDeleteMessage_ByAuthor(t *testing.T) {
 }
 
 func TestDeleteMessage_ByOwner(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -241,7 +241,7 @@ func TestDeleteMessage_ByOwner(t *testing.T) {
 }
 
 func TestDeleteMessage_ByAdmin(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	admin := createUser(t)
 	member := createUser(t)
@@ -261,7 +261,7 @@ func TestDeleteMessage_ByAdmin(t *testing.T) {
 }
 
 func TestDeleteMessage_ByMember_Denied(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -279,7 +279,7 @@ func TestDeleteMessage_ByMember_Denied(t *testing.T) {
 }
 
 func TestDeleteMessage_NotFound(t *testing.T) {
-	svc := NewMessageService(queries())
+	svc := NewMessageService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	err := svc.DeleteMessage(context.Background(), uuid.New(), user.User.ID)

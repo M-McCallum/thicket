@@ -6,6 +6,7 @@ import { useVoiceStore } from '@/stores/voiceStore'
 import { useFriendStore } from '@/stores/friendStore'
 import { useDMCallStore } from '@/stores/dmCallStore'
 import { useAuthStore } from '@/stores/authStore'
+import { usePermissionStore } from '@/stores/permissionStore'
 import type {
   ReadyData,
   PresenceData,
@@ -31,7 +32,11 @@ import type {
   MessagePinData,
   MessageUnpinData,
   ReactionAddData,
-  ReactionRemoveData
+  ReactionRemoveData,
+  RoleCreateData,
+  RoleUpdateData,
+  RoleDeleteData,
+  MemberRoleUpdateData
 } from '@/types/ws'
 
 export function useWebSocketEvents() {
@@ -351,6 +356,54 @@ export function useWebSocketEvents() {
         if (reaction.channel_id === activeChannelId) {
           const isMe = reaction.user_id === useAuthStore.getState().user?.id
           useMessageStore.getState().removeReaction(reaction.message_id, reaction.emoji, isMe)
+        }
+      })
+    )
+
+    // ROLE_CREATE
+    unsubs.push(
+      wsService.on('ROLE_CREATE', (data) => {
+        const role = data as RoleCreateData
+        const { activeServerId } = useServerStore.getState()
+        if (role.server_id === activeServerId) {
+          usePermissionStore.getState().addRole(role)
+        }
+      })
+    )
+
+    // ROLE_UPDATE
+    unsubs.push(
+      wsService.on('ROLE_UPDATE', (data) => {
+        const role = data as RoleUpdateData
+        const { activeServerId } = useServerStore.getState()
+        if (role.server_id === activeServerId) {
+          usePermissionStore.getState().updateRole(role)
+        }
+      })
+    )
+
+    // ROLE_DELETE
+    unsubs.push(
+      wsService.on('ROLE_DELETE', (data) => {
+        const role = data as RoleDeleteData
+        const { activeServerId } = useServerStore.getState()
+        if (role.server_id === activeServerId) {
+          usePermissionStore.getState().removeRole(role.id)
+        }
+      })
+    )
+
+    // MEMBER_ROLE_UPDATE
+    unsubs.push(
+      wsService.on('MEMBER_ROLE_UPDATE', (data) => {
+        const update = data as MemberRoleUpdateData
+        const { activeServerId } = useServerStore.getState()
+        if (update.server_id === activeServerId) {
+          if (update.action === 'assign') {
+            usePermissionStore.getState().addMemberRole(update.user_id, update.role_id)
+          } else {
+            usePermissionStore.getState().removeMemberRole(update.user_id, update.role_id)
+          }
         }
       })
     )

@@ -23,10 +23,11 @@ var (
 
 type ServerService struct {
 	queries *models.Queries
+	permSvc *PermissionService
 }
 
-func NewServerService(q *models.Queries) *ServerService {
-	return &ServerService{queries: q}
+func NewServerService(q *models.Queries, permSvc *PermissionService) *ServerService {
+	return &ServerService{queries: q, permSvc: permSvc}
 }
 
 func (s *ServerService) CreateServer(ctx context.Context, name string, ownerID uuid.UUID) (*models.Server, *models.Channel, error) {
@@ -54,6 +55,11 @@ func (s *ServerService) CreateServer(ctx context.Context, name string, ownerID u
 		Role:     "owner",
 	})
 	if err != nil {
+		return nil, nil, err
+	}
+
+	// Create default @everyone role
+	if err := s.queries.CreateDefaultRoles(ctx, server.ID); err != nil {
 		return nil, nil, err
 	}
 
@@ -189,14 +195,17 @@ var (
 )
 
 func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string) (*models.Server, error) {
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
 		}
 		return nil, err
 	}
-	if member.Role != "owner" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageServer)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrInsufficientRole
 	}
 	if name != nil && (len(*name) < 1 || len(*name) > 100) {
@@ -227,14 +236,17 @@ func (s *ServerService) SetNickname(ctx context.Context, serverID, userID uuid.U
 }
 
 func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, userID uuid.UUID, name *string, topic *string, categoryID *uuid.UUID) (*models.Channel, error) {
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
 		}
 		return nil, err
 	}
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageChannels)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrInsufficientRole
 	}
 	if name != nil && (len(*name) < 1 || len(*name) > 100) {
@@ -253,14 +265,17 @@ func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, 
 }
 
 func (s *ServerService) CreateCategory(ctx context.Context, serverID, userID uuid.UUID, name string, position int32) (*models.ChannelCategory, error) {
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
 		}
 		return nil, err
 	}
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageChannels)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrInsufficientRole
 	}
 	if len(name) < 1 || len(name) > 100 {
@@ -288,14 +303,17 @@ func (s *ServerService) GetCategories(ctx context.Context, serverID, userID uuid
 }
 
 func (s *ServerService) UpdateCategory(ctx context.Context, serverID, categoryID, userID uuid.UUID, name *string, position *int32) (*models.ChannelCategory, error) {
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
 		}
 		return nil, err
 	}
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageChannels)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrInsufficientRole
 	}
 	if name != nil && (len(*name) < 1 || len(*name) > 100) {
@@ -309,14 +327,17 @@ func (s *ServerService) UpdateCategory(ctx context.Context, serverID, categoryID
 }
 
 func (s *ServerService) DeleteCategory(ctx context.Context, serverID, categoryID, userID uuid.UUID) error {
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotMember
 		}
 		return err
 	}
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageChannels)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return ErrInsufficientRole
 	}
 	return s.queries.DeleteCategory(ctx, categoryID)

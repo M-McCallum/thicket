@@ -13,23 +13,25 @@ import (
 )
 
 type Config struct {
-	ServerHandler     *handler.ServerHandler
-	MessageHandler    *handler.MessageHandler
-	DMHandler         *handler.DMHandler
-	OryHandler        *handler.OryHandler
-	LiveKitHandler    *handler.LiveKitHandler
-	UserHandler       *handler.UserHandler
-	EmojiHandler      *handler.EmojiHandler
-	GifHandler        *handler.GifHandler
-	StickerHandler    *handler.StickerHandler
-	FriendHandler     *handler.FriendHandler
-	JWKSManager       *auth.JWKSManager
-	Hub               *ws.Hub
-	CoMemberIDsFn     ws.CoMemberIDsFn
-	ServerMemberIDsFn ws.ServerMemberIDsFn
-	CORSOrigin        string
-	StorageClient     *storage.Client
-	TenorAPIKey       string
+	ServerHandler      *handler.ServerHandler
+	MessageHandler     *handler.MessageHandler
+	DMHandler          *handler.DMHandler
+	OryHandler         *handler.OryHandler
+	LiveKitHandler     *handler.LiveKitHandler
+	UserHandler        *handler.UserHandler
+	EmojiHandler       *handler.EmojiHandler
+	GifHandler         *handler.GifHandler
+	StickerHandler     *handler.StickerHandler
+	FriendHandler      *handler.FriendHandler
+	RoleHandler        *handler.RoleHandler
+	LinkPreviewHandler *handler.LinkPreviewHandler
+	JWKSManager        *auth.JWKSManager
+	Hub                *ws.Hub
+	CoMemberIDsFn      ws.CoMemberIDsFn
+	ServerMemberIDsFn  ws.ServerMemberIDsFn
+	CORSOrigin         string
+	StorageClient      *storage.Client
+	TenorAPIKey        string
 }
 
 func Setup(app *fiber.App, cfg Config) {
@@ -123,6 +125,29 @@ func Setup(app *fiber.App, cfg Config) {
 	// Reactions (emoji passed as query param ?emoji=...)
 	protected.Put("/messages/:id/reactions", cfg.MessageHandler.AddReaction)
 	protected.Delete("/messages/:id/reactions", cfg.MessageHandler.RemoveReaction)
+
+	// Edit history
+	protected.Get("/messages/:id/edits", cfg.MessageHandler.GetEditHistory)
+
+	// Roles
+	if cfg.RoleHandler != nil {
+		protected.Get("/servers/:id/roles", cfg.RoleHandler.GetRoles)
+		protected.Post("/servers/:id/roles", cfg.RoleHandler.CreateRole)
+		protected.Patch("/servers/:id/roles/:roleId", cfg.RoleHandler.UpdateRole)
+		protected.Delete("/servers/:id/roles/:roleId", cfg.RoleHandler.DeleteRole)
+		protected.Put("/servers/:id/roles/reorder", cfg.RoleHandler.ReorderRoles)
+		protected.Put("/servers/:id/members/:userId/roles/:roleId", cfg.RoleHandler.AssignRole)
+		protected.Delete("/servers/:id/members/:userId/roles/:roleId", cfg.RoleHandler.RemoveRoleFromMember)
+		protected.Get("/servers/:id/channels/:channelId/permissions", cfg.RoleHandler.GetChannelOverrides)
+		protected.Put("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.SetChannelOverride)
+		protected.Delete("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.DeleteChannelOverride)
+		protected.Get("/servers/:id/members-with-roles", cfg.RoleHandler.GetMembersWithRoles)
+	}
+
+	// Link previews
+	if cfg.LinkPreviewHandler != nil {
+		protected.Get("/link-preview", cfg.LinkPreviewHandler.GetLinkPreview)
+	}
 
 	// Direct Messages
 	protected.Post("/dm/conversations", cfg.DMHandler.CreateConversation)

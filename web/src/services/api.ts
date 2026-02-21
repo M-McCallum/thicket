@@ -10,7 +10,8 @@ import type {
   Server, Channel, Message, ServerMember,
   DMConversationWithParticipants, DMMessage, User,
   CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
-  ChannelCategory
+  ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
+  MessageEdit, LinkPreview
 } from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -202,7 +203,9 @@ export const messages = {
       body: JSON.stringify({ content })
     }),
   delete: (id: string) =>
-    request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' })
+    request<{ message: string }>(`/messages/${id}`, { method: 'DELETE' }),
+  edits: (id: string) =>
+    request<MessageEdit[]>(`/messages/${id}/edits`)
 }
 
 // Voice
@@ -394,6 +397,50 @@ export const friends = {
     request<{ message: string }>(`/friends/${id}/decline`, { method: 'POST' }),
   remove: (id: string) =>
     request<{ message: string }>(`/friends/${id}`, { method: 'DELETE' })
+}
+
+// Roles
+export const roles = {
+  list: (serverId: string) =>
+    request<Role[]>(`/servers/${serverId}/roles`),
+  create: (serverId: string, data: { name: string; color?: string; permissions: string; hoist: boolean }) =>
+    request<Role>(`/servers/${serverId}/roles`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (serverId: string, roleId: string, data: { name?: string; color?: string; permissions?: string; hoist?: boolean }) =>
+    request<Role>(`/servers/${serverId}/roles/${roleId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (serverId: string, roleId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/roles/${roleId}`, { method: 'DELETE' }),
+  reorder: (serverId: string, positions: { role_id: string; position: number }[]) =>
+    request<{ message: string }>(`/servers/${serverId}/roles/reorder`, {
+      method: 'PUT',
+      body: JSON.stringify(positions)
+    }),
+  assign: (serverId: string, userId: string, roleId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/members/${userId}/roles/${roleId}`, { method: 'PUT' }),
+  remove: (serverId: string, userId: string, roleId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/members/${userId}/roles/${roleId}`, { method: 'DELETE' }),
+  membersWithRoles: (serverId: string) =>
+    request<MemberWithRoles[]>(`/servers/${serverId}/members-with-roles`),
+  channelOverrides: (serverId: string, channelId: string) =>
+    request<ChannelPermissionOverride[]>(`/servers/${serverId}/channels/${channelId}/permissions`),
+  setChannelOverride: (serverId: string, channelId: string, roleId: string, allow: string, deny: string) =>
+    request<ChannelPermissionOverride>(`/servers/${serverId}/channels/${channelId}/permissions/${roleId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ allow, deny })
+    }),
+  deleteChannelOverride: (serverId: string, channelId: string, roleId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/channels/${channelId}/permissions/${roleId}`, { method: 'DELETE' })
+}
+
+// Link previews
+export const linkPreviews = {
+  get: (url: string) =>
+    request<LinkPreview>(`/link-preview?url=${encodeURIComponent(url)}`)
 }
 
 // Server invite preview (public)

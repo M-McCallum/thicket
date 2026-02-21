@@ -18,10 +18,11 @@ var (
 
 type ChannelService struct {
 	queries *models.Queries
+	permSvc *PermissionService
 }
 
-func NewChannelService(q *models.Queries) *ChannelService {
-	return &ChannelService{queries: q}
+func NewChannelService(q *models.Queries, permSvc *PermissionService) *ChannelService {
+	return &ChannelService{queries: q, permSvc: permSvc}
 }
 
 func (s *ChannelService) CreateChannel(ctx context.Context, serverID, userID uuid.UUID, name, channelType string) (*models.Channel, error) {
@@ -32,15 +33,18 @@ func (s *ChannelService) CreateChannel(ctx context.Context, serverID, userID uui
 		return nil, ErrInvalidChannelType
 	}
 
-	member, err := s.queries.GetServerMember(ctx, serverID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
 		}
 		return nil, err
 	}
 
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, serverID, userID, models.PermManageChannels)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
 		return nil, ErrInsufficientRole
 	}
 
@@ -82,15 +86,18 @@ func (s *ChannelService) DeleteChannel(ctx context.Context, channelID, userID uu
 		return err
 	}
 
-	member, err := s.queries.GetServerMember(ctx, channel.ServerID, userID)
-	if err != nil {
+	if _, err := s.queries.GetServerMember(ctx, channel.ServerID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotMember
 		}
 		return err
 	}
 
-	if member.Role != "owner" && member.Role != "admin" {
+	ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, userID, models.PermManageChannels)
+	if err != nil {
+		return err
+	}
+	if !ok {
 		return ErrInsufficientRole
 	}
 

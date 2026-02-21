@@ -1,6 +1,8 @@
 import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
 import { gifs, stickers as stickersApi } from '@/services/api'
 import { useMessageStore } from '@/stores/messageStore'
+import { useHasPermission } from '@/stores/permissionStore'
+import { PermSendMessages } from '@/types/permissions'
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
@@ -20,6 +22,7 @@ export function invalidateStickerCache() {
 }
 
 export default function MessageInput({ channelName, onSend }: MessageInputProps) {
+  const canSend = useHasPermission(PermSendMessages)
   const { replyingTo, setReplyingTo } = useMessageStore()
   const [input, setInput] = useState('')
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
@@ -215,9 +218,10 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className="flex-1 bg-transparent px-2 py-3 text-sol-text-primary placeholder-sol-text-muted focus:outline-none resize-none overflow-y-auto"
+          disabled={!canSend}
+          className="flex-1 bg-transparent px-2 py-3 text-sol-text-primary placeholder-sol-text-muted focus:outline-none resize-none overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ maxHeight: '200px' }}
-          placeholder={`Message #${channelName}`}
+          placeholder={canSend ? `Message #${channelName}` : 'You do not have permission to send messages'}
         />
 
         {/* Toolbar buttons */}

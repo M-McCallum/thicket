@@ -62,16 +62,17 @@ func setupApp() *fiber.App {
 	app := fiber.New()
 
 	q := queries()
-	serverSvc := service.NewServerService(q)
-	channelSvc := service.NewChannelService(q)
-	messageSvc := service.NewMessageService(q)
+	permSvc := service.NewPermissionService(q)
+	serverSvc := service.NewServerService(q, permSvc)
+	channelSvc := service.NewChannelService(q, permSvc)
+	messageSvc := service.NewMessageService(q, permSvc)
 	dmSvc := service.NewDMService(q)
 	hub := ws.NewHub()
 	go hub.Run()
 
 	serverHandler := NewServerHandler(serverSvc, channelSvc, hub)
-	messageHandler := NewMessageHandler(messageSvc, hub)
-	dmHandler := NewDMHandler(dmSvc, hub)
+	messageHandler := NewMessageHandler(messageSvc, hub, nil)
+	dmHandler := NewDMHandler(dmSvc, hub, nil)
 
 	protected := app.Group("/api", auth.Middleware(jwksMgr))
 

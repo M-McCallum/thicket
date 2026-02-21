@@ -61,9 +61,12 @@ func main() {
 	hydraClient := ory.NewHydraClient(cfg.Ory.HydraAdminURL)
 
 	// Services
-	serverService := service.NewServerService(queries)
-	channelService := service.NewChannelService(queries)
-	messageService := service.NewMessageService(queries)
+	permissionService := service.NewPermissionService(queries)
+	serverService := service.NewServerService(queries, permissionService)
+	channelService := service.NewChannelService(queries, permissionService)
+	messageService := service.NewMessageService(queries, permissionService)
+	roleService := service.NewRoleService(queries, permissionService)
+	linkPreviewService := service.NewLinkPreviewService(queries)
 	dmService := service.NewDMService(queries)
 	identityService := service.NewIdentityService(queries, kratosClient)
 	userService := service.NewUserService(queries)
@@ -131,6 +134,8 @@ func main() {
 	emojiHandler := handler.NewEmojiHandler(emojiService, serverService)
 	stickerHandler := handler.NewStickerHandler(stickerService, serverService)
 	friendHandler := handler.NewFriendHandler(friendService, hub)
+	roleHandler := handler.NewRoleHandler(roleService, serverService, hub)
+	linkPreviewHandler := handler.NewLinkPreviewHandler(linkPreviewService)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -148,22 +153,24 @@ func main() {
 	}
 
 	router.Setup(app, router.Config{
-		ServerHandler:     serverHandler,
-		MessageHandler:    messageHandler,
-		DMHandler:         dmHandler,
-		OryHandler:        oryHandler,
-		LiveKitHandler:    livekitHandler,
-		UserHandler:       userHandler,
-		EmojiHandler:      emojiHandler,
-		GifHandler:        gifHandler,
-		StickerHandler:    stickerHandler,
-		FriendHandler:     friendHandler,
-		JWKSManager:       jwksManager,
-		Hub:               hub,
-		CoMemberIDsFn:     serverService.GetUserCoMemberIDs,
-		ServerMemberIDsFn: serverService.GetServerMemberUserIDs,
-		CORSOrigin:        cfg.API.CORSOrigin,
-		StorageClient:     storageClient,
+		ServerHandler:      serverHandler,
+		MessageHandler:     messageHandler,
+		DMHandler:          dmHandler,
+		OryHandler:         oryHandler,
+		LiveKitHandler:     livekitHandler,
+		UserHandler:        userHandler,
+		EmojiHandler:       emojiHandler,
+		GifHandler:         gifHandler,
+		StickerHandler:     stickerHandler,
+		FriendHandler:      friendHandler,
+		RoleHandler:        roleHandler,
+		LinkPreviewHandler: linkPreviewHandler,
+		JWKSManager:        jwksManager,
+		Hub:                hub,
+		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,
+		ServerMemberIDsFn:  serverService.GetServerMemberUserIDs,
+		CORSOrigin:         cfg.API.CORSOrigin,
+		StorageClient:      storageClient,
 	})
 
 	addr := fmt.Sprintf("%s:%s", cfg.API.Host, cfg.API.Port)

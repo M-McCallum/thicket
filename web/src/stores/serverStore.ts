@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Server, Channel, ServerMember, ChannelCategory } from '@/types/models'
-import { servers as serversApi, channels as channelsApi, categories as categoriesApi } from '@/services/api'
+import { servers as serversApi, channels as channelsApi, categories as categoriesApi, roles as rolesApi } from '@/services/api'
+import { usePermissionStore } from './permissionStore'
 
 interface ServerState {
   servers: Server[]
@@ -72,11 +73,23 @@ export const useServerStore = create<ServerState>((set, get) => ({
     localStorage.setItem('app:activeServerId', serverId)
     set({ activeServerId: serverId, isLoading: true })
     try {
-      const [channels, members, cats] = await Promise.all([
+      const [channels, members, cats, serverRoles] = await Promise.all([
         channelsApi.list(serverId),
         serversApi.members(serverId),
-        categoriesApi.list(serverId).catch(() => [] as ChannelCategory[])
+        categoriesApi.list(serverId).catch(() => [] as ChannelCategory[]),
+        rolesApi.list(serverId).catch(() => [])
       ])
+      // Update permission store with roles
+      usePermissionStore.getState().setRoles(serverRoles)
+      // Fetch members with roles to populate memberRoleIds
+      rolesApi.membersWithRoles(serverId).then((membersWithRoles) => {
+        const permStore = usePermissionStore.getState()
+        for (const m of membersWithRoles) {
+          if (m.roles && m.roles.length > 0) {
+            permStore.setMemberRoles(m.id, m.roles.map((r) => r.id))
+          }
+        }
+      }).catch(() => {})
       const savedChannelId = localStorage.getItem('app:activeChannelId')
       const restoredChannel = savedChannelId ? channels.find((c) => c.id === savedChannelId) : null
       const textChannels = channels.filter((c) => c.type === 'text')

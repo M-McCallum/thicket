@@ -51,6 +51,10 @@ const (
 	EventMessageUnpin        = "MESSAGE_UNPIN"
 	EventReactionAdd         = "REACTION_ADD"
 	EventReactionRemove      = "REACTION_REMOVE"
+	EventRoleCreate          = "ROLE_CREATE"
+	EventRoleUpdate          = "ROLE_UPDATE"
+	EventRoleDelete          = "ROLE_DELETE"
+	EventMemberRoleUpdate    = "MEMBER_ROLE_UPDATE"
 )
 
 type Event struct {

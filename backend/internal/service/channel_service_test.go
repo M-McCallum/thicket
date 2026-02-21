@@ -12,7 +12,7 @@ import (
 )
 
 func TestCreateChannel_Success_Text(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -27,7 +27,7 @@ func TestCreateChannel_Success_Text(t *testing.T) {
 }
 
 func TestCreateChannel_Success_Voice(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -40,7 +40,7 @@ func TestCreateChannel_Success_Voice(t *testing.T) {
 }
 
 func TestCreateChannel_AdminAllowed(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	admin := createUser(t)
 	ctx := context.Background()
@@ -55,7 +55,7 @@ func TestCreateChannel_AdminAllowed(t *testing.T) {
 }
 
 func TestCreateChannel_MemberDenied(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -69,7 +69,7 @@ func TestCreateChannel_MemberDenied(t *testing.T) {
 }
 
 func TestCreateChannel_NotMember(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	outsider := createUser(t)
 	ctx := context.Background()
@@ -82,7 +82,7 @@ func TestCreateChannel_NotMember(t *testing.T) {
 }
 
 func TestCreateChannel_InvalidName_Empty(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -94,7 +94,7 @@ func TestCreateChannel_InvalidName_Empty(t *testing.T) {
 }
 
 func TestCreateChannel_InvalidType(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -106,7 +106,7 @@ func TestCreateChannel_InvalidType(t *testing.T) {
 }
 
 func TestCreateChannel_AutoPosition(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -120,7 +120,7 @@ func TestCreateChannel_AutoPosition(t *testing.T) {
 }
 
 func TestGetChannels_Success(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -134,7 +134,7 @@ func TestGetChannels_Success(t *testing.T) {
 }
 
 func TestGetChannels_NotMember(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	outsider := createUser(t)
 	ctx := context.Background()
@@ -147,7 +147,7 @@ func TestGetChannels_NotMember(t *testing.T) {
 }
 
 func TestDeleteChannel_OwnerSuccess(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	ctx := context.Background()
 
@@ -162,7 +162,7 @@ func TestDeleteChannel_OwnerSuccess(t *testing.T) {
 }
 
 func TestDeleteChannel_AdminSuccess(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	admin := createUser(t)
 	ctx := context.Background()
@@ -179,7 +179,7 @@ func TestDeleteChannel_AdminSuccess(t *testing.T) {
 }
 
 func TestDeleteChannel_MemberDenied(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	owner := createUser(t)
 	member := createUser(t)
 	ctx := context.Background()
@@ -196,7 +196,7 @@ func TestDeleteChannel_MemberDenied(t *testing.T) {
 }
 
 func TestDeleteChannel_NotFound(t *testing.T) {
-	svc := NewChannelService(queries())
+	svc := NewChannelService(queries(), NewPermissionService(queries()))
 	user := createUser(t)
 
 	err := svc.DeleteChannel(context.Background(), uuid.New(), user.User.ID)

@@ -91,6 +91,7 @@ export interface ServerMember {
   status: string
   role: 'owner' | 'admin' | 'member'
   nickname: string | null
+  roles?: Role[]
 }
 
 export interface DMConversation {
@@ -169,4 +170,44 @@ export interface ServerPreview {
   name: string
   member_count: number
   icon_url: string | null
+}
+
+export interface Role {
+  id: string
+  server_id: string
+  name: string
+  color: string | null
+  position: number
+  permissions: string // int64 serialized as string
+  hoist: boolean
+  created_at: string
+}
+
+export interface ChannelPermissionOverride {
+  id: string
+  channel_id: string
+  role_id: string
+  allow: string // int64 serialized as string
+  deny: string // int64 serialized as string
+}
+
+export interface MemberWithRoles extends ServerMember {
+  roles: Role[]
+}
+
+export interface MessageEdit {
+  id: string
+  message_id: string
+  content: string
+  edited_at: string
+}
+
+export interface LinkPreview {
+  id: string
+  url: string
+  title: string | null
+  description: string | null
+  image_url: string | null
+  site_name: string | null
+  fetched_at: string
 }
