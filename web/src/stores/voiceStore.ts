@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack } from 'livekit-client'
+import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack, AudioPresets } from 'livekit-client'
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { soundService } from '@/services/soundService'
@@ -204,7 +204,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
     // Enable microphone with saved device preference
     const savedInputId = get().selectedInputDeviceId
-    await room.localParticipant.setMicrophoneEnabled(true, savedInputId ? { deviceId: savedInputId } : undefined)
+    await room.localParticipant.setMicrophoneEnabled(
+      true,
+      savedInputId ? { deviceId: savedInputId } : undefined,
+      { audioPreset: AudioPresets.musicHighQualityStereo },
+    )
 
     // Apply saved output device
     const savedOutputId = get().selectedOutputDeviceId
