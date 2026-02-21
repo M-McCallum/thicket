@@ -32,6 +32,33 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   const [showBlockedContent, setShowBlockedContent] = useState(false)
   const [editContent, setEditContent] = useState('')
   const editRef = useRef<HTMLTextAreaElement>(null)
+  const emojiPickerRef = useRef<HTMLDivElement>(null)
+  const messageRef = useRef<HTMLDivElement>(null)
+
+  // Close emoji picker on click outside or mouse leaving message area
+  useEffect(() => {
+    if (!showEmojiInput) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiInput(false)
+      }
+    }
+    const handleMouseLeave = (e: MouseEvent) => {
+      const msg = messageRef.current
+      if (!msg) return
+      const related = e.relatedTarget as Node | null
+      if (!msg.contains(related)) {
+        setShowEmojiInput(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    messageRef.current?.addEventListener('mouseleave', handleMouseLeave)
+    const msgEl = messageRef.current
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      msgEl?.removeEventListener('mouseleave', handleMouseLeave)
+    }
+  }, [showEmojiInput])
   const { setReplyingTo, toggleReaction, editMessage, deleteMessage } = useMessageStore()
   const threadForMessage = useThreadStore((s) => s.threadsByMessage[message.id])
   const addThread = useThreadStore((s) => s.addThread)
@@ -182,7 +209,8 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
     <div
       role="article"
       aria-label={`Message from ${displayName} at ${time}`}
-      className={`message-item flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative transition-colors duration-1000 ${isHighlighted ? 'bg-sol-amber/20' : ''} ${isAuthorBlocked ? 'opacity-50' : ''}`}
+      ref={messageRef}
+      className={`message-item flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative transition-colors ${isHighlighted ? 'bg-sol-amber/20 duration-1000' : 'duration-75'} ${isAuthorBlocked ? 'opacity-50' : ''}`}
     >
       {/* Hover actions */}
       {!isEditing && (
@@ -257,7 +285,7 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
 
       {/* Quick emoji picker */}
       {showEmojiInput && (
-        <div className="absolute -top-10 right-2 flex gap-1 bg-sol-bg-secondary border border-sol-bg-elevated rounded-md shadow-lg p-1 z-20">
+        <div ref={emojiPickerRef} className="absolute -top-10 right-2 flex gap-1 bg-sol-bg-secondary border border-sol-bg-elevated rounded-md shadow-lg p-1 z-20">
           {['👍', '❤️', '😂', '😮', '😢', '🎉'].map((e) => (
             <button
               key={e}
