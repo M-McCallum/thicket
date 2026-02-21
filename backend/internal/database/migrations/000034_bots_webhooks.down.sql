@@ -1,0 +1,3 @@
+DROP TABLE IF EXISTS slash_commands;
+DROP TABLE IF EXISTS webhooks;
+DROP TABLE IF EXISTS bot_users;

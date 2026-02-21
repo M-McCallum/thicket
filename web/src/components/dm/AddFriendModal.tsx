@@ -29,6 +29,9 @@ export default function AddFriendModal({ onClose }: AddFriendModalProps) {
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Add friend"
       >
         <h3 className="font-display text-lg text-sol-amber mb-2">Add Friend</h3>
         <p className="text-sol-text-muted text-sm mb-4">Enter their username to send a friend request.</p>

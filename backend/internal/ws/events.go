@@ -77,6 +77,12 @@ const (
 	EventDMMessagePin         = "DM_MESSAGE_PIN"
 	EventDMMessageUnpin       = "DM_MESSAGE_UNPIN"
 	EventNotification         = "NOTIFICATION"
+	EventStageStart          = "STAGE_START"
+	EventStageEnd            = "STAGE_END"
+	EventStageSpeakerAdd     = "STAGE_SPEAKER_ADD"
+	EventStageSpeakerRemove  = "STAGE_SPEAKER_REMOVE"
+	EventStageHandRaise      = "STAGE_HAND_RAISE"
+	EventStageHandLower      = "STAGE_HAND_LOWER"
 )
 
 type Event struct {

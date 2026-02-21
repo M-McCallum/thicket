@@ -161,8 +161,8 @@ export default function MemberList() {
   }, [activeServerId])
 
   return (
-    <div className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col">
-      <div className="flex-1 overflow-y-auto py-2">
+    <aside className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col" aria-label="Members">
+      <div className="flex-1 overflow-y-auto py-2" role="list">
         {grouped.sections.map((section) => (
           <div key={section.label} className="mb-2">
             <div className="px-3 py-1 text-xs font-mono text-sol-text-muted uppercase tracking-wider">
@@ -258,7 +258,7 @@ export default function MemberList() {
           onClose={() => setModAction(null)}
         />
       )}
-    </div>
+    </aside>
   )
 }
 
@@ -276,6 +276,7 @@ function MemberItem({ member, color, onClick, onContextMenu }: {
 
   return (
     <div
+      role="listitem"
       onClick={onClick}
       onContextMenu={onContextMenu}
       className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg"

@@ -378,6 +378,7 @@ export default function MessageInput({ channelName, onSend, channelId, dmConvers
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           disabled={!canSend || slowModeCountdown > 0}
+          aria-label={canSend ? `Message #${channelName}` : 'You do not have permission to send messages'}
           className="flex-1 bg-transparent px-2 py-3 text-sol-text-primary placeholder-sol-text-muted focus:outline-none resize-none overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ maxHeight: '200px' }}
           placeholder={slowModeCountdown > 0 ? `Slow mode active (${slowModeCountdown}s)` : canSend ? `Message #${channelName}` : 'You do not have permission to send messages'}

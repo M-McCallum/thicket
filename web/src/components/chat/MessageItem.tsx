@@ -173,7 +173,11 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   }
 
   return (
-    <div className={`flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative transition-colors duration-1000 ${isHighlighted ? 'bg-sol-amber/20' : ''} ${isAuthorBlocked ? 'opacity-50' : ''}`}>
+    <div
+      role="article"
+      aria-label={`Message from ${displayName} at ${time}`}
+      className={`message-item flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative transition-colors duration-1000 ${isHighlighted ? 'bg-sol-amber/20' : ''} ${isAuthorBlocked ? 'opacity-50' : ''}`}
+    >
       {/* Hover actions */}
       {!isEditing && (
         <div className="absolute -top-3 right-2 hidden group-hover:flex gap-0.5 bg-sol-bg-secondary border border-sol-bg-elevated rounded-md shadow-lg z-10">
@@ -266,11 +270,11 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
         className="flex-shrink-0 hover:opacity-80 transition-opacity"
         type="button"
       >
-        <UserAvatar avatarUrl={message.author_avatar_url} username={displayName} size="sm" className="w-10 h-10" />
+        <UserAvatar avatarUrl={message.author_avatar_url} username={displayName} size="sm" className="message-avatar w-10 h-10" />
       </button>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className="message-content-wrap flex-1 min-w-0">
         {/* Reply reference */}
         {message.reply_to && (
           <div className="flex items-center gap-1.5 text-xs text-sol-text-muted mb-0.5 pl-2 border-l-2 border-sol-text-muted/30">
@@ -283,7 +287,7 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
           </div>
         )}
 
-        <div className="flex items-baseline gap-2">
+        <div className="message-header flex items-baseline gap-2">
           <button
             onClick={() => !isOwn && setShowProfile(true)}
             className={`font-medium text-sm hover:underline ${

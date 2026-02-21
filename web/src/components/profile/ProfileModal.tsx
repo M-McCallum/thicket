@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useAuthStore } from '@/stores/authStore'
 import UserAvatar from '@/components/common/UserAvatar'
+import { exports } from '@/services/api'
 
 interface ProfileModalProps {
   onClose: () => void
@@ -117,6 +118,9 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 max-h-[90vh] overflow-y-auto animate-grow-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="User profile"
       >
         {isEditing ? (
           /* Edit Mode */
@@ -302,6 +306,9 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
               </div>
             )}
 
+            {/* Data & Privacy */}
+            <DataPrivacySection />
+
             {/* Actions */}
             <div className="w-full flex flex-col gap-2 mt-2">
               <button onClick={handleEnterEdit} className="btn-primary w-full" type="button">
@@ -318,6 +325,55 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function triggerDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
+function DataPrivacySection() {
+  const [exporting, setExporting] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    try {
+      const blob = await exports.accountData()
+      triggerDownload(blob, 'account-data-export.json')
+    } catch {
+      // Could add toast later
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  return (
+    <div className="w-full border-t border-sol-bg-elevated pt-3">
+      <p className="text-xs text-sol-text-secondary uppercase tracking-wider mb-1">Data & Privacy</p>
+      <p className="text-xs text-sol-text-muted mb-3">
+        Download a copy of your account data including your profile, server memberships, and DM conversation metadata.
+      </p>
+      <button
+        onClick={handleExport}
+        disabled={exporting}
+        className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-text-primary bg-sol-bg/50 hover:bg-sol-bg-elevated/50 rounded-lg transition-colors disabled:opacity-50"
+        type="button"
+      >
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+          <polyline points="7 10 12 15 17 10" />
+          <line x1="12" y1="15" x2="12" y2="3" />
+        </svg>
+        {exporting ? 'Exporting...' : 'Download My Data'}
+      </button>
     </div>
   )
 }

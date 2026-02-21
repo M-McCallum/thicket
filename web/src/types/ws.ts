@@ -68,6 +68,12 @@ export type WSEventType =
   | 'DM_MESSAGE_PIN'
   | 'DM_MESSAGE_UNPIN'
   | 'NOTIFICATION'
+  | 'STAGE_START'
+  | 'STAGE_END'
+  | 'STAGE_SPEAKER_ADD'
+  | 'STAGE_SPEAKER_REMOVE'
+  | 'STAGE_HAND_RAISE'
+  | 'STAGE_HAND_LOWER'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -521,4 +527,43 @@ export interface PollVoteData {
     voted: boolean
   }[]
   total_votes: number
+}
+
+export interface StageStartData {
+  channel_id: string
+  instance: {
+    id: string
+    channel_id: string
+    topic: string
+    started_by: string
+    started_at: string
+  }
+  started_by: string
+}
+
+export interface StageEndData {
+  channel_id: string
+}
+
+export interface StageSpeakerAddData {
+  channel_id: string
+  user_id: string
+  username?: string
+  invited: boolean
+}
+
+export interface StageSpeakerRemoveData {
+  channel_id: string
+  user_id: string
+}
+
+export interface StageHandRaiseData {
+  channel_id: string
+  user_id: string
+  username?: string
+}
+
+export interface StageHandLowerData {
+  channel_id: string
+  user_id: string
 }

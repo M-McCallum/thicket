@@ -11,7 +11,9 @@ import type {
   DMConversationWithParticipants, DMMessage, User,
   CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
   ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
-  MessageEdit, LinkPreview, ServerInvite, PublicServer, ServerFolder,
+  MessageEdit, LinkPreview, StageInstance, StageSpeaker, StageInfo,
+  SoundboardSound, BotUser, Webhook,
+  ServerInvite, PublicServer, ServerFolder,
   DMMessageEdit, ScheduledMessage, ServerBan, ServerTimeout, AuditLogEntry,
   Thread, ThreadMessage, ThreadSubscription, ServerEvent, PollWithOptions,
   ForumTag, ForumPost, ForumPostMessage,
@@ -918,4 +920,103 @@ export const automod = {
     }),
   delete: (serverId: string, ruleId: string) =>
     request<{ message: string }>(`/servers/${serverId}/automod/rules/${ruleId}`, { method: 'DELETE' })
+}
+
+// Stage channels
+export const stage = {
+  getInfo: (channelId: string) =>
+    request<StageInfo>(`/channels/${channelId}/stage`),
+  start: (channelId: string, topic: string) =>
+    request<StageInstance>(`/channels/${channelId}/stage`, {
+      method: 'POST',
+      body: JSON.stringify({ topic })
+    }),
+  end: (channelId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/stage`, { method: 'DELETE' }),
+  addSpeaker: (channelId: string) =>
+    request<StageSpeaker>(`/channels/${channelId}/stage/speakers`, { method: 'POST' }),
+  removeSpeaker: (channelId: string, userId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/stage/speakers/${userId}`, { method: 'DELETE' }),
+  raiseHand: (channelId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/stage/hand-raise`, { method: 'POST' }),
+  lowerHand: (channelId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/stage/hand-raise`, { method: 'DELETE' }),
+  inviteToSpeak: (channelId: string, userId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/stage/invite/${userId}`, { method: 'POST' })
+}
+
+// Soundboard
+export const soundboard = {
+  list: (serverId: string) =>
+    request<SoundboardSound[]>(`/servers/${serverId}/soundboard`),
+  upload: (serverId: string, name: string, file: File, durationMs: number) => {
+    const fd = new FormData()
+    fd.append('name', name)
+    fd.append('sound', file)
+    fd.append('duration_ms', String(durationMs))
+    return requestMultipart<SoundboardSound>(`/servers/${serverId}/soundboard`, fd)
+  },
+  delete: (serverId: string, soundId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/soundboard/${soundId}`, { method: 'DELETE' })
+}
+
+// Bots
+export const bots = {
+  list: () => request<BotUser[]>('/bots'),
+  create: (username: string) =>
+    request<{ bot: BotUser; token: string }>('/bots', {
+      method: 'POST',
+      body: JSON.stringify({ username })
+    }),
+  delete: (botId: string) =>
+    request<{ message: string }>(`/bots/${botId}`, { method: 'DELETE' }),
+  regenerateToken: (botId: string) =>
+    request<{ token: string }>(`/bots/${botId}/regenerate-token`, { method: 'POST' })
+}
+
+// Webhooks
+export const webhooks = {
+  list: (channelId: string) =>
+    request<Webhook[]>(`/channels/${channelId}/webhooks`),
+  create: (channelId: string, name: string) =>
+    request<Webhook>(`/channels/${channelId}/webhooks`, {
+      method: 'POST',
+      body: JSON.stringify({ name })
+    }),
+  delete: (webhookId: string) =>
+    request<{ message: string }>(`/webhooks/${webhookId}`, { method: 'DELETE' })
+}
+
+// Exports
+export const exports = {
+  channelMessages: async (channelId: string, format: 'json' | 'html'): Promise<Blob> => {
+    const headers: Record<string, string> = {}
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
+    const response = await fetch(
+      `${API_BASE}/channels/${channelId}/export?format=${format}`,
+      { method: 'POST', headers }
+    )
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Export failed' }))
+      throw new ApiError(error.error || 'Export failed', response.status)
+    }
+    return response.blob()
+  },
+  accountData: async (): Promise<Blob> => {
+    const headers: Record<string, string> = {}
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`
+    }
+    const response = await fetch(`${API_BASE}/me/data-export`, {
+      method: 'POST',
+      headers
+    })
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ error: 'Export failed' }))
+      throw new ApiError(error.error || 'Export failed', response.status)
+    }
+    return response.blob()
+  }
 }

@@ -73,6 +73,11 @@ func main() {
 	emojiService := service.NewEmojiService(queries, storageClient)
 	stickerService := service.NewStickerService(queries, storageClient)
 	friendService := service.NewFriendService(queries)
+	stageService := service.NewStageService(queries, permissionService)
+	soundboardService := service.NewSoundboardService(queries, storageClient)
+	botService := service.NewBotService(queries)
+	webhookService := service.NewWebhookService(queries, permissionService)
+	exportService := service.NewExportService(queries)
 	forumService := service.NewForumService(queries, permissionService)
 	onboardingService := service.NewOnboardingService(queries, permissionService)
 	moderationService := service.NewModerationService(queries, permissionService)
@@ -163,6 +168,11 @@ func main() {
 	searchService := service.NewSearchService(queries)
 	searchHandler := handler.NewSearchHandler(searchService)
 	attachmentHandler := handler.NewAttachmentHandler(queries, storageClient)
+	stageHandler := handler.NewStageHandler(stageService, serverService, hub)
+	soundboardHandler := handler.NewSoundboardHandler(soundboardService, serverService)
+	botHandler := handler.NewBotHandler(botService)
+	webhookHandler := handler.NewWebhookHandler(webhookService, hub)
+	exportHandler := handler.NewExportHandler(exportService)
 	forumHandler := handler.NewForumHandler(forumService, hub)
 	onboardingHandler := handler.NewOnboardingHandler(onboardingService)
 	channelFollowHandler := handler.NewChannelFollowHandler(queries, permissionService)
@@ -221,6 +231,11 @@ func main() {
 		OnboardingHandler:        onboardingHandler,
 		ChannelFollowHandler:     channelFollowHandler,
 		AutoModHandler:           automodHandler,
+		StageHandler:       stageHandler,
+		SoundboardHandler:  soundboardHandler,
+		BotHandler:         botHandler,
+		WebhookHandler:     webhookHandler,
+		ExportHandler:      exportHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,

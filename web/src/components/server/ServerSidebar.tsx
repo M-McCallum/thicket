@@ -164,7 +164,7 @@ export default function ServerSidebar() {
   }
 
   return (
-    <div className="w-[72px] bg-sol-bg flex flex-col items-center py-3 gap-2 border-r border-sol-bg-elevated">
+    <nav role="navigation" aria-label="Servers" className="w-[72px] bg-sol-bg flex flex-col items-center py-3 gap-2 border-r border-sol-bg-elevated">
       {/* Home button */}
       <button
         onClick={() => useServerStore.getState().setActiveServerNull()}
@@ -397,6 +397,9 @@ export default function ServerSidebar() {
             onSubmit={handleCreateServer}
             onClick={(e) => e.stopPropagation()}
             className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create server"
           >
             <h3 className="font-display text-lg text-sol-amber mb-4">Create Server</h3>
             <input
@@ -432,6 +435,9 @@ export default function ServerSidebar() {
             onSubmit={handleJoinServer}
             onClick={(e) => e.stopPropagation()}
             className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Join server"
           >
             <h3 className="font-display text-lg text-sol-amber mb-4">Join Server</h3>
             <input
@@ -500,6 +506,6 @@ export default function ServerSidebar() {
           <SettingsOverlay onClose={() => setShowSettings(false)} />
         </Suspense>
       )}
-    </div>
+    </nav>
   )
 }

@@ -7,6 +7,7 @@ import { useFriendStore } from '@/stores/friendStore'
 import { useDMCallStore } from '@/stores/dmCallStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissionStore } from '@/stores/permissionStore'
+import { useStageStore } from '@/stores/stageStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useDMStore } from '@/stores/dmStore'
 import { useThreadStore } from '@/stores/threadStore'
@@ -59,7 +60,13 @@ import type {
   ThreadMessageCreateData,
   EventCreateData,
   EventDeleteData,
-  PollVoteData
+  PollVoteData,
+  StageStartData,
+  StageEndData,
+  StageSpeakerAddData,
+  StageSpeakerRemoveData,
+  StageHandRaiseData,
+  StageHandLowerData
 } from '@/types/ws'
 
 /** Fire a browser notification if permission is granted and the window/channel is not active. */
@@ -588,6 +595,54 @@ export function useWebSocketEvents() {
         if (poll.message_id) {
           useMessageStore.getState().updateMessagePoll(poll.message_id, poll)
         }
+      })
+    )
+
+    // STAGE_START
+    unsubs.push(
+      wsService.on('STAGE_START', (data) => {
+        const d = data as StageStartData
+        useStageStore.getState().handleStageStart(d.instance)
+      })
+    )
+
+    // STAGE_END
+    unsubs.push(
+      wsService.on('STAGE_END', (data) => {
+        const d = data as StageEndData
+        useStageStore.getState().handleStageEnd(d.channel_id)
+      })
+    )
+
+    // STAGE_SPEAKER_ADD
+    unsubs.push(
+      wsService.on('STAGE_SPEAKER_ADD', (data) => {
+        const d = data as StageSpeakerAddData
+        useStageStore.getState().handleSpeakerAdd(d.channel_id, d.user_id, d.invited)
+      })
+    )
+
+    // STAGE_SPEAKER_REMOVE
+    unsubs.push(
+      wsService.on('STAGE_SPEAKER_REMOVE', (data) => {
+        const d = data as StageSpeakerRemoveData
+        useStageStore.getState().handleSpeakerRemove(d.channel_id, d.user_id)
+      })
+    )
+
+    // STAGE_HAND_RAISE
+    unsubs.push(
+      wsService.on('STAGE_HAND_RAISE', (data) => {
+        const d = data as StageHandRaiseData
+        useStageStore.getState().handleHandRaise(d.channel_id, d.user_id)
+      })
+    )
+
+    // STAGE_HAND_LOWER
+    unsubs.push(
+      wsService.on('STAGE_HAND_LOWER', (data) => {
+        const d = data as StageHandLowerData
+        useStageStore.getState().handleHandLower(d.channel_id, d.user_id)
       })
     )
 

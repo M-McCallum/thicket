@@ -293,6 +293,18 @@ type MessageEdit struct {
 	EditedAt  time.Time `json:"edited_at"`
 }
 
+// SoundboardSound represents a sound in a server's soundboard.
+type SoundboardSound struct {
+	ID         uuid.UUID `json:"id"`
+	ServerID   uuid.UUID `json:"server_id"`
+	Name       string    `json:"name"`
+	ObjectKey  string    `json:"object_key"`
+	URL        string    `json:"url"`
+	DurationMs int       `json:"duration_ms"`
+	CreatorID  uuid.UUID `json:"creator_id"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
 // LinkPreview represents cached Open Graph metadata for a URL.
 type LinkPreview struct {
 	ID          uuid.UUID `json:"id"`

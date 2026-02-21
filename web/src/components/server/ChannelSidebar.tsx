@@ -125,7 +125,7 @@ export default function ChannelSidebar() {
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-sol-bg-secondary overflow-hidden">
+    <nav role="navigation" aria-label="Channels" className="flex-1 flex flex-col bg-sol-bg-secondary overflow-hidden">
       {/* Server name header */}
       <div className="h-12 flex items-center justify-between px-4 border-b border-sol-bg-elevated">
         <h2 className="font-display text-sm font-bold text-sol-text-primary truncate tracking-wide">
@@ -528,6 +528,9 @@ export default function ChannelSidebar() {
             onSubmit={handleCreateChannel}
             onClick={(e) => e.stopPropagation()}
             className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-96 animate-grow-in"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Create channel"
           >
             <h3 className="font-display text-lg text-sol-amber mb-4">
               Create {createType === 'text' ? 'Text' : createType === 'voice' ? 'Voice' : 'Forum'} Channel
@@ -538,6 +541,7 @@ export default function ChannelSidebar() {
               onChange={(e) => setNewChannelName(e.target.value)}
               className="input-field mb-4"
               placeholder="Channel name"
+              aria-label="Channel name"
               autoFocus
               required
             />
@@ -563,6 +567,6 @@ export default function ChannelSidebar() {
           </form>
         </div>
       )}
-    </div>
+    </nav>
   )
 }

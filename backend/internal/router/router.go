@@ -41,6 +41,11 @@ type Config struct {
 	OnboardingHandler        *handler.OnboardingHandler
 	ChannelFollowHandler     *handler.ChannelFollowHandler
 	AutoModHandler           *handler.AutoModHandler
+	StageHandler       *handler.StageHandler
+	SoundboardHandler  *handler.SoundboardHandler
+	BotHandler         *handler.BotHandler
+	WebhookHandler     *handler.WebhookHandler
+	ExportHandler      *handler.ExportHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -87,6 +92,11 @@ func Setup(app *fiber.App, cfg Config) {
 	if cfg.AttachmentHandler != nil {
 		app.Get("/api/attachments/:id/:filename", cfg.AttachmentHandler.ServeAttachment)
 		app.Get("/api/files/+", cfg.AttachmentHandler.ServeFile)
+	}
+
+	// Webhook execute (public — no auth, token in URL)
+	if cfg.WebhookHandler != nil {
+		app.Post("/api/webhooks/:webhookId/:token", cfg.WebhookHandler.ExecuteWebhook)
 	}
 
 	// Protected routes
@@ -371,6 +381,46 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Post("/servers/:id/automod/rules", cfg.AutoModHandler.CreateRule)
 		protected.Patch("/servers/:id/automod/rules/:ruleId", cfg.AutoModHandler.UpdateRule)
 		protected.Delete("/servers/:id/automod/rules/:ruleId", cfg.AutoModHandler.DeleteRule)
+	}
+
+	// Stage channels
+	if cfg.StageHandler != nil {
+		protected.Post("/channels/:channelId/stage", cfg.StageHandler.StartStage)
+		protected.Delete("/channels/:channelId/stage", cfg.StageHandler.EndStage)
+		protected.Get("/channels/:channelId/stage", cfg.StageHandler.GetStageInfo)
+		protected.Post("/channels/:channelId/stage/speakers", cfg.StageHandler.AddSpeaker)
+		protected.Delete("/channels/:channelId/stage/speakers/:userId", cfg.StageHandler.RemoveSpeaker)
+		protected.Post("/channels/:channelId/stage/hand-raise", cfg.StageHandler.RaiseHand)
+		protected.Delete("/channels/:channelId/stage/hand-raise", cfg.StageHandler.LowerHand)
+		protected.Post("/channels/:channelId/stage/invite/:userId", cfg.StageHandler.InviteToSpeak)
+	}
+
+	// Soundboard
+	if cfg.SoundboardHandler != nil {
+		protected.Get("/servers/:id/soundboard", cfg.SoundboardHandler.GetSounds)
+		protected.Post("/servers/:id/soundboard", cfg.SoundboardHandler.CreateSound)
+		protected.Delete("/servers/:id/soundboard/:soundId", cfg.SoundboardHandler.DeleteSound)
+	}
+
+	// Bots
+	if cfg.BotHandler != nil {
+		protected.Post("/bots", cfg.BotHandler.CreateBot)
+		protected.Get("/bots", cfg.BotHandler.ListBots)
+		protected.Delete("/bots/:botId", cfg.BotHandler.DeleteBot)
+		protected.Post("/bots/:botId/regenerate-token", cfg.BotHandler.RegenerateToken)
+	}
+
+	// Webhooks (CRUD — protected)
+	if cfg.WebhookHandler != nil {
+		protected.Get("/channels/:channelId/webhooks", cfg.WebhookHandler.ListWebhooks)
+		protected.Post("/channels/:channelId/webhooks", cfg.WebhookHandler.CreateWebhook)
+		protected.Delete("/webhooks/:webhookId", cfg.WebhookHandler.DeleteWebhook)
+	}
+
+	// Exports
+	if cfg.ExportHandler != nil {
+		protected.Post("/channels/:channelId/export", cfg.ExportHandler.ExportChannelMessages)
+		protected.Post("/me/data-export", cfg.ExportHandler.ExportAccountData)
 	}
 
 	// WebSocket

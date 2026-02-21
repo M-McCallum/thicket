@@ -24,6 +24,9 @@ export default function EditHistoryModal({ messageId, onClose }: EditHistoryModa
       <div
         className="bg-sol-bg-secondary rounded-xl p-5 w-[480px] max-h-[70vh] shadow-xl flex flex-col"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit history"
       >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-sol-text-primary">Edit History</h2>

@@ -8,6 +8,7 @@ import { threads as threadsApi } from '@/services/api'
 import type { MessageCreateData } from '@/types/ws'
 import MessageItem from './MessageItem'
 import MessageInput from './MessageInput'
+import ExportButton from './ExportButton'
 import PollCreator from './PollCreator'
 import ForumChannelView from '@/components/forum/ForumChannelView'
 import { useSearchStore } from '@/stores/searchStore'
@@ -168,7 +169,7 @@ export default function ChatArea() {
   }
 
   return (
-    <div className="flex-1 flex bg-sol-bg-tertiary">
+    <main className="flex-1 flex bg-sol-bg-tertiary" role="main">
       <div className="flex-1 flex flex-col">
         {/* Channel header */}
         <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated justify-between">
@@ -207,6 +208,10 @@ export default function ChatArea() {
                 </svg>
                 Follow
               </button>
+            )}
+            {/* Export button */}
+            {activeChannelId && activeChannel && (
+              <ExportButton channelId={activeChannelId} channelName={activeChannel.name} />
             )}
             {/* Jump to date button */}
             <div className="relative">
@@ -292,7 +297,7 @@ export default function ChatArea() {
         )}
 
         {/* Messages */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse">
+        <div ref={scrollContainerRef} className="message-list flex-1 overflow-y-auto px-4 py-2 flex flex-col-reverse">
           <div ref={messagesEndRef} />
           {messages.map((message) => (
             <MessageItem
@@ -347,6 +352,6 @@ export default function ChatArea() {
           />
         </Suspense>
       )}
-    </div>
+    </main>
   )
 }

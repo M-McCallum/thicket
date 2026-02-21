@@ -72,6 +72,8 @@ body.theme-nord {
   body {
     @apply m-0 overflow-hidden;
     font-family: 'Nunito', sans-serif;
+    --font-size-base: 15px;
+    font-size: var(--font-size-base);
   }
 
   ::-webkit-scrollbar {
@@ -89,6 +91,21 @@ body.theme-nord {
 
   ::-webkit-scrollbar-thumb:hover {
     background: rgb(var(--color-amber-dim));
+  }
+
+  /* Focus visible outlines for keyboard navigation */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-sol-amber;
+    outline-style: solid;
+  }
+
+  /* Skip link (screen reader / keyboard users) */
+  .skip-link {
+    @apply absolute -top-10 left-4 bg-sol-amber text-sol-bg px-4 py-2 rounded-b-lg z-[100] font-medium;
+    transition: top 0.2s;
+  }
+  .skip-link:focus {
+    @apply top-0;
   }
 }
 
@@ -118,5 +135,35 @@ body.theme-nord {
            text-sol-text-primary placeholder-sol-text-muted
            focus:border-sol-amber/50 focus:outline-none focus:shadow-glow-amber
            transition-all duration-200 rounded-lg;
+  }
+}
+
+/* Compact mode */
+@layer utilities {
+  .compact .message-item {
+    @apply py-1 gap-2;
+  }
+  .compact .message-avatar {
+    @apply w-6 h-6;
+  }
+  .compact .message-list {
+    @apply gap-0.5;
+  }
+
+  /* Ultra-compact mode */
+  .ultra-compact .message-item {
+    @apply py-0.5 flex-row items-baseline gap-1.5;
+  }
+  .ultra-compact .message-avatar {
+    @apply w-5 h-5;
+  }
+  .ultra-compact .message-list {
+    @apply gap-0;
+  }
+  .ultra-compact .message-content-wrap {
+    @apply flex flex-row items-baseline gap-2;
+  }
+  .ultra-compact .message-header {
+    @apply flex-shrink-0;
   }
 }

@@ -7,13 +7,15 @@ const RoleSettingsPanel = lazy(() => import('./RoleSettingsPanel'))
 const RoleEditor = lazy(() => import('./RoleEditor'))
 const ModerationPanel = lazy(() => import('./ModerationPanel'))
 const AutoModPanel = lazy(() => import('./AutoModPanel'))
+const BotSettingsPanel = lazy(() => import('./BotSettingsPanel'))
+const WebhookManager = lazy(() => import('./WebhookManager'))
 
 interface ServerSettingsModalProps {
   server: Server
   onClose: () => void
 }
 
-type Tab = 'general' | 'visibility' | 'roles' | 'members' | 'moderation' | 'welcome' | 'onboarding' | 'automod'
+type Tab = 'general' | 'visibility' | 'roles' | 'members' | 'moderation' | 'welcome' | 'onboarding' | 'automod' | 'bots' | 'webhooks'
 
 export default function ServerSettingsModal({ server, onClose }: ServerSettingsModalProps) {
   const [tab, setTab] = useState<Tab>('general')
@@ -56,6 +58,9 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
       <div
         className="bg-sol-bg-secondary rounded-xl shadow-xl w-[700px] max-h-[80vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Server settings"
       >
         {/* Tab header */}
         <div className="flex items-center border-b border-sol-bg-elevated px-6 pt-4">
@@ -138,6 +143,26 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             }`}
           >
             AutoMod
+          </button>
+          <button
+            onClick={() => setTab('bots')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'bots'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Bots
+          </button>
+          <button
+            onClick={() => setTab('webhooks')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'webhooks'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Webhooks
           </button>
           <div className="flex-1" />
           <button onClick={onClose} className="text-sol-text-muted hover:text-sol-text-primary transition-colors pb-2">
@@ -316,6 +341,18 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
           {tab === 'automod' && (
             <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
               <AutoModPanel />
+            </Suspense>
+          )}
+
+          {tab === 'bots' && (
+            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
+              <BotSettingsPanel />
+            </Suspense>
+          )}
+
+          {tab === 'webhooks' && (
+            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
+              <WebhookManager />
             </Suspense>
           )}
         </div>

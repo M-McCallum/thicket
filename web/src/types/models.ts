@@ -507,3 +507,73 @@ export interface AutoModRule {
   created_at: string
   updated_at: string
 }
+
+// Stage channels (WP22)
+export interface StageInstance {
+  id: string
+  channel_id: string
+  topic: string
+  started_by: string
+  started_at: string
+}
+
+export interface StageSpeaker {
+  channel_id: string
+  user_id: string
+  invited: boolean
+  added_at: string
+}
+
+export interface StageHandRaise {
+  channel_id: string
+  user_id: string
+  raised_at: string
+}
+
+export interface StageInfo {
+  instance: StageInstance | null
+  speakers: StageSpeaker[]
+  hand_raises: StageHandRaise[]
+}
+
+// Soundboard (WP23)
+export interface SoundboardSound {
+  id: string
+  server_id: string
+  name: string
+  url: string
+  duration_ms: number
+  creator_id: string
+  created_at: string
+}
+
+// Bot Framework & Webhooks (WP27)
+export interface BotUser {
+  id: string
+  owner_id: string
+  username: string
+  avatar_url: string
+  permissions: number
+  created_at: string
+}
+
+export interface Webhook {
+  id: string
+  channel_id: string
+  name: string
+  avatar_url: string
+  token?: string
+  creator_id: string
+  created_at: string
+  url?: string
+}
+
+export interface SlashCommand {
+  id: string
+  bot_id: string
+  name: string
+  description: string
+  options: unknown[]
+  server_id: string | null
+  created_at: string
+}

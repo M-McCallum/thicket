@@ -91,6 +91,9 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-[500px] max-h-[80vh] flex flex-col animate-grow-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Invite people"
       >
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-display text-lg text-sol-amber">Invite People</h3>

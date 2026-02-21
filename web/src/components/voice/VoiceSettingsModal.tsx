@@ -162,6 +162,9 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
       <div
         onClick={(e) => e.stopPropagation()}
         className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-6 w-[480px] max-h-[80vh] flex flex-col animate-grow-in"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Voice and video settings"
       >
         <h3 className="font-display text-lg text-sol-amber mb-4">Voice & Video Settings</h3>
 
