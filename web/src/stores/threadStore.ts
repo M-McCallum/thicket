@@ -110,6 +110,7 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
   addThreadMessage: (message) =>
     set((state) => {
       if (state.activeThread?.id !== message.thread_id) return state
+      if (state.threadMessages.some((m) => m.id === message.id)) return state
       return { threadMessages: [message, ...state.threadMessages] }
     }),
 

@@ -120,6 +120,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     set((state) => {
       // Don't add new messages if we're in a jumped state (viewing historical messages)
       if (state.isJumpedState) return state
+      if (state.messages.some((m) => m.id === message.id)) return state
       return { messages: [message, ...state.messages] }
     }),
 

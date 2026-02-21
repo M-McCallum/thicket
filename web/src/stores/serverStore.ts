@@ -129,13 +129,21 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   createServer: async (name) => {
     const result = await serversApi.create({ name })
-    set((state) => ({ servers: [...state.servers, result.server] }))
+    set((state) => ({
+      servers: state.servers.some((s) => s.id === result.server.id)
+        ? state.servers
+        : [...state.servers, result.server]
+    }))
     return result.server
   },
 
   joinServer: async (inviteCode) => {
     const server = await serversApi.join({ invite_code: inviteCode })
-    set((state) => ({ servers: [...state.servers, server] }))
+    set((state) => ({
+      servers: state.servers.some((s) => s.id === server.id)
+        ? state.servers
+        : [...state.servers, server]
+    }))
   },
 
   leaveServer: async (serverId) => {
@@ -158,7 +166,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
     const { activeServerId } = get()
     if (!activeServerId) return
     const channel = await channelsApi.create(activeServerId, { name, type, is_announcement: isAnnouncement })
-    set((state) => ({ channels: [...state.channels, channel] }))
+    get().addChannel(channel)
   },
 
   updateServer: (server) =>
@@ -209,7 +217,11 @@ export const useServerStore = create<ServerState>((set, get) => ({
     })),
 
   addMember: (member) =>
-    set((state) => ({ members: [...state.members, member] })),
+    set((state) => ({
+      members: state.members.some((m) => m.id === member.id)
+        ? state.members
+        : [...state.members, member]
+    })),
 
   removeMember: (userId) =>
     set((state) => ({ members: state.members.filter((m) => m.id !== userId) })),

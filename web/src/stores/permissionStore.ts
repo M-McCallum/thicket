@@ -26,7 +26,9 @@ export const usePermissionStore = create<PermissionState>((set) => ({
   channelOverrides: {},
 
   setRoles: (roles) => set({ roles }),
-  addRole: (role) => set((s) => ({ roles: [...s.roles, role] })),
+  addRole: (role) => set((s) => ({
+    roles: s.roles.some((r) => r.id === role.id) ? s.roles : [...s.roles, role]
+  })),
   updateRole: (role) =>
     set((s) => ({
       roles: s.roles.map((r) => (r.id === role.id ? role : r)),

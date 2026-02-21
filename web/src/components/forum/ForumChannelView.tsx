@@ -66,7 +66,7 @@ export default function ForumChannelView({ channelId, channelName }: ForumChanne
 
   const handleCreatePost = async (title: string, content: string, tagIds: string[]) => {
     const newPost = await forumApi.createPost(channelId, { title, content, tag_ids: tagIds })
-    setPosts((prev) => [newPost, ...prev])
+    setPosts((prev) => prev.some((p) => p.id === newPost.id) ? prev : [newPost, ...prev])
     setShowCreateModal(false)
   }
 

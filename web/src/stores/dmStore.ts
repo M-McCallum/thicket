@@ -182,7 +182,11 @@ export const useDMStore = create<DMState>((set, get) => ({
   },
 
   addMessage: (message) =>
-    set((state) => ({ messages: [message, ...state.messages] })),
+    set((state) => ({
+      messages: state.messages.some((m) => m.id === message.id)
+        ? state.messages
+        : [message, ...state.messages]
+    })),
 
   updateMessage: (update) =>
     set((state) => ({
@@ -231,7 +235,12 @@ export const useDMStore = create<DMState>((set, get) => ({
     set((state) => ({
       conversations: state.conversations.map((c) =>
         c.id === conversationId
-          ? { ...c, participants: [...c.participants, participant] }
+          ? {
+              ...c,
+              participants: c.participants.some((p) => p.id === participant.id)
+                ? c.participants
+                : [...c.participants, participant]
+            }
           : c
       )
     })),

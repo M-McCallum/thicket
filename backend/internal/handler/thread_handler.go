@@ -179,7 +179,7 @@ func (h *ThreadHandler) SendMessage(c fiber.Ctx) error {
 			"author_display_name": msg.AuthorDisplayName,
 			"author_avatar_url":   msg.AuthorAvatarURL,
 			"channel_id":          thread.ChannelID,
-			"message_count":       thread.MessageCount + 1,
+			"message_count":       thread.MessageCount,
 		})
 		if event != nil {
 			h.hub.BroadcastToChannel(thread.ChannelID.String(), event, nil)

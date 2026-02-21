@@ -66,7 +66,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
     setSending(true)
     try {
       const msg = await forumApi.createPostMessage(postId, replyContent.trim())
-      setMessages((prev) => [...prev, msg])
+      setMessages((prev) => prev.some((m) => m.id === msg.id) ? prev : [...prev, msg])
       setReplyContent('')
     } catch {
       // error ignored
