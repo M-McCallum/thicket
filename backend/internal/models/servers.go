@@ -17,7 +17,7 @@ func (q *Queries) CreateServer(ctx context.Context, arg CreateServerParams) (Ser
 	row := q.db.QueryRow(ctx,
 		`INSERT INTO servers (name, owner_id, invite_code)
 		VALUES ($1, $2, $3)
-		RETURNING id, name, icon_url, owner_id, invite_code, created_at, updated_at`,
+		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, created_at, updated_at`,
 		arg.Name, arg.OwnerID, arg.InviteCode,
 	)
 	return scanServer(row)
@@ -25,7 +25,7 @@ func (q *Queries) CreateServer(ctx context.Context, arg CreateServerParams) (Ser
 
 func (q *Queries) GetServerByID(ctx context.Context, id uuid.UUID) (Server, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, name, icon_url, owner_id, invite_code, created_at, updated_at
+		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, created_at, updated_at
 		FROM servers WHERE id = $1`, id,
 	)
 	return scanServer(row)
@@ -33,7 +33,7 @@ func (q *Queries) GetServerByID(ctx context.Context, id uuid.UUID) (Server, erro
 
 func (q *Queries) GetServerByInviteCode(ctx context.Context, inviteCode string) (Server, error) {
 	row := q.db.QueryRow(ctx,
-		`SELECT id, name, icon_url, owner_id, invite_code, created_at, updated_at
+		`SELECT id, name, icon_url, owner_id, invite_code, is_public, description, created_at, updated_at
 		FROM servers WHERE invite_code = $1`, inviteCode,
 	)
 	return scanServer(row)
@@ -41,7 +41,7 @@ func (q *Queries) GetServerByInviteCode(ctx context.Context, inviteCode string) 
 
 func (q *Queries) GetUserServers(ctx context.Context, userID uuid.UUID) ([]Server, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT s.id, s.name, s.icon_url, s.owner_id, s.invite_code, s.created_at, s.updated_at
+		`SELECT s.id, s.name, s.icon_url, s.owner_id, s.invite_code, s.is_public, s.description, s.created_at, s.updated_at
 		FROM servers s JOIN server_members sm ON s.id = sm.server_id
 		WHERE sm.user_id = $1 ORDER BY s.name`, userID,
 	)
@@ -65,17 +65,20 @@ func (q *Queries) GetUserServers(ctx context.Context, userID uuid.UUID) ([]Serve
 }
 
 type UpdateServerParams struct {
-	ID      uuid.UUID
-	Name    *string
-	IconURL *string
+	ID          uuid.UUID
+	Name        *string
+	IconURL     *string
+	IsPublic    *bool
+	Description *string
 }
 
 func (q *Queries) UpdateServer(ctx context.Context, arg UpdateServerParams) (Server, error) {
 	row := q.db.QueryRow(ctx,
-		`UPDATE servers SET name = COALESCE($2, name), icon_url = COALESCE($3, icon_url), updated_at = NOW()
+		`UPDATE servers SET name = COALESCE($2, name), icon_url = COALESCE($3, icon_url),
+		 is_public = COALESCE($4, is_public), description = COALESCE($5, description), updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, icon_url, owner_id, invite_code, created_at, updated_at`,
-		arg.ID, arg.Name, arg.IconURL,
+		RETURNING id, name, icon_url, owner_id, invite_code, is_public, description, created_at, updated_at`,
+		arg.ID, arg.Name, arg.IconURL, arg.IsPublic, arg.Description,
 	)
 	return scanServer(row)
 }
@@ -203,12 +206,53 @@ func (q *Queries) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID) ([]u
 
 func scanServer(row pgx.Row) (Server, error) {
 	var s Server
-	err := row.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.CreatedAt, &s.UpdatedAt)
+	err := row.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.CreatedAt, &s.UpdatedAt)
 	return s, err
 }
 
 func scanServerFromRows(rows pgx.Rows) (Server, error) {
 	var s Server
-	err := rows.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.CreatedAt, &s.UpdatedAt)
+	err := rows.Scan(&s.ID, &s.Name, &s.IconURL, &s.OwnerID, &s.InviteCode, &s.IsPublic, &s.Description, &s.CreatedAt, &s.UpdatedAt)
 	return s, err
+}
+
+// PublicServerResult is a server listing for the discovery page.
+type PublicServerResult struct {
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	IconURL     *string   `json:"icon_url"`
+	Description string    `json:"description"`
+	MemberCount int64     `json:"member_count"`
+	IsPublic    bool      `json:"is_public"`
+}
+
+func (q *Queries) GetPublicServers(ctx context.Context, query string, limit, offset int) ([]PublicServerResult, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT s.id, s.name, s.icon_url, s.description,
+		 (SELECT COUNT(*) FROM server_members WHERE server_id = s.id) as member_count,
+		 s.is_public
+		 FROM servers s
+		 WHERE s.is_public = TRUE
+		 AND (s.name ILIKE '%' || $1 || '%' OR s.description ILIKE '%' || $1 || '%')
+		 ORDER BY member_count DESC
+		 LIMIT $2 OFFSET $3`,
+		query, limit, offset,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []PublicServerResult
+	for rows.Next() {
+		var r PublicServerResult
+		if err := rows.Scan(&r.ID, &r.Name, &r.IconURL, &r.Description, &r.MemberCount, &r.IsPublic); err != nil {
+			return nil, err
+		}
+		results = append(results, r)
+	}
+	if results == nil {
+		results = []PublicServerResult{}
+	}
+	return results, rows.Err()
 }

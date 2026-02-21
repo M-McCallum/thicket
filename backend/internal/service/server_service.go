@@ -170,9 +170,10 @@ func (s *ServerService) GetUserCoMemberIDs(ctx context.Context, userID uuid.UUID
 }
 
 type ServerPreview struct {
-	Name        string `json:"name"`
-	MemberCount int64  `json:"member_count"`
+	Name        string  `json:"name"`
+	MemberCount int64   `json:"member_count"`
 	IconURL     *string `json:"icon_url"`
+	Description string  `json:"description"`
 }
 
 func (s *ServerService) GetServerPreview(ctx context.Context, inviteCode string) (*ServerPreview, error) {
@@ -185,6 +186,7 @@ func (s *ServerService) GetServerPreview(ctx context.Context, inviteCode string)
 		Name:        server.Name,
 		MemberCount: count,
 		IconURL:     server.IconURL,
+		Description: server.Description,
 	}, nil
 }
 
@@ -194,7 +196,7 @@ var (
 	ErrInvalidCategoryName = errors.New("category name must be 1-100 characters")
 )
 
-func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string) (*models.Server, error) {
+func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string, isPublic *bool, description *string) (*models.Server, error) {
 	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
@@ -212,9 +214,11 @@ func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.
 		return nil, ErrInvalidServerName
 	}
 	server, err := s.queries.UpdateServer(ctx, models.UpdateServerParams{
-		ID:      serverID,
-		Name:    name,
-		IconURL: iconURL,
+		ID:          serverID,
+		Name:        name,
+		IconURL:     iconURL,
+		IsPublic:    isPublic,
+		Description: description,
 	})
 	if err != nil {
 		return nil, err

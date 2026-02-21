@@ -6,6 +6,9 @@ import { wsService } from '@/services/ws'
 import type { MessageCreateData } from '@/types/ws'
 import MessageItem from './MessageItem'
 import MessageInput from './MessageInput'
+import { useSearchStore } from '@/stores/searchStore'
+import { useNotificationStore } from '@/stores/notificationStore'
+import { readState } from '@/services/api'
 
 const PinnedMessagesPanel = lazy(() => import('./PinnedMessagesPanel'))
 
@@ -32,6 +35,7 @@ export default function ChatArea() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const sentinelRef = useRef<HTMLDivElement>(null)
+  const setSearchOpen = useSearchStore((s) => s.setOpen)
   const activeChannel = channels.find((c) => c.id === activeChannelId)
 
   const [showDatePicker, setShowDatePicker] = useState(false)
@@ -42,6 +46,10 @@ export default function ChatArea() {
 
     clearMessages()
     fetchMessages(activeChannelId)
+
+    // Ack channel + clear unread
+    readState.ackChannel(activeChannelId).catch(() => {})
+    useNotificationStore.getState().clearUnread(activeChannelId)
 
     // Subscribe to channel via WebSocket
     wsService.subscribe(activeChannelId)
@@ -193,6 +201,16 @@ export default function ChatArea() {
                 </div>
               )}
             </div>
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="p-1.5 rounded transition-colors text-sol-text-muted hover:text-sol-text-primary"
+              title="Search (Ctrl+F)"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+            </button>
             <button
               onClick={handleTogglePins}
               className={`p-1.5 rounded transition-colors ${showPinnedPanel ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-text-primary'}`}

@@ -11,9 +11,11 @@ interface ServerState {
   activeChannelId: string | null
   members: ServerMember[]
   onlineUserIds: Set<string>
+  isDiscoverOpen: boolean
   isLoading: boolean
   error: string | null
 
+  setDiscoverOpen: (open: boolean) => void
   fetchServers: () => Promise<void>
   setActiveServer: (serverId: string) => Promise<void>
   setActiveChannel: (channelId: string) => void
@@ -47,8 +49,11 @@ export const useServerStore = create<ServerState>((set, get) => ({
   activeChannelId: null,
   members: [],
   onlineUserIds: new Set(),
+  isDiscoverOpen: false,
   isLoading: false,
   error: null,
+
+  setDiscoverOpen: (open) => set({ isDiscoverOpen: open }),
 
   fetchServers: async () => {
     set({ isLoading: true })
@@ -71,7 +76,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
 
   setActiveServer: async (serverId) => {
     localStorage.setItem('app:activeServerId', serverId)
-    set({ activeServerId: serverId, isLoading: true })
+    set({ activeServerId: serverId, isDiscoverOpen: false, isLoading: true })
     try {
       const [channels, members, cats, serverRoles] = await Promise.all([
         channelsApi.list(serverId),
@@ -245,7 +250,7 @@ export const useServerStore = create<ServerState>((set, get) => ({
   setActiveServerNull: () => {
     localStorage.removeItem('app:activeServerId')
     localStorage.removeItem('app:activeChannelId')
-    set({ activeServerId: null, channels: [], categories: [], activeChannelId: null, members: [] })
+    set({ activeServerId: null, isDiscoverOpen: false, channels: [], categories: [], activeChannelId: null, members: [] })
   },
 
   clearError: () => set({ error: null })

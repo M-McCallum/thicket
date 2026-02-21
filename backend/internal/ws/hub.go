@@ -230,6 +230,16 @@ func (h *Hub) LeaveVoiceChannel(userID uuid.UUID, channelID string) {
 	}
 }
 
+func (h *Hub) IsSubscribed(userID uuid.UUID, channelID string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	subs, ok := h.channels[channelID]
+	if !ok {
+		return false
+	}
+	return subs[userID]
+}
+
 func (h *Hub) GetVoiceParticipants(channelID string) []VoiceState {
 	h.mu.RLock()
 	defer h.mu.RUnlock()

@@ -1,9 +1,10 @@
-import { useState, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, lazy, Suspense } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useAuthStore } from '@/stores/authStore'
 import { useHasPermission } from '@/stores/permissionStore'
 import { PermManageServer, PermManageChannels } from '@/types/permissions'
+import { useNotificationStore } from '@/stores/notificationStore'
 import InviteModal from './InviteModal'
 import StickerManager from './StickerManager'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
@@ -15,6 +16,7 @@ export default function ChannelSidebar() {
   const { activeChannelId: voiceChannelId, participants, joinVoiceChannel, speakingUserIds } = useVoiceStore()
   const { user } = useAuthStore()
   const activeServer = servers.find((s) => s.id === activeServerId)
+  const channelUnread = useNotificationStore((s) => s.channelUnread)
   const isOwner = activeServer?.owner_id === user?.id
   const canManageServer = useHasPermission(PermManageServer)
   const canManageChannels = useHasPermission(PermManageChannels)
@@ -24,6 +26,32 @@ export default function ChannelSidebar() {
   const [showSettings, setShowSettings] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice'>('text')
   const [newChannelName, setNewChannelName] = useState('')
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channelId: string } | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+  const prefs = useNotificationStore((s) => s.prefs)
+  const setPref = useNotificationStore((s) => s.setPref)
+
+  // Close context menu on outside click
+  useEffect(() => {
+    if (!contextMenu) return
+    const handleClick = (e: MouseEvent) => {
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [contextMenu])
+
+  const handleChannelContextMenu = (e: React.MouseEvent, channelId: string) => {
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, channelId })
+  }
+
+  const getChannelNotifSetting = (channelId: string) => {
+    const pref = prefs.find((p) => p.scope_type === 'channel' && p.scope_id === channelId)
+    return pref?.setting ?? 'all'
+  }
 
   const openCreateModal = (type: 'text' | 'voice') => {
     setCreateType(type)
@@ -99,21 +127,34 @@ export default function ChannelSidebar() {
                 </button>
               )}
             </div>
-              {uncategorizedChannels.map((channel) => (
-                <button
-                  key={channel.id}
-                  onClick={() => setActiveChannel(channel.id)}
-                  className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
-                    ${
-                      activeChannelId === channel.id
-                        ? 'text-sol-amber bg-sol-amber/10'
-                        : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
-                    }`}
-                >
-                  <span className="text-sol-text-muted">#</span>
-                  <span className="text-sm truncate">{channel.name}</span>
-                </button>
-              ))}
+              {uncategorizedChannels.map((channel) => {
+                const unread = channelUnread[channel.id]
+                return (
+                  <button
+                    key={channel.id}
+                    onClick={() => setActiveChannel(channel.id)}
+                    onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
+                    className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
+                      ${
+                        activeChannelId === channel.id
+                          ? 'text-sol-amber bg-sol-amber/10'
+                          : unread
+                            ? 'text-sol-text-primary font-semibold hover:bg-sol-bg-elevated/50'
+                            : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                      }`}
+                  >
+                    <span className="text-sol-text-muted">#</span>
+                    <span className="text-sm truncate flex-1">{channel.name}</span>
+                    {unread && unread.count > 0 && (
+                      <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
+                        unread.mentionCount > 0 ? 'bg-red-500 text-white' : 'bg-sol-text-muted/30 text-sol-text-primary'
+                      }`}>
+                        {unread.mentionCount > 0 ? unread.mentionCount : unread.count}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
           </div>
         )}
 
@@ -136,21 +177,34 @@ export default function ChannelSidebar() {
                 </button>
               )}
             </div>
-            {catChannels.map((channel) => (
-              <button
-                key={channel.id}
-                onClick={() => setActiveChannel(channel.id)}
-                className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
-                  ${
-                    activeChannelId === channel.id
-                      ? 'text-sol-amber bg-sol-amber/10'
-                      : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
-                  }`}
-              >
-                <span className="text-sol-text-muted">#</span>
-                <span className="text-sm truncate">{channel.name}</span>
-              </button>
-            ))}
+            {catChannels.map((channel) => {
+              const unread = channelUnread[channel.id]
+              return (
+                <button
+                  key={channel.id}
+                  onClick={() => setActiveChannel(channel.id)}
+                  onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
+                  className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
+                    ${
+                      activeChannelId === channel.id
+                        ? 'text-sol-amber bg-sol-amber/10'
+                        : unread
+                          ? 'text-sol-text-primary font-semibold hover:bg-sol-bg-elevated/50'
+                          : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                    }`}
+                >
+                  <span className="text-sol-text-muted">#</span>
+                  <span className="text-sm truncate flex-1">{channel.name}</span>
+                  {unread && unread.count > 0 && (
+                    <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
+                      unread.mentionCount > 0 ? 'bg-red-500 text-white' : 'bg-sol-text-muted/30 text-sol-text-primary'
+                    }`}>
+                      {unread.mentionCount > 0 ? unread.mentionCount : unread.count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
         ))}
 
@@ -264,7 +318,7 @@ export default function ChannelSidebar() {
 
       {/* Invite modal */}
       {showInvite && activeServer && (
-        <InviteModal inviteCode={activeServer.invite_code} onClose={() => setShowInvite(false)} />
+        <InviteModal serverId={activeServerId!} onClose={() => setShowInvite(false)} />
       )}
 
       {/* Sticker manager */}
@@ -277,6 +331,43 @@ export default function ChannelSidebar() {
         <Suspense fallback={null}>
           <ServerSettingsModal server={activeServer} onClose={() => setShowSettings(false)} />
         </Suspense>
+      )}
+
+      {/* Channel notification context menu */}
+      {contextMenu && (
+        <div
+          ref={contextMenuRef}
+          className="fixed z-50 bg-sol-bg-elevated border border-sol-border rounded-lg shadow-lg py-1 w-48"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <div className="px-3 py-1.5 text-xs text-sol-text-muted font-mono uppercase tracking-wider">
+            Notifications
+          </div>
+          {(['all', 'mentions', 'none'] as const).map((setting) => {
+            const current = getChannelNotifSetting(contextMenu.channelId)
+            return (
+              <button
+                key={setting}
+                onClick={() => {
+                  setPref('channel', contextMenu.channelId, setting)
+                  setContextMenu(null)
+                }}
+                className={`w-full px-3 py-1.5 text-left text-sm transition-colors flex items-center justify-between ${
+                  current === setting
+                    ? 'text-sol-amber bg-sol-amber/10'
+                    : 'text-sol-text-secondary hover:bg-sol-bg-secondary hover:text-sol-text-primary'
+                }`}
+              >
+                <span className="capitalize">{setting}</span>
+                {current === setting && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+            )
+          })}
+        </div>
       )}
 
       {/* Create channel modal */}

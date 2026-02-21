@@ -25,7 +25,12 @@ type Config struct {
 	FriendHandler      *handler.FriendHandler
 	RoleHandler        *handler.RoleHandler
 	LinkPreviewHandler *handler.LinkPreviewHandler
+	SearchHandler      *handler.SearchHandler
 	AttachmentHandler  *handler.AttachmentHandler
+	InviteHandler          *handler.InviteHandler
+	ReadStateHandler       *handler.ReadStateHandler
+	NotificationPrefHandler *handler.NotificationPrefHandler
+	UserPrefHandler         *handler.UserPrefHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -107,6 +112,15 @@ func Setup(app *fiber.App, cfg Config) {
 	protected.Get("/servers/:id/members", cfg.ServerHandler.GetMembers)
 	protected.Patch("/servers/:id/members/me/nickname", cfg.ServerHandler.SetNickname)
 
+	// Invites & Discovery
+	if cfg.InviteHandler != nil {
+		protected.Post("/servers/:id/invites", cfg.InviteHandler.CreateInvite)
+		protected.Get("/servers/:id/invites", cfg.InviteHandler.ListInvites)
+		protected.Delete("/servers/:id/invites/:inviteId", cfg.InviteHandler.DeleteInvite)
+		protected.Post("/servers/join/invite", cfg.InviteHandler.UseInvite)
+		protected.Get("/servers/discover", cfg.InviteHandler.DiscoverServers)
+	}
+
 	// Channels
 	protected.Post("/servers/:id/channels", cfg.ServerHandler.CreateChannel)
 	protected.Get("/servers/:id/channels", cfg.ServerHandler.GetChannels)
@@ -151,6 +165,12 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Put("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.SetChannelOverride)
 		protected.Delete("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.DeleteChannelOverride)
 		protected.Get("/servers/:id/members-with-roles", cfg.RoleHandler.GetMembersWithRoles)
+	}
+
+	// Search
+	if cfg.SearchHandler != nil {
+		protected.Get("/search/messages", cfg.SearchHandler.SearchMessages)
+		protected.Get("/search/dm", cfg.SearchHandler.SearchDMMessages)
 	}
 
 	// Link previews
@@ -203,6 +223,25 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Delete("/friends/:id", cfg.FriendHandler.RemoveFriend)
 		protected.Post("/users/:id/block", cfg.FriendHandler.BlockUser)
 		protected.Delete("/users/:id/block", cfg.FriendHandler.UnblockUser)
+	}
+
+	// Read state
+	if cfg.ReadStateHandler != nil {
+		protected.Post("/channels/:channelId/ack", cfg.ReadStateHandler.AckChannel)
+		protected.Post("/dm/conversations/:id/ack", cfg.ReadStateHandler.AckDM)
+		protected.Get("/me/unread", cfg.ReadStateHandler.GetUnread)
+	}
+
+	// Notification preferences
+	if cfg.NotificationPrefHandler != nil {
+		protected.Get("/me/notification-prefs", cfg.NotificationPrefHandler.GetPrefs)
+		protected.Put("/me/notification-prefs/:scopeType/:scopeId", cfg.NotificationPrefHandler.SetPref)
+	}
+
+	// User preferences
+	if cfg.UserPrefHandler != nil {
+		protected.Get("/me/preferences", cfg.UserPrefHandler.GetPreferences)
+		protected.Patch("/me/preferences", cfg.UserPrefHandler.UpdatePreferences)
 	}
 
 	// WebSocket

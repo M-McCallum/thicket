@@ -176,6 +176,23 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 		h.hub.BroadcastToChannel(channelID.String(), event, nil)
 	}
 
+	// Broadcast mention notifications to mentioned users
+	mentionedIDs := service.ParseMentions(msg.Content)
+	for _, mentionedID := range mentionedIDs {
+		if mentionedID != userID {
+			mentionEvent, _ := ws.NewEvent(ws.EventMentionCreate, fiber.Map{
+				"channel_id": msg.ChannelID,
+				"message_id": msg.ID,
+				"author_id":  msg.AuthorID,
+				"content":    msg.Content,
+				"username":   auth.GetUsername(c),
+			})
+			if mentionEvent != nil {
+				h.hub.SendToUser(mentionedID, mentionEvent)
+			}
+		}
+	}
+
 	return c.Status(fiber.StatusCreated).JSON(msg)
 }
 

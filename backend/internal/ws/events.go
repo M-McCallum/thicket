@@ -55,6 +55,8 @@ const (
 	EventRoleUpdate          = "ROLE_UPDATE"
 	EventRoleDelete          = "ROLE_DELETE"
 	EventMemberRoleUpdate    = "MEMBER_ROLE_UPDATE"
+	EventMentionCreate       = "MENTION_CREATE"
+	EventUnreadUpdate        = "UNREAD_UPDATE"
 )
 
 type Event struct {
@@ -87,9 +89,22 @@ type PresenceData struct {
 }
 
 type ReadyData struct {
-	UserID        string   `json:"user_id"`
-	Username      string   `json:"username"`
-	OnlineUserIDs []string `json:"online_user_ids"`
+	UserID         string              `json:"user_id"`
+	Username       string              `json:"username"`
+	OnlineUserIDs  []string            `json:"online_user_ids"`
+	UnreadCounts   []UnreadCountData   `json:"unread_counts"`
+	DMUnreadCounts []DMUnreadCountData `json:"dm_unread_counts"`
+}
+
+type UnreadCountData struct {
+	ChannelID    string `json:"channel_id"`
+	UnreadCount  int    `json:"unread_count"`
+	MentionCount int    `json:"mention_count"`
+}
+
+type DMUnreadCountData struct {
+	ConversationID string `json:"conversation_id"`
+	UnreadCount    int    `json:"unread_count"`
 }
 
 type VoiceJoinData struct {

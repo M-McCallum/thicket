@@ -1,0 +1,6 @@
+CREATE TABLE user_preferences (
+  user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  theme VARCHAR(20) NOT NULL DEFAULT 'solarized-dark',
+  compact_mode BOOLEAN NOT NULL DEFAULT FALSE,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

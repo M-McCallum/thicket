@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, lazy, Suspense } from 'react'
 import ServerSidebar from '@/components/server/ServerSidebar'
 import ChannelSidebar from '@/components/server/ChannelSidebar'
 import ChatArea from '@/components/chat/ChatArea'
@@ -12,14 +12,19 @@ import FriendsList from '@/components/dm/FriendsList'
 import FriendRequests from '@/components/dm/FriendRequests'
 import AddFriendModal from '@/components/dm/AddFriendModal'
 import IncomingCallOverlay from '@/components/dm/IncomingCallOverlay'
+import SearchModal from '@/components/search/SearchModal'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
+import { useThemeStore } from '@/stores/themeStore'
 import { useWebSocketEvents } from '@/hooks/useWebSocketEvents'
+
+const DiscoverPage = lazy(() => import('@/components/server/DiscoverPage'))
 
 type DMTab = 'conversations' | 'friends' | 'requests'
 
 export default function MainLayout() {
   const { activeServerId, activeChannelId, channels, fetchServers } = useServerStore()
+  const isDiscoverOpen = useServerStore((s) => s.isDiscoverOpen)
   const { activeChannelId: voiceChannelId } = useVoiceStore()
   const [dmTab, setDMTab] = useState<DMTab>('conversations')
   const [showAddFriend, setShowAddFriend] = useState(false)
@@ -28,6 +33,11 @@ export default function MainLayout() {
 
   useEffect(() => {
     fetchServers()
+    useThemeStore.getState().loadPreferences()
+    // Request browser notification permission
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
   }, [fetchServers])
 
   // Check if the currently selected channel is a voice channel
@@ -58,6 +68,10 @@ export default function MainLayout() {
             )}
             <MemberList />
           </>
+        ) : isDiscoverOpen ? (
+          <Suspense fallback={<div className="flex-1 bg-sol-bg" />}>
+            <DiscoverPage />
+          </Suspense>
         ) : (
           <>
             {/* DM sidebar */}
@@ -119,6 +133,9 @@ export default function MainLayout() {
 
       {/* Picture-in-Picture overlay */}
       <PiPOverlay />
+
+      {/* Search modal */}
+      <SearchModal />
 
       {/* Add friend modal */}
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} />}

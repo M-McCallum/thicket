@@ -1,6 +1,7 @@
-import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
 import { gifs, stickers as stickersApi } from '@/services/api'
 import { useMessageStore } from '@/stores/messageStore'
+import { useServerStore } from '@/stores/serverStore'
 import { useHasPermission } from '@/stores/permissionStore'
 import { PermSendMessages } from '@/types/permissions'
 
@@ -31,8 +32,11 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
   const [showSticker, setShowSticker] = useState(false)
   const [hasGifs, setHasGifs] = useState(gifAvailable ?? false)
   const [hasStickers, setHasStickers] = useState(stickerAvailable ?? false)
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null)
+  const [mentionIndex, setMentionIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const members = useServerStore((s) => s.members)
 
   // Probe feature availability once
   useEffect(() => {
@@ -57,10 +61,50 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
     ta.style.height = Math.min(ta.scrollHeight, 200) + 'px'
   }, [])
 
+  const filteredMembers = useMemo(() => {
+    if (mentionQuery === null) return []
+    const q = mentionQuery.toLowerCase()
+    return members
+      .filter((m) => m.username.toLowerCase().includes(q) || (m.display_name && m.display_name.toLowerCase().includes(q)))
+      .slice(0, 8)
+  }, [mentionQuery, members])
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInput(e.target.value)
+    const value = e.target.value
+    setInput(value)
     resetHeight()
+
+    // Check for @mention trigger
+    const cursorPos = e.target.selectionStart
+    const textBefore = value.slice(0, cursorPos)
+    const atMatch = textBefore.match(/@(\w*)$/)
+    if (atMatch) {
+      setMentionQuery(atMatch[1])
+      setMentionIndex(0)
+    } else {
+      setMentionQuery(null)
+    }
   }
+
+  const insertMention = useCallback((userId: string, username: string) => {
+    const ta = textareaRef.current
+    if (!ta) return
+    const cursorPos = ta.selectionStart
+    const textBefore = input.slice(0, cursorPos)
+    const atIndex = textBefore.lastIndexOf('@')
+    if (atIndex === -1) return
+    const before = input.slice(0, atIndex)
+    const after = input.slice(cursorPos)
+    const mention = `<@${userId}>`
+    const newValue = before + mention + ' ' + after
+    setInput(newValue)
+    setMentionQuery(null)
+    requestAnimationFrame(() => {
+      const newPos = before.length + mention.length + 1
+      ta.selectionStart = ta.selectionEnd = newPos
+      ta.focus()
+    })
+  }, [input])
 
   const handleSend = async () => {
     const trimmed = input.trim()
@@ -74,6 +118,28 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (mentionQuery !== null && filteredMembers.length > 0) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setMentionIndex((i) => Math.min(i + 1, filteredMembers.length - 1))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setMentionIndex((i) => Math.max(i - 1, 0))
+        return
+      }
+      if (e.key === 'Tab' || e.key === 'Enter') {
+        e.preventDefault()
+        const member = filteredMembers[mentionIndex]
+        if (member) insertMention(member.id, member.username)
+        return
+      }
+      if (e.key === 'Escape') {
+        setMentionQuery(null)
+        return
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -187,6 +253,26 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
                 x
               </button>
             </div>
+          ))}
+        </div>
+      )}
+
+      {/* @mention autocomplete */}
+      {mentionQuery !== null && filteredMembers.length > 0 && (
+        <div className="mb-1 bg-sol-bg-secondary border border-sol-bg-elevated rounded-lg shadow-lg overflow-hidden max-h-48 overflow-y-auto">
+          {filteredMembers.map((member, i) => (
+            <button
+              key={member.id}
+              onMouseDown={(e) => { e.preventDefault(); insertMention(member.id, member.username) }}
+              className={`w-full px-3 py-2 text-left flex items-center gap-2 text-sm transition-colors ${
+                i === mentionIndex ? 'bg-sol-amber/10 text-sol-amber' : 'text-sol-text-secondary hover:bg-sol-bg-elevated'
+              }`}
+            >
+              <span className="font-medium">{member.display_name || member.username}</span>
+              {member.display_name && (
+                <span className="text-xs text-sol-text-muted">{member.username}</span>
+              )}
+            </button>
           ))}
         </div>
       )}

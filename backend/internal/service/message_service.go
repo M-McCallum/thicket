@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,28 @@ import (
 
 	"github.com/M-McCallum/thicket/internal/models"
 )
+
+var mentionRegex = regexp.MustCompile(`<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>`)
+
+func ParseMentions(content string) []uuid.UUID {
+	matches := mentionRegex.FindAllStringSubmatch(content, -1)
+	seen := make(map[uuid.UUID]bool)
+	var ids []uuid.UUID
+	for _, match := range matches {
+		if len(match) < 2 {
+			continue
+		}
+		id, err := uuid.Parse(match[1])
+		if err != nil {
+			continue
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
 
 var (
 	ErrMessageNotFound   = errors.New("message not found")
@@ -91,6 +114,16 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 	})
 	if err != nil {
 		return nil, err
+	}
+
+	// Parse mentions and create notifications
+	mentionedIDs := ParseMentions(content)
+	if len(mentionedIDs) > 0 {
+		for _, mentionedID := range mentionedIDs {
+			if mentionedID != authorID { // Don't notify yourself
+				_ = s.queries.CreateMentionNotification(ctx, mentionedID, msg.ID, channelID, channel.ServerID)
+			}
+		}
 	}
 
 	return &msg, nil

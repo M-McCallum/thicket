@@ -19,7 +19,29 @@ export interface Server {
   icon_url: string | null
   owner_id: string
   invite_code: string
+  is_public?: boolean
+  description?: string
   created_at: string
+}
+
+export interface ServerInvite {
+  id: string
+  server_id: string
+  creator_id: string
+  code: string
+  max_uses: number | null
+  uses: number
+  expires_at: string | null
+  created_at: string
+}
+
+export interface PublicServer {
+  id: string
+  name: string
+  icon_url: string | null
+  description: string
+  member_count: number
+  is_public: boolean
 }
 
 export interface Channel {

@@ -1,3 +1,65 @@
+/* Theme definitions — space-separated RGB values for Tailwind opacity support */
+:root,
+body.theme-solarized-dark {
+  --color-bg: 20 30 19;
+  --color-bg-secondary: 28 42 26;
+  --color-bg-tertiary: 36 50 34;
+  --color-bg-elevated: 47 61 44;
+  --color-amber: 232 169 38;
+  --color-amber-dim: 176 128 32;
+  --color-rose: 196 122 138;
+  --color-rose-dim: 154 90 104;
+  --color-green: 92 186 92;
+  --color-green-dim: 61 138 61;
+  --color-coral: 217 104 80;
+  --color-coral-dim: 160 72 56;
+  --color-sage: 138 173 120;
+  --color-sage-dim: 106 138 94;
+  --color-text-primary: 232 224 208;
+  --color-text-secondary: 154 146 128;
+  --color-text-muted: 96 88 72;
+}
+
+body.theme-solarized-light {
+  --color-bg: 253 246 227;
+  --color-bg-secondary: 238 232 213;
+  --color-bg-tertiary: 232 226 207;
+  --color-bg-elevated: 221 214 193;
+  --color-amber: 181 137 0;
+  --color-amber-dim: 138 104 0;
+  --color-rose: 211 54 130;
+  --color-rose-dim: 160 40 96;
+  --color-green: 133 153 0;
+  --color-green-dim: 90 110 0;
+  --color-coral: 203 75 22;
+  --color-coral-dim: 154 56 16;
+  --color-sage: 42 161 152;
+  --color-sage-dim: 28 122 114;
+  --color-text-primary: 7 54 66;
+  --color-text-secondary: 88 110 117;
+  --color-text-muted: 147 161 161;
+}
+
+body.theme-nord {
+  --color-bg: 46 52 64;
+  --color-bg-secondary: 59 66 82;
+  --color-bg-tertiary: 67 76 94;
+  --color-bg-elevated: 76 86 106;
+  --color-amber: 235 203 139;
+  --color-amber-dim: 212 166 74;
+  --color-rose: 180 142 173;
+  --color-rose-dim: 140 106 136;
+  --color-green: 163 190 140;
+  --color-green-dim: 122 154 102;
+  --color-coral: 191 97 106;
+  --color-coral-dim: 160 72 80;
+  --color-sage: 136 192 208;
+  --color-sage-dim: 94 152 170;
+  --color-text-primary: 236 239 244;
+  --color-text-secondary: 216 222 233;
+  --color-text-muted: 76 86 106;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -13,19 +75,20 @@
   }
 
   ::-webkit-scrollbar {
-    @apply w-2;
+    width: 8px;
   }
 
   ::-webkit-scrollbar-track {
-    @apply bg-sol-bg-secondary;
+    background: rgb(var(--color-bg-secondary));
   }
 
   ::-webkit-scrollbar-thumb {
-    @apply bg-sol-bg-elevated rounded-full;
+    background: rgb(var(--color-bg-elevated));
+    border-radius: 9999px;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-sol-amber-dim;
+    background: rgb(var(--color-amber-dim));
   }
 }
 

@@ -22,6 +22,8 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   const [showEmojiInput, setShowEmojiInput] = useState(false)
   const [showEditHistory, setShowEditHistory] = useState(false)
   const { setReplyingTo, toggleReaction } = useMessageStore()
+  const highlightedMessageId = useMessageStore((s) => s.highlightedMessageId)
+  const isHighlighted = highlightedMessageId === message.id
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -54,7 +56,7 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   }
 
   return (
-    <div className="flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative">
+    <div className={`flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group relative transition-colors duration-1000 ${isHighlighted ? 'bg-sol-amber/20' : ''}`}>
       {/* Hover actions */}
       <div className="absolute -top-3 right-2 hidden group-hover:flex gap-0.5 bg-sol-bg-secondary border border-sol-bg-elevated rounded-md shadow-lg z-10">
         <button

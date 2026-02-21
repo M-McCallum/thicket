@@ -48,6 +48,8 @@ export type WSEventType =
   | 'ROLE_UPDATE'
   | 'ROLE_DELETE'
   | 'MEMBER_ROLE_UPDATE'
+  | 'MENTION_CREATE'
+  | 'UNREAD_UPDATE'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -306,4 +308,17 @@ export interface MemberRoleUpdateData {
   user_id: string
   role_id: string
   action: 'assign' | 'remove'
+}
+
+export interface MentionCreateData {
+  channel_id: string
+  message_id: string
+  author_id: string
+  content: string
+  username: string
+}
+
+export interface UnreadUpdateData {
+  channel_id: string
+  count: number
 }

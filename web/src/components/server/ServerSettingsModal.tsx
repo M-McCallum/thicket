@@ -9,11 +9,13 @@ interface ServerSettingsModalProps {
   onClose: () => void
 }
 
-type Tab = 'general' | 'members'
+type Tab = 'general' | 'visibility' | 'members'
 
 export default function ServerSettingsModal({ server, onClose }: ServerSettingsModalProps) {
   const [tab, setTab] = useState<Tab>('general')
   const [name, setName] = useState(server.name)
+  const [isPublic, setIsPublic] = useState(server.is_public ?? false)
+  const [description, setDescription] = useState(server.description ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -26,6 +28,19 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update server')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleSaveVisibility = async () => {
+    setSaving(true)
+    setError('')
+    try {
+      await serversApi.update(server.id, { is_public: isPublic, description: description.trim() })
+      onClose()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update visibility')
     } finally {
       setSaving(false)
     }
@@ -48,6 +63,16 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             }`}
           >
             General
+          </button>
+          <button
+            onClick={() => setTab('visibility')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'visibility'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Visibility
           </button>
           <button
             onClick={() => setTab('members')}
@@ -113,6 +138,69 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
                 <button
                   onClick={handleSave}
                   disabled={saving || !name.trim()}
+                  className="px-4 py-2 bg-sol-amber/20 text-sol-amber rounded-lg hover:bg-sol-amber/30 disabled:opacity-50 transition-colors"
+                >
+                  {saving ? 'Saving...' : 'Save'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {tab === 'visibility' && (
+            <div className="space-y-4 max-w-md">
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <div>
+                    <label className="block text-sm text-sol-text-secondary">Public Server</label>
+                    <p className="text-xs text-sol-text-muted mt-0.5">
+                      Allow anyone to find and join this server through Discover.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setIsPublic(!isPublic)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isPublic ? 'bg-sol-amber' : 'bg-sol-bg-elevated'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                        isPublic ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm text-sol-text-secondary mb-1">Description</label>
+                <p className="text-xs text-sol-text-muted mb-2">
+                  A short description shown on the Discover page.
+                </p>
+                <textarea
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={500}
+                  rows={4}
+                  placeholder="Tell people what this server is about..."
+                  className="w-full bg-sol-bg-tertiary border border-sol-bg-elevated rounded-lg px-3 py-2 text-sol-text-primary text-sm focus:outline-none focus:border-sol-amber/30 resize-none"
+                />
+                <p className="text-xs text-sol-text-muted mt-1 text-right">
+                  {description.length}/500
+                </p>
+              </div>
+
+              {error && <p className="text-sm text-sol-coral">{error}</p>}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 text-sol-text-muted hover:text-sol-text-primary transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSaveVisibility}
+                  disabled={saving}
                   className="px-4 py-2 bg-sol-amber/20 text-sol-amber rounded-lg hover:bg-sol-amber/30 disabled:opacity-50 transition-colors"
                 >
                   {saving ? 'Saving...' : 'Save'}

@@ -3,7 +3,8 @@ export interface CreateServerRequest {
 }
 
 export interface JoinServerRequest {
-  invite_code: string
+  invite_code?: string
+  server_id?: string
 }
 
 export interface CreateChannelRequest {

@@ -12,6 +12,42 @@ interface MarkdownRendererProps {
   content: string
 }
 
+// Custom remark plugin for <@uuid> mention syntax
+const remarkMentions: Plugin = () => {
+  return (tree) => {
+    visit(tree, 'text', (node: Text, index: number | undefined, parent: Parent | undefined) => {
+      if (index === undefined || !parent) return
+
+      const mentionRegex = /<@([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>/g
+      const value = node.value
+      let match = mentionRegex.exec(value)
+      if (!match) return
+
+      const children: (Text | { type: string; value: string; data: { hName: string } })[] = []
+      let lastIndex = 0
+
+      mentionRegex.lastIndex = 0
+      while ((match = mentionRegex.exec(value)) !== null) {
+        if (match.index > lastIndex) {
+          children.push({ type: 'text', value: value.slice(lastIndex, match.index) } as Text)
+        }
+        children.push({
+          type: 'mention',
+          value: match[1],
+          data: { hName: 'mention' }
+        })
+        lastIndex = match.index + match[0].length
+      }
+
+      if (lastIndex < value.length) {
+        children.push({ type: 'text', value: value.slice(lastIndex) } as Text)
+      }
+
+      parent.children.splice(index, 1, ...children as any[])
+    })
+  }
+}
+
 // Custom remark plugin for ||spoiler|| syntax
 const remarkSpoiler: Plugin = () => {
   return (tree) => {
@@ -123,8 +159,16 @@ const components: Components = {
   ol({ children }) {
     return <ol className="list-decimal pl-5 my-1">{children}</ol>
   },
-  // Handle spoiler custom element
+  // Handle mention custom element
   // @ts-expect-error custom element
+  mention({ value }: { value: string }) {
+    return (
+      <span className="text-sol-amber bg-sol-amber/10 rounded px-0.5 cursor-pointer hover:bg-sol-amber/20">
+        @{value.slice(0, 8)}...
+      </span>
+    )
+  },
+  // Handle spoiler custom element
   spoiler({ value }: { value: string }) {
     return <SpoilerText>{value}</SpoilerText>
   }
@@ -134,7 +178,7 @@ export default function MarkdownRenderer({ content }: MarkdownRendererProps) {
   return (
     <div className="markdown-content whitespace-pre-wrap break-words">
       <ReactMarkdown
-        remarkPlugins={[remarkGfm, remarkSpoiler]}
+        remarkPlugins={[remarkGfm, remarkMentions, remarkSpoiler]}
         rehypePlugins={[rehypeHighlight]}
         components={components}
       >

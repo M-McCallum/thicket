@@ -7,9 +7,11 @@ import { useFriendStore } from '@/stores/friendStore'
 import { useDMCallStore } from '@/stores/dmCallStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissionStore } from '@/stores/permissionStore'
+import { useNotificationStore } from '@/stores/notificationStore'
 import type {
   ReadyData,
   PresenceData,
+  MessageCreateData,
   MessageDeleteData,
   MessageUpdateData,
   ChannelCreateData,
@@ -36,20 +38,68 @@ import type {
   RoleCreateData,
   RoleUpdateData,
   RoleDeleteData,
-  MemberRoleUpdateData
+  MemberRoleUpdateData,
+  MentionCreateData,
+  DMMessageCreateData
 } from '@/types/ws'
 
 export function useWebSocketEvents() {
   useEffect(() => {
     const unsubs: (() => void)[] = []
 
-    // READY — store online user IDs (applied immediately if members are loaded,
-    // otherwise applied when members arrive in setActiveServer)
+    // READY — store online user IDs + load unread counts
     unsubs.push(
       wsService.on('READY', (data) => {
         const ready = data as ReadyData
         if (ready.online_user_ids) {
           useServerStore.getState().setOnlineUserIds(ready.online_user_ids)
+        }
+        // Load unread counts from API
+        useNotificationStore.getState().init()
+      })
+    )
+
+    // MESSAGE_CREATE — central handler for unread tracking
+    unsubs.push(
+      wsService.on('MESSAGE_CREATE', (data) => {
+        const msg = data as MessageCreateData
+        const { activeChannelId, activeServerId } = useServerStore.getState()
+        const currentUserId = useAuthStore.getState().user?.id
+        // If it's not the active channel and not our own message, check prefs
+        if (msg.channel_id !== activeChannelId && msg.author_id !== currentUserId) {
+          const setting = useNotificationStore.getState().getEffectiveSetting(msg.channel_id, activeServerId)
+          if (setting !== 'none') {
+            useNotificationStore.getState().incrementUnread(msg.channel_id)
+          }
+        }
+      })
+    )
+
+    // DM_MESSAGE_CREATE — central handler for DM unread tracking
+    unsubs.push(
+      wsService.on('DM_MESSAGE_CREATE', (data) => {
+        const msg = data as DMMessageCreateData
+        const currentUserId = useAuthStore.getState().user?.id
+        if (msg.author_id !== currentUserId) {
+          useNotificationStore.getState().incrementDMUnread(msg.conversation_id)
+        }
+      })
+    )
+
+    // MENTION_CREATE — increment mention count + browser notification (respects prefs)
+    unsubs.push(
+      wsService.on('MENTION_CREATE', (data) => {
+        const mention = data as MentionCreateData
+        const { activeServerId } = useServerStore.getState()
+        const setting = useNotificationStore.getState().getEffectiveSetting(mention.channel_id, activeServerId)
+        if (setting === 'none') return
+        useNotificationStore.getState().incrementMention(mention.channel_id)
+        // Browser notification
+        if (Notification.permission === 'granted') {
+          new Notification(`@${mention.username} mentioned you`, {
+            body: mention.content.slice(0, 100),
+            tag: mention.message_id
+          })
         }
       })
     )

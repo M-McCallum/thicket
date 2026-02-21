@@ -73,6 +73,10 @@ func main() {
 	emojiService := service.NewEmojiService(queries, storageClient)
 	stickerService := service.NewStickerService(queries, storageClient)
 	friendService := service.NewFriendService(queries)
+	inviteService := service.NewInviteService(queries, permissionService)
+	readStateService := service.NewReadStateService(queries)
+	notifPrefService := service.NewNotificationPrefService(queries)
+	userPrefService := service.NewUserPrefService(queries)
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -134,9 +138,15 @@ func main() {
 	emojiHandler := handler.NewEmojiHandler(emojiService, serverService)
 	stickerHandler := handler.NewStickerHandler(stickerService, serverService)
 	friendHandler := handler.NewFriendHandler(friendService, hub)
+	inviteHandler := handler.NewInviteHandler(inviteService, serverService, hub)
 	roleHandler := handler.NewRoleHandler(roleService, serverService, hub)
 	linkPreviewHandler := handler.NewLinkPreviewHandler(linkPreviewService)
+	searchService := service.NewSearchService(queries)
+	searchHandler := handler.NewSearchHandler(searchService)
 	attachmentHandler := handler.NewAttachmentHandler(queries, storageClient)
+	readStateHandler := handler.NewReadStateHandler(readStateService)
+	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefService)
+	userPrefHandler := handler.NewUserPrefHandler(userPrefService)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -166,7 +176,12 @@ func main() {
 		FriendHandler:      friendHandler,
 		RoleHandler:        roleHandler,
 		LinkPreviewHandler: linkPreviewHandler,
+		SearchHandler:      searchHandler,
 		AttachmentHandler:  attachmentHandler,
+		InviteHandler:          inviteHandler,
+		ReadStateHandler:       readStateHandler,
+		NotificationPrefHandler: notifPrefHandler,
+		UserPrefHandler:         userPrefHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,

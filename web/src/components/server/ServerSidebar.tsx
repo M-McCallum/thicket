@@ -1,15 +1,19 @@
-import { useState } from 'react'
+import { useState, lazy, Suspense } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
 import UserAvatar from '@/components/common/UserAvatar'
 import ProfileModal from '@/components/profile/ProfileModal'
 
+const SettingsOverlay = lazy(() => import('@/components/settings/SettingsOverlay'))
+
 export default function ServerSidebar() {
   const { servers, activeServerId, setActiveServer, createServer, joinServer } = useServerStore()
+  const isDiscoverOpen = useServerStore((s) => s.isDiscoverOpen)
   const { user } = useAuthStore()
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [newServerName, setNewServerName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
 
@@ -94,7 +98,41 @@ export default function ServerSidebar() {
         </svg>
       </button>
 
+      {/* Discover servers */}
+      <button
+        onClick={() => {
+          useServerStore.getState().setActiveServerNull()
+          useServerStore.getState().setDiscoverOpen(true)
+        }}
+        className={`w-12 h-12 rounded-2xl flex items-center justify-center
+                   hover:bg-sol-cyan/20 hover:rounded-xl transition-all duration-200
+                   ${isDiscoverOpen
+                     ? 'bg-sol-cyan/20 rounded-xl text-sol-cyan'
+                     : 'bg-sol-bg-secondary text-sol-cyan/50 hover:text-sol-cyan'
+                   }`}
+        title="Discover Servers"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      </button>
+
       <div className="flex-1" />
+
+      {/* Settings gear */}
+      <button
+        onClick={() => setShowSettings(true)}
+        className="w-10 h-10 rounded-full flex items-center justify-center
+                   text-sol-text-muted hover:text-sol-text-primary hover:bg-sol-bg-secondary
+                   transition-all duration-200"
+        title="User Settings"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <circle cx="12" cy="12" r="3" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+        </svg>
+      </button>
 
       {/* User avatar / profile */}
       <button
@@ -168,6 +206,13 @@ export default function ServerSidebar() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Settings overlay */}
+      {showSettings && (
+        <Suspense fallback={null}>
+          <SettingsOverlay onClose={() => setShowSettings(false)} />
+        </Suspense>
       )}
     </div>
   )

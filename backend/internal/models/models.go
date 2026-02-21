@@ -24,13 +24,15 @@ type User struct {
 }
 
 type Server struct {
-	ID         uuid.UUID  `json:"id"`
-	Name       string     `json:"name"`
-	IconURL    *string    `json:"icon_url"`
-	OwnerID    uuid.UUID  `json:"owner_id"`
-	InviteCode string     `json:"invite_code"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	ID          uuid.UUID `json:"id"`
+	Name        string    `json:"name"`
+	IconURL     *string   `json:"icon_url"`
+	OwnerID     uuid.UUID `json:"owner_id"`
+	InviteCode  string    `json:"invite_code"`
+	IsPublic    bool      `json:"is_public"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type ServerMember struct {

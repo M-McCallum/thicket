@@ -5,37 +5,37 @@ export default {
     extend: {
       colors: {
         'sol-bg': {
-          DEFAULT: '#141e13',
-          secondary: '#1c2a1a',
-          tertiary: '#243222',
-          elevated: '#2f3d2c'
+          DEFAULT: 'rgb(var(--color-bg) / <alpha-value>)',
+          secondary: 'rgb(var(--color-bg-secondary) / <alpha-value>)',
+          tertiary: 'rgb(var(--color-bg-tertiary) / <alpha-value>)',
+          elevated: 'rgb(var(--color-bg-elevated) / <alpha-value>)'
         },
         'sol-amber': {
-          DEFAULT: '#e8a926',
-          dim: '#b08020',
-          glow: '#e8a92640'
+          DEFAULT: 'rgb(var(--color-amber) / <alpha-value>)',
+          dim: 'rgb(var(--color-amber-dim) / <alpha-value>)',
+          glow: 'rgb(var(--color-amber) / 0.25)'
         },
         'sol-rose': {
-          DEFAULT: '#c47a8a',
-          dim: '#9a5a68',
-          glow: '#c47a8a40'
+          DEFAULT: 'rgb(var(--color-rose) / <alpha-value>)',
+          dim: 'rgb(var(--color-rose-dim) / <alpha-value>)',
+          glow: 'rgb(var(--color-rose) / 0.25)'
         },
         'sol-green': {
-          DEFAULT: '#5cba5c',
-          dim: '#3d8a3d'
+          DEFAULT: 'rgb(var(--color-green) / <alpha-value>)',
+          dim: 'rgb(var(--color-green-dim) / <alpha-value>)'
         },
         'sol-coral': {
-          DEFAULT: '#d96850',
-          dim: '#a04838'
+          DEFAULT: 'rgb(var(--color-coral) / <alpha-value>)',
+          dim: 'rgb(var(--color-coral-dim) / <alpha-value>)'
         },
         'sol-sage': {
-          DEFAULT: '#8aad78',
-          dim: '#6a8a5e'
+          DEFAULT: 'rgb(var(--color-sage) / <alpha-value>)',
+          dim: 'rgb(var(--color-sage-dim) / <alpha-value>)'
         },
         'sol-text': {
-          primary: '#e8e0d0',
-          secondary: '#9a9280',
-          muted: '#605848'
+          primary: 'rgb(var(--color-text-primary) / <alpha-value>)',
+          secondary: 'rgb(var(--color-text-secondary) / <alpha-value>)',
+          muted: 'rgb(var(--color-text-muted) / <alpha-value>)'
         }
       },
       fontFamily: {
@@ -44,11 +44,11 @@ export default {
         mono: ['Fira Mono', 'monospace']
       },
       boxShadow: {
-        'glow-amber': '0 0 12px #e8a92635, 0 0 24px #e8a92618',
-        'glow-green': '0 0 12px #5cba5c35, 0 0 24px #5cba5c18',
-        'glow-coral': '0 0 12px #d9685035, 0 0 24px #d9685018',
-        'glow-sage': '0 0 12px #8aad7835, 0 0 24px #8aad7818',
-        'glow-rose': '0 0 12px #c47a8a35, 0 0 24px #c47a8a18'
+        'glow-amber': '0 0 12px rgb(var(--color-amber) / 0.21), 0 0 24px rgb(var(--color-amber) / 0.09)',
+        'glow-green': '0 0 12px rgb(var(--color-green) / 0.21), 0 0 24px rgb(var(--color-green) / 0.09)',
+        'glow-coral': '0 0 12px rgb(var(--color-coral) / 0.21), 0 0 24px rgb(var(--color-coral) / 0.09)',
+        'glow-sage': '0 0 12px rgb(var(--color-sage) / 0.21), 0 0 24px rgb(var(--color-sage) / 0.09)',
+        'glow-rose': '0 0 12px rgb(var(--color-rose) / 0.21), 0 0 24px rgb(var(--color-rose) / 0.09)'
       },
       animation: {
         breathe: 'breathe 4s ease-in-out infinite',

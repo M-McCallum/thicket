@@ -11,7 +11,7 @@ import type {
   DMConversationWithParticipants, DMMessage, User,
   CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
   ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
-  MessageEdit, LinkPreview
+  MessageEdit, LinkPreview, ServerInvite, PublicServer
 } from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -155,7 +155,7 @@ export const servers = {
   delete: (id: string) =>
     request<{ message: string }>(`/servers/${id}`, { method: 'DELETE' }),
   members: (id: string) => request<ServerMember[]>(`/servers/${id}/members`),
-  update: (id: string, data: { name?: string; icon_url?: string }) =>
+  update: (id: string, data: { name?: string; icon_url?: string; is_public?: boolean; description?: string }) =>
     request<Server>(`/servers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
@@ -455,6 +455,49 @@ export const roles = {
     request<{ message: string }>(`/servers/${serverId}/channels/${channelId}/permissions/${roleId}`, { method: 'DELETE' })
 }
 
+// Read state / unread
+export const readState = {
+  ackChannel: (channelId: string) =>
+    request<{ message: string }>(`/channels/${channelId}/ack`, { method: 'POST' }),
+  ackDM: (conversationId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/ack`, { method: 'POST' }),
+  getUnread: () =>
+    request<{
+      channels: { channel_id: string; unread_count: number; mention_count: number }[]
+      dms: { conversation_id: string; unread_count: number }[]
+    }>('/me/unread')
+}
+
+// Search
+export const search = {
+  messages: (query: string, channelId?: string, serverId?: string, before?: string, limit?: number) => {
+    const params = new URLSearchParams({ q: query })
+    if (channelId) params.set('channel_id', channelId)
+    if (serverId) params.set('server_id', serverId)
+    if (before) params.set('before', before)
+    if (limit) params.set('limit', String(limit))
+    return request<Message[]>(`/search/messages?${params}`)
+  },
+  dm: (query: string, conversationId?: string, before?: string, limit?: number) => {
+    const params = new URLSearchParams({ q: query })
+    if (conversationId) params.set('conversation_id', conversationId)
+    if (before) params.set('before', before)
+    if (limit) params.set('limit', String(limit))
+    return request<DMMessage[]>(`/search/dm?${params}`)
+  }
+}
+
+// Notification preferences
+export const notificationPrefs = {
+  get: () =>
+    request<{ user_id: string; scope_type: string; scope_id: string; setting: string }[]>('/me/notification-prefs'),
+  set: (scopeType: string, scopeId: string, setting: string) =>
+    request<{ message: string }>(`/me/notification-prefs/${scopeType}/${scopeId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ setting })
+    })
+}
+
 // Link previews
 export const linkPreviews = {
   get: (url: string) =>
@@ -465,4 +508,44 @@ export const linkPreviews = {
 export const invites = {
   preview: (code: string) =>
     request<ServerPreview>(`/servers/invite/${code}/preview`)
+}
+
+// Server invites (management)
+export const serverInvites = {
+  list: (serverId: string) =>
+    request<ServerInvite[]>(`/servers/${serverId}/invites`),
+  create: (serverId: string, maxUses?: number, expiresAt?: string) =>
+    request<ServerInvite>(`/servers/${serverId}/invites`, {
+      method: 'POST',
+      body: JSON.stringify({ max_uses: maxUses, expires_at: expiresAt })
+    }),
+  delete: (serverId: string, inviteId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/invites/${inviteId}`, { method: 'DELETE' }),
+  use: (code: string) =>
+    request<Server>('/servers/join/invite', {
+      method: 'POST',
+      body: JSON.stringify({ code })
+    })
+}
+
+// User preferences (theme, compact mode)
+export const userPreferences = {
+  get: () =>
+    request<{ theme: string; compact_mode: boolean }>('/me/preferences'),
+  update: (data: { theme?: string; compact_mode?: boolean }) =>
+    request<{ theme: string; compact_mode: boolean }>('/me/preferences', {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    })
+}
+
+// Server discovery
+export const discover = {
+  search: (query: string, limit?: number, offset?: number) => {
+    const params = new URLSearchParams()
+    if (query) params.set('q', query)
+    if (limit) params.set('limit', String(limit))
+    if (offset) params.set('offset', String(offset))
+    return request<PublicServer[]>(`/servers/discover?${params}`)
+  }
 }
