@@ -29,8 +29,8 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
         previewConfig={{ showPreview: false }}
         skinTonesDisabled={false}
         searchPlaceHolder="Search emojis..."
-        width={320}
-        height={400}
+        width={380}
+        height={450}
       />
     </div>
   )

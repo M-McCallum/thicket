@@ -45,7 +45,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   }
 
   return (
-    <div ref={ref} className="absolute bottom-full mb-2 right-0 z-50 w-80 bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl shadow-xl overflow-hidden">
+    <div ref={ref} className="absolute bottom-full mb-2 right-0 z-50 w-96 bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl shadow-xl overflow-hidden">
       <div className="p-2">
         <input
           type="text"
@@ -56,7 +56,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
           autoFocus
         />
       </div>
-      <div className="h-64 overflow-y-auto px-2 pb-2">
+      <div className="h-96 overflow-y-auto px-2 pb-2">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-sol-text-muted text-sm">Loading...</div>
         ) : results.length === 0 ? (
