@@ -173,6 +173,11 @@ func (q *Queries) GetForumPostByID(ctx context.Context, id uuid.UUID) (ForumPost
 	return p, err
 }
 
+func (q *Queries) DeleteForumPost(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, `DELETE FROM forum_posts WHERE id = $1`, id)
+	return err
+}
+
 func (q *Queries) SetForumPostPinned(ctx context.Context, id uuid.UUID, pinned bool) error {
 	_, err := q.db.Exec(ctx,
 		`UPDATE forum_posts SET pinned = $2, updated_at = NOW() WHERE id = $1`,

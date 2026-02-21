@@ -24,6 +24,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
   const [loading, setLoading] = useState(true)
   const [replyContent, setReplyContent] = useState('')
   const [sending, setSending] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
 
@@ -49,6 +50,15 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages.length])
+
+  const handleDelete = async () => {
+    try {
+      await forumApi.deletePost(postId)
+      onBack()
+    } catch {
+      // error ignored
+    }
+  }
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,7 +103,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
             <polyline points="15 18 9 12 15 6" />
           </svg>
         </button>
-        <h3 className="font-medium text-sol-text-primary truncate">{post.title}</h3>
+        <h3 className="font-medium text-sol-text-primary truncate flex-1">{post.title}</h3>
         {post.pinned && (
           <span className="text-sol-amber text-xs flex items-center gap-1">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -102,6 +112,35 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
             </svg>
             Pinned
           </span>
+        )}
+        {user && post.author_id === user.id && (
+          confirmDelete ? (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={handleDelete}
+                className="text-xs text-sol-coral hover:text-sol-coral/80 font-medium"
+              >
+                Confirm
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-sol-text-muted hover:text-sol-text-primary"
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-sol-text-muted hover:text-sol-coral transition-colors p-1"
+              title="Delete post"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          )
         )}
       </div>
 
@@ -125,9 +164,9 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
                 key={tag.id}
                 className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono"
                 style={{
-                  backgroundColor: tag.color ? `${tag.color}20` : 'rgb(var(--color-bg-elevated))',
-                  color: tag.color || 'rgb(var(--color-text-secondary))',
-                  border: `1px solid ${tag.color ? `${tag.color}40` : 'rgb(var(--color-bg-elevated))'}`
+                  backgroundColor: tag.color ? `${tag.color}20` : 'rgb(var(--sol-bg-elevated))',
+                  color: tag.color || 'rgb(var(--sol-text-secondary))',
+                  border: `1px solid ${tag.color ? `${tag.color}40` : 'rgb(var(--sol-bg-elevated))'}`
                 }}
               >
                 {tag.emoji && <span>{tag.emoji}</span>}

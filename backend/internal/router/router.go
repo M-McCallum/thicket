@@ -350,6 +350,7 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Get("/channels/:channelId/forum/posts", cfg.ForumHandler.GetPosts)
 		protected.Post("/channels/:channelId/forum/posts", cfg.ForumHandler.CreatePost)
 		protected.Get("/forum/posts/:postId", cfg.ForumHandler.GetPost)
+		protected.Delete("/forum/posts/:postId", cfg.ForumHandler.DeletePost)
 		protected.Put("/forum/posts/:postId/tags", cfg.ForumHandler.UpdatePostTags)
 		protected.Put("/forum/posts/:postId/pin", cfg.ForumHandler.PinPost)
 		protected.Delete("/forum/posts/:postId/pin", cfg.ForumHandler.UnpinPost)

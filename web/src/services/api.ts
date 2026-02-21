@@ -822,6 +822,8 @@ export const forum = {
     }),
   getPost: (postId: string) =>
     request<ForumPost>(`/forum/posts/${postId}`),
+  deletePost: (postId: string) =>
+    request<{ message: string }>(`/forum/posts/${postId}`, { method: 'DELETE' }),
   updatePostTags: (postId: string, tagIds: string[]) =>
     request<{ message: string }>(`/forum/posts/${postId}/tags`, {
       method: 'PUT',

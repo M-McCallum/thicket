@@ -229,6 +229,28 @@ func (h *ForumHandler) GetPost(c fiber.Ctx) error {
 	return c.JSON(post)
 }
 
+func (h *ForumHandler) DeletePost(c fiber.Ctx) error {
+	postID, err := uuid.Parse(c.Params("postId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post ID"})
+	}
+	userID := auth.GetUserID(c)
+
+	channelID, _ := h.forumService.GetPostChannelID(c.Context(), postID)
+
+	if err := h.forumService.DeletePost(c.Context(), postID, userID); err != nil {
+		return handleForumError(c, err)
+	}
+
+	// Broadcast
+	event, _ := ws.NewEvent("FORUM_POST_DELETE", fiber.Map{"post_id": postID, "channel_id": channelID})
+	if event != nil {
+		h.hub.BroadcastToChannel(channelID.String(), event, nil)
+	}
+
+	return c.JSON(fiber.Map{"message": "post deleted"})
+}
+
 func (h *ForumHandler) UpdatePostTags(c fiber.Ctx) error {
 	postID, err := uuid.Parse(c.Params("postId"))
 	if err != nil {

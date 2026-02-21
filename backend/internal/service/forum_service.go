@@ -294,6 +294,34 @@ func (s *ForumService) GetPost(ctx context.Context, postID, userID uuid.UUID) (*
 	return result, nil
 }
 
+func (s *ForumService) DeletePost(ctx context.Context, postID, userID uuid.UUID) error {
+	post, err := s.queries.GetForumPostByID(ctx, postID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForumPostNotFound
+		}
+		return err
+	}
+
+	channel, err := s.queries.GetChannelByID(ctx, post.ChannelID)
+	if err != nil {
+		return err
+	}
+
+	// Allow author or users with ManageChannels permission
+	if post.AuthorID != userID {
+		ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, userID, models.PermManageChannels)
+		if err != nil {
+			return err
+		}
+		if !ok {
+			return ErrNotMember
+		}
+	}
+
+	return s.queries.DeleteForumPost(ctx, postID)
+}
+
 func (s *ForumService) UpdatePostTags(ctx context.Context, postID, userID uuid.UUID, tagIDs []uuid.UUID) error {
 	post, err := s.queries.GetForumPostByID(ctx, postID)
 	if err != nil {

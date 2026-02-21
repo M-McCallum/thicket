@@ -73,13 +73,13 @@ export default function CreateForumPostModal({ tags, onSubmit, onClose }: Create
                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-mono transition-all"
                     style={{
                       backgroundColor: isSelected
-                        ? (tag.color ? `${tag.color}30` : 'rgb(var(--color-amber) / 0.2)')
-                        : 'rgb(var(--color-bg-elevated))',
+                        ? (tag.color ? `${tag.color}30` : 'rgb(var(--sol-amber) / 0.2)')
+                        : 'rgb(var(--sol-bg-elevated))',
                       color: isSelected
-                        ? (tag.color || 'rgb(var(--color-amber))')
-                        : 'rgb(var(--color-text-secondary))',
+                        ? (tag.color || 'rgb(var(--sol-amber))')
+                        : 'rgb(var(--sol-text-secondary))',
                       border: `1px solid ${isSelected
-                        ? (tag.color ? `${tag.color}60` : 'rgb(var(--color-amber) / 0.4)')
+                        ? (tag.color ? `${tag.color}60` : 'rgb(var(--sol-amber) / 0.4)')
                         : 'transparent'
                       }`
                     }}

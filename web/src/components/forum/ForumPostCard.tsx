@@ -59,9 +59,9 @@ export default function ForumPostCard({ post, onClick }: ForumPostCardProps) {
               key={tag.id}
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono"
               style={{
-                backgroundColor: tag.color ? `${tag.color}20` : 'rgb(var(--color-bg-elevated))',
-                color: tag.color || 'rgb(var(--color-text-secondary))',
-                border: `1px solid ${tag.color ? `${tag.color}40` : 'rgb(var(--color-bg-elevated))'}`
+                backgroundColor: tag.color ? `${tag.color}20` : 'rgb(var(--sol-bg-elevated))',
+                color: tag.color || 'rgb(var(--sol-text-secondary))',
+                border: `1px solid ${tag.color ? `${tag.color}40` : 'rgb(var(--sol-bg-elevated))'}`
               }}
             >
               {tag.emoji && <span>{tag.emoji}</span>}
