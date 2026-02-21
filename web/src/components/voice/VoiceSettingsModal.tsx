@@ -103,8 +103,8 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
   }
 
   const qualityOptions: { value: VideoQuality; label: string }[] = [
-    { value: 'auto', label: 'Auto' },
-    { value: '720p', label: '720p' },
+    { value: '1080p', label: '1080p (Full HD)' },
+    { value: '720p', label: '720p (HD)' },
     { value: '480p', label: '480p' },
     { value: '360p', label: '360p' }
   ]

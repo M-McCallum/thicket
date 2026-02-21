@@ -28,7 +28,7 @@ export default function VideoGrid() {
     isCameraEnabled,
     isScreenSharing,
     videoLayoutMode,
-    focusedParticipantId,
+    focusedTileKey,
     localTrackVersion,
     setFocusedParticipant,
     setVideoLayoutMode
@@ -79,8 +79,8 @@ export default function VideoGrid() {
     return result
   }, [localParticipant, participants, isCameraEnabled, isScreenSharing, localTrackVersion])
 
-  const focusedTile = focusedParticipantId
-    ? tiles.find((t) => t.participant.userId === focusedParticipantId) ?? null
+  const focusedTile = focusedTileKey
+    ? tiles.find((t) => t.key === focusedTileKey) ?? null
     : null
 
   const isFocusMode = videoLayoutMode === 'focus' && focusedTile
@@ -104,8 +104,8 @@ export default function VideoGrid() {
         <button
           onClick={() => {
             setVideoLayoutMode('focus')
-            if (!focusedParticipantId && tiles.length > 0) {
-              setFocusedParticipant(tiles[0].participant.userId)
+            if (!focusedTileKey && tiles.length > 0) {
+              setFocusedParticipant(tiles[0].key)
             }
           }}
           className={`p-1.5 rounded transition-colors ${videoLayoutMode === 'focus' ? 'text-sol-amber bg-sol-amber/10' : 'text-sol-text-muted hover:text-sol-text-primary'}`}
@@ -143,7 +143,7 @@ export default function VideoGrid() {
                   isSpeaking={speakingUserIds.includes(tile.participant.userId)}
                   isLocal={tile.isLocal}
                   isScreenShare={tile.isScreenShare}
-                  onClick={() => setFocusedParticipant(tile.participant.userId)}
+                  onClick={() => setFocusedParticipant(tile.key)}
                   className="aspect-video"
                 />
               ))}
@@ -161,7 +161,7 @@ export default function VideoGrid() {
               isLocal={tile.isLocal}
               isScreenShare={tile.isScreenShare}
               onClick={() => {
-                setFocusedParticipant(tile.participant.userId)
+                setFocusedParticipant(tile.key)
                 setVideoLayoutMode('focus')
               }}
             />

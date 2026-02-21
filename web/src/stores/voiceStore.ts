@@ -5,7 +5,14 @@ import { wsService } from '@/services/ws'
 import { soundService } from '@/services/soundService'
 
 export type VideoLayoutMode = 'grid' | 'focus'
-export type VideoQuality = 'auto' | '720p' | '480p' | '360p'
+export type VideoQuality = '1080p' | '720p' | '480p' | '360p'
+
+const VIDEO_RESOLUTIONS: Record<VideoQuality, { width: number; height: number; frameRate: number }> = {
+  '1080p': { width: 1920, height: 1080, frameRate: 30 },
+  '720p': { width: 1280, height: 720, frameRate: 30 },
+  '480p': { width: 854, height: 480, frameRate: 30 },
+  '360p': { width: 640, height: 360, frameRate: 24 },
+}
 
 export interface VoiceParticipant {
   userId: string
@@ -34,7 +41,7 @@ interface VoiceState {
   isScreenSharing: boolean
   selectedVideoDeviceId: string | null
   videoLayoutMode: VideoLayoutMode
-  focusedParticipantId: string | null
+  focusedTileKey: string | null
   isPiPActive: boolean
   videoQuality: VideoQuality
   localTrackVersion: number
@@ -54,9 +61,9 @@ interface VoiceState {
   toggleScreenShare: () => Promise<void>
   setVideoDevice: (deviceId: string) => void
   setVideoLayoutMode: (mode: VideoLayoutMode) => void
-  setFocusedParticipant: (participantId: string | null) => void
+  setFocusedParticipant: (tileKey: string | null) => void
   togglePiP: () => void
-  setVideoQuality: (quality: VideoQuality) => void
+  setVideoQuality: (quality: VideoQuality) => Promise<void>
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -75,9 +82,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   isScreenSharing: false,
   selectedVideoDeviceId: localStorage.getItem('voice:videoDeviceId'),
   videoLayoutMode: 'grid',
-  focusedParticipantId: null,
+  focusedTileKey: null,
   isPiPActive: false,
-  videoQuality: 'auto',
+  videoQuality: (localStorage.getItem('voice:videoQuality') as VideoQuality) || '720p',
   localTrackVersion: 0,
 
   joinVoiceChannel: async (serverId, channelId) => {
@@ -150,7 +157,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
             : p
         ),
         // Auto-focus screen shares
-        ...(isScreenShare ? { focusedParticipantId: participant.identity, videoLayoutMode: 'focus' as VideoLayoutMode } : {})
+        ...(isScreenShare ? { focusedTileKey: `${participant.identity}-screen`, videoLayoutMode: 'focus' as VideoLayoutMode } : {})
       }))
     })
 
@@ -172,8 +179,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
           )
         }
         // Clear focus if the screen-sharer stopped sharing
-        if (isScreenShare && state.focusedParticipantId === participant.identity) {
-          updates.focusedParticipantId = null
+        if (isScreenShare && state.focusedTileKey === `${participant.identity}-screen`) {
+          updates.focusedTileKey = null
           updates.videoLayoutMode = 'grid'
         }
         return updates
@@ -285,7 +292,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       speakingUserIds: [],
       isCameraEnabled: false,
       isScreenSharing: false,
-      focusedParticipantId: null,
+      focusedTileKey: null,
       isPiPActive: false
     })
   },
@@ -351,18 +358,17 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   // Video actions
   toggleCamera: async () => {
-    const { room, isCameraEnabled, selectedVideoDeviceId } = get()
+    const { room, isCameraEnabled, selectedVideoDeviceId, videoQuality } = get()
     if (!room) return
     const enabling = !isCameraEnabled
-    // Set state immediately to avoid race with event handlers
     set({ isCameraEnabled: enabling })
     try {
-      await room.localParticipant.setCameraEnabled(
-        enabling,
-        selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : undefined
-      )
+      const resolution = VIDEO_RESOLUTIONS[videoQuality]
+      await room.localParticipant.setCameraEnabled(enabling, {
+        ...(selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : {}),
+        resolution,
+      })
     } catch {
-      // Revert on failure
       set({ isCameraEnabled: !enabling })
     }
   },
@@ -373,7 +379,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     const enabling = !isScreenSharing
     set({ isScreenSharing: enabling })
     try {
-      await room.localParticipant.setScreenShareEnabled(enabling)
+      await room.localParticipant.setScreenShareEnabled(enabling, {
+        resolution: { width: 3840, height: 2160, frameRate: 15 },
+      })
     } catch {
       // User cancelled the screen share picker or error — revert
       set({ isScreenSharing: !enabling })
@@ -391,9 +399,21 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   setVideoLayoutMode: (mode) => set({ videoLayoutMode: mode }),
 
-  setFocusedParticipant: (participantId) => set({ focusedParticipantId: participantId }),
+  setFocusedParticipant: (tileKey) => set({ focusedTileKey: tileKey }),
 
   togglePiP: () => set((state) => ({ isPiPActive: !state.isPiPActive })),
 
-  setVideoQuality: (quality) => set({ videoQuality: quality })
+  setVideoQuality: async (quality) => {
+    localStorage.setItem('voice:videoQuality', quality)
+    set({ videoQuality: quality })
+    const { room, isCameraEnabled, selectedVideoDeviceId } = get()
+    if (room && isCameraEnabled) {
+      const resolution = VIDEO_RESOLUTIONS[quality]
+      await room.localParticipant.setCameraEnabled(false)
+      await room.localParticipant.setCameraEnabled(true, {
+        ...(selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : {}),
+        resolution,
+      })
+    }
+  }
 }))

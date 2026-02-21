@@ -5,7 +5,7 @@ import { useVoiceStore } from '@/stores/voiceStore'
 export default function PiPOverlay() {
   const {
     room, isPiPActive, togglePiP, participants,
-    focusedParticipantId, setVideoLayoutMode, setFocusedParticipant
+    focusedTileKey, setVideoLayoutMode, setFocusedParticipant
   } = useVoiceStore()
   const videoRef = useRef<HTMLVideoElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -13,12 +13,19 @@ export default function PiPOverlay() {
   const [initialized, setInitialized] = useState(false)
   const dragState = useRef<{ startX: number; startY: number; startPosX: number; startPosY: number } | null>(null)
 
-  // Find the track to display: focused participant's screen share or camera, or first available
+  // Find the track to display based on focused tile key, or first available
   const displayTrack = (() => {
-    if (focusedParticipantId) {
-      const p = participants.find((p) => p.userId === focusedParticipantId)
-      if (p?.screenTrack) return p.screenTrack
-      if (p?.videoTrack) return p.videoTrack
+    if (focusedTileKey) {
+      const isScreen = focusedTileKey.endsWith('-screen')
+      const userId = focusedTileKey.replace(/-(cam|screen)$/, '')
+      const p = participants.find((p) => p.userId === userId)
+      if (p) {
+        if (isScreen && p.screenTrack) return p.screenTrack
+        if (!isScreen && p.videoTrack) return p.videoTrack
+        // Fallback to whichever track is available
+        if (p.screenTrack) return p.screenTrack
+        if (p.videoTrack) return p.videoTrack
+      }
     }
     // Check local participant
     if (room?.localParticipant) {
@@ -88,8 +95,8 @@ export default function PiPOverlay() {
   const handleExpand = () => {
     togglePiP()
     setVideoLayoutMode('focus')
-    if (focusedParticipantId) {
-      setFocusedParticipant(focusedParticipantId)
+    if (focusedTileKey) {
+      setFocusedParticipant(focusedTileKey)
     }
   }
 
