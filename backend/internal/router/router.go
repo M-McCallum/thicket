@@ -48,6 +48,7 @@ type Config struct {
 	BotHandler         *handler.BotHandler
 	WebhookHandler     *handler.WebhookHandler
 	ExportHandler      *handler.ExportHandler
+	UploadHandler      *handler.UploadHandler
 	KeysHandler        *handler.KeysHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
@@ -93,6 +94,11 @@ func Setup(app *fiber.App, cfg Config) {
 	webhookExecRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
 		Max:    10,
 		Window: time.Second,
+	})
+	uploadInitRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:    10,
+		Window: time.Minute,
+		KeyFunc: middleware.UserKeyFunc,
 	})
 	wsConnRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
 		Max:    20,
@@ -461,6 +467,14 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Delete("/keys/envelope", cfg.KeysHandler.DeleteKeyEnvelope)
 		protected.Post("/keys/group/:conversationId", cfg.KeysHandler.StoreGroupKey)
 		protected.Get("/keys/group/:conversationId", cfg.KeysHandler.GetGroupKeys)
+	}
+
+	// Large file uploads
+	if cfg.UploadHandler != nil {
+		protected.Post("/uploads/initiate", uploadInitRateLimit, cfg.UploadHandler.InitiateUpload)
+		protected.Post("/uploads/:pendingId/part-complete", cfg.UploadHandler.ReportPartComplete)
+		protected.Post("/uploads/:pendingId/complete", cfg.UploadHandler.CompleteUpload)
+		protected.Delete("/uploads/:pendingId", cfg.UploadHandler.AbortUpload)
 	}
 
 	// WebSocket
