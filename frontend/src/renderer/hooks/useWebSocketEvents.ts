@@ -11,6 +11,7 @@ import { useStageStore } from '@renderer/stores/stageStore'
 import { useNotificationStore } from '@renderer/stores/notificationStore'
 import { useDMStore } from '@renderer/stores/dmStore'
 import { useThreadStore } from '@renderer/stores/threadStore'
+import { soundService } from '@renderer/services/soundService'
 import type {
   ReadyData,
   PresenceData,
@@ -67,16 +68,35 @@ import type {
   StageHandLowerData
 } from '@renderer/types/ws'
 
-/** Fire a browser notification if permission is granted and the window/channel is not active. */
-function fireBrowserNotification(title: string, body: string, channelId?: string) {
-  if (typeof Notification === 'undefined') return
-  if (Notification.permission !== 'granted') return
+/** Fire a native Electron notification (with fallback to browser Notification API). */
+function fireNativeNotification(
+  title: string,
+  body: string,
+  context?: { type: 'channel'; channelId: string; serverId: string } | { type: 'dm'; conversationId: string }
+) {
+  // Don't notify if user is focused on the relevant channel/DM
+  if (document.hasFocus()) {
+    if (context?.type === 'channel') {
+      const { activeChannelId } = useServerStore.getState()
+      if (context.channelId === activeChannelId) return
+    } else if (context?.type === 'dm') {
+      const { activeConversationId } = useDMStore.getState()
+      if (context.conversationId === activeConversationId) return
+    }
+  }
 
-  // Don't notify if user is focused on the same channel
-  const { activeChannelId } = useServerStore.getState()
-  if (document.hasFocus() && channelId && channelId === activeChannelId) return
+  // Native Electron notification via IPC
+  if (window.api?.notifications) {
+    window.api.notifications.show({ title, body, context })
+    window.api.notifications.flash()
+  } else {
+    // Fallback: browser Notification API (web builds)
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      new Notification(title, { body, icon: '/favicon.ico' })
+    }
+  }
 
-  new Notification(title, { body, icon: '/favicon.ico' })
+  soundService.playNotificationSound()
 }
 
 export function useWebSocketEvents() {
@@ -118,6 +138,11 @@ export function useWebSocketEvents() {
         const currentUserId = useAuthStore.getState().user?.id
         if (msg.author_id !== currentUserId) {
           useNotificationStore.getState().incrementDMUnread(msg.conversation_id)
+          fireNativeNotification(
+            msg.username || 'New message',
+            msg.content.length > 100 ? msg.content.slice(0, 100) + '...' : msg.content,
+            { type: 'dm', conversationId: msg.conversation_id }
+          )
         }
       })
     )
@@ -130,13 +155,11 @@ export function useWebSocketEvents() {
         const setting = useNotificationStore.getState().getEffectiveSetting(mention.channel_id, activeServerId)
         if (setting === 'none') return
         useNotificationStore.getState().incrementMention(mention.channel_id)
-        // Browser notification
-        if (Notification.permission === 'granted') {
-          new Notification(`@${mention.username} mentioned you`, {
-            body: mention.content.slice(0, 100),
-            tag: mention.message_id
-          })
-        }
+        fireNativeNotification(
+          `@${mention.username} mentioned you`,
+          mention.content.slice(0, 100),
+          { type: 'channel', channelId: mention.channel_id, serverId: useServerStore.getState().activeServerId! }
+        )
       })
     )
 
@@ -755,10 +778,12 @@ export function useWebSocketEvents() {
     unsubs.push(
       wsService.on('NOTIFICATION', (data) => {
         const notif = data as NotificationData
-        fireBrowserNotification(
+        fireNativeNotification(
           notif.username,
           notif.content.length > 100 ? notif.content.slice(0, 100) + '...' : notif.content,
-          notif.channel_id
+          notif.channel_id && notif.server_id
+            ? { type: 'channel', channelId: notif.channel_id, serverId: notif.server_id }
+            : undefined
         )
       })
     )

@@ -22,6 +22,7 @@ import { useVoiceStore } from '@renderer/stores/voiceStore'
 import { useStageStore } from '@renderer/stores/stageStore'
 import { useThemeStore } from '@renderer/stores/themeStore'
 import { useLayoutStore } from '@renderer/stores/layoutStore'
+import { useDMStore } from '@renderer/stores/dmStore'
 import { useWebSocketEvents } from '@renderer/hooks/useWebSocketEvents'
 import { onboarding as onboardingApi } from '@renderer/services/api'
 
@@ -47,11 +48,25 @@ export default function MainLayout() {
   useEffect(() => {
     fetchServers()
     useThemeStore.getState().loadPreferences()
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
+    // Request notification permission (web fallback only)
+    if (!window.api?.notifications && 'Notification' in window && Notification.permission === 'default') {
       Notification.requestPermission()
     }
   }, [fetchServers])
+
+  // Listen for notification clicks from main process to navigate
+  useEffect(() => {
+    if (!window.api?.notifications) return
+    return window.api.notifications.onClicked((context) => {
+      if (context.type === 'channel') {
+        useServerStore.getState().setActiveServer(context.serverId)
+        useServerStore.getState().setActiveChannel(context.channelId)
+      } else if (context.type === 'dm') {
+        useServerStore.getState().setActiveServerNull()
+        useDMStore.getState().setActiveConversation(context.conversationId)
+      }
+    })
+  }, [])
 
   // Check onboarding status when active server changes
   useEffect(() => {

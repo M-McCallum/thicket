@@ -20,6 +20,24 @@ declare global {
         clearTokens: () => Promise<void>
         onCallback: (callback: (url: string) => void) => () => void
       }
+      notifications: {
+        show: (payload: {
+          title: string
+          body: string
+          context?:
+            | { type: 'channel'; channelId: string; serverId: string }
+            | { type: 'dm'; conversationId: string }
+        }) => void
+        setBadge: (payload: { totalUnread: number; totalMentions: number }) => void
+        flash: () => void
+        onClicked: (
+          callback: (
+            context:
+              | { type: 'channel'; channelId: string; serverId: string }
+              | { type: 'dm'; conversationId: string }
+          ) => void
+        ) => () => void
+      }
       updater: {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>

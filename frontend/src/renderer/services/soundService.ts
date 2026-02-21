@@ -35,6 +35,33 @@ function synthesizeJoinSound(ctx: AudioContext) {
   osc.stop(now + 0.2)
 }
 
+function synthesizeNotificationSound(ctx: AudioContext) {
+  const now = ctx.currentTime
+  const gain = ctx.createGain()
+  gain.connect(ctx.destination)
+  gain.gain.setValueAtTime(0.25, now)
+  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3)
+
+  // Double-beep: two short 880Hz sine pulses
+  const osc1 = ctx.createOscillator()
+  osc1.type = 'sine'
+  osc1.frequency.value = 880
+  osc1.connect(gain)
+  osc1.start(now)
+  osc1.stop(now + 0.08)
+
+  const osc2 = ctx.createOscillator()
+  osc2.type = 'sine'
+  osc2.frequency.value = 880
+  const gain2 = ctx.createGain()
+  gain2.connect(ctx.destination)
+  gain2.gain.setValueAtTime(0.25, now + 0.12)
+  gain2.gain.exponentialRampToValueAtTime(0.01, now + 0.3)
+  osc2.connect(gain2)
+  osc2.start(now + 0.12)
+  osc2.stop(now + 0.2)
+}
+
 function synthesizeLeaveSound(ctx: AudioContext) {
   const now = ctx.currentTime
   const osc = ctx.createOscillator()
@@ -116,6 +143,13 @@ export const soundService = {
     } else {
       synthesizeLeaveSound(ctx)
     }
+  },
+
+  async playNotificationSound() {
+    if (!this.isEnabled()) return
+    const ctx = getAudioContext()
+    if (ctx.state === 'suspended') await ctx.resume()
+    synthesizeNotificationSound(ctx)
   },
 
   async previewSound(type: SoundType) {

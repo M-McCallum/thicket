@@ -34,6 +34,20 @@ interface NotificationState {
 
 const emptyUnread: UnreadInfo = { count: 0, mentionCount: 0 }
 
+function syncBadgeCount(state: { channelUnread: Record<string, UnreadInfo>; dmUnread: Record<string, number> }): void {
+  if (!window.api?.notifications) return
+  let totalUnread = 0
+  let totalMentions = 0
+  for (const info of Object.values(state.channelUnread)) {
+    totalUnread += info.count
+    totalMentions += info.mentionCount
+  }
+  for (const count of Object.values(state.dmUnread)) {
+    totalUnread += count
+  }
+  window.api.notifications.setBadge({ totalUnread, totalMentions })
+}
+
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   channelUnread: {},
   dmUnread: {},
@@ -160,3 +174,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     return get().dmUnread[conversationId] ?? 0
   }
 }))
+
+// Sync badge count to main process whenever unread state changes
+useNotificationStore.subscribe((state, prev) => {
+  if (state.channelUnread !== prev.channelUnread || state.dmUnread !== prev.dmUnread) {
+    syncBadgeCount(state)
+  }
+})
