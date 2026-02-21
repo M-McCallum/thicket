@@ -57,6 +57,7 @@ import type {
   ThreadCreateData,
   ThreadUpdateData,
   ThreadMessageCreateData,
+  ThreadMessageDeleteData,
   PollVoteData,
   StageStartData,
   StageEndData,
@@ -548,6 +549,14 @@ export function useWebSocketEvents() {
             }
           }
         }
+      })
+    )
+
+    // THREAD_MESSAGE_DELETE
+    unsubs.push(
+      wsService.on('THREAD_MESSAGE_DELETE', (data) => {
+        const msg = data as ThreadMessageDeleteData
+        useThreadStore.getState().removeThreadMessage(msg.id)
       })
     )
 

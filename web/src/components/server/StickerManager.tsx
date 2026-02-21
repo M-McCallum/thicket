@@ -24,6 +24,7 @@ export default function StickerManager({ serverId, onClose }: StickerManagerProp
   const [stickerPreview, setStickerPreview] = useState<string | null>(null)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+  const [confirmDeletePackId, setConfirmDeletePackId] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -126,17 +127,55 @@ export default function StickerManager({ serverId, onClose }: StickerManagerProp
           {/* Pack tabs + create button */}
           <div className="flex items-center gap-2 mb-4 flex-wrap">
             {packs.map((pack) => (
-              <button
-                key={pack.id}
-                onClick={() => setActivePackId(pack.id)}
-                className={`px-3 py-1.5 text-sm rounded-lg ${
-                  activePackId === pack.id
-                    ? 'bg-sol-amber/20 text-sol-amber'
-                    : 'text-sol-text-secondary bg-sol-bg hover:bg-sol-bg-elevated'
-                }`}
-              >
-                {pack.name}
-              </button>
+              <div key={pack.id} className="relative group/pack flex items-center">
+                <button
+                  onClick={() => setActivePackId(pack.id)}
+                  className={`px-3 py-1.5 text-sm rounded-lg ${
+                    activePackId === pack.id
+                      ? 'bg-sol-amber/20 text-sol-amber'
+                      : 'text-sol-text-secondary bg-sol-bg hover:bg-sol-bg-elevated'
+                  }`}
+                >
+                  {pack.name}
+                </button>
+                {confirmDeletePackId === pack.id ? (
+                  <span className="flex items-center gap-1 ml-1">
+                    <button
+                      onClick={async () => {
+                        try {
+                          await stickersApi.deletePack(serverId, pack.id)
+                          setPacks((prev) => prev.filter((p) => p.id !== pack.id))
+                          if (activePackId === pack.id) {
+                            const remaining = packs.filter((p) => p.id !== pack.id)
+                            setActivePackId(remaining.length > 0 ? remaining[0].id : null)
+                            setStickerList([])
+                          }
+                        } catch { /* ignored */ }
+                        setConfirmDeletePackId(null)
+                      }}
+                      className="text-[10px] text-sol-coral hover:text-sol-coral/80 font-medium"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeletePackId(null)}
+                      className="text-[10px] text-sol-text-muted hover:text-sol-text-primary"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeletePackId(pack.id)}
+                    className="ml-0.5 opacity-0 group-hover/pack:opacity-100 text-sol-text-muted hover:text-sol-coral transition-all p-0.5"
+                    title="Delete pack"
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M18 6L6 18M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
             ))}
             <button
               onClick={() => setShowCreatePack(true)}

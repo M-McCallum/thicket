@@ -25,6 +25,7 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
   const [replyContent, setReplyContent] = useState('')
   const [sending, setSending] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [confirmDeleteMsgId, setConfirmDeleteMsgId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const user = useAuthStore((s) => s.user)
 
@@ -198,6 +199,41 @@ export default function ForumPostView({ postId, onBack }: ForumPostViewProps) {
                     {msg.author_display_name || msg.author_username}
                   </span>
                   <span className="text-[10px] text-sol-text-muted">{timeAgo(msg.created_at)}</span>
+                  {msg.author_id === user?.id && (
+                    confirmDeleteMsgId === msg.id ? (
+                      <span className="flex items-center gap-1 ml-auto">
+                        <button
+                          onClick={async () => {
+                            try {
+                              await forumApi.deletePostMessage(postId, msg.id)
+                              setMessages((prev) => prev.filter((m) => m.id !== msg.id))
+                            } catch { /* ignored */ }
+                            setConfirmDeleteMsgId(null)
+                          }}
+                          className="text-[10px] text-sol-coral hover:text-sol-coral/80 font-medium"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteMsgId(null)}
+                          className="text-[10px] text-sol-text-muted hover:text-sol-text-primary"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDeleteMsgId(msg.id)}
+                        className="ml-auto opacity-0 group-hover:opacity-100 text-sol-text-muted hover:text-sol-coral transition-all p-0.5"
+                        title="Delete message"
+                      >
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    )
+                  )}
                 </div>
                 <p className="text-sm text-sol-text-secondary whitespace-pre-wrap break-words mt-0.5">
                   {msg.content}

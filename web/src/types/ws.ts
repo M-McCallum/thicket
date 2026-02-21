@@ -51,6 +51,7 @@ export type WSEventType =
   | 'THREAD_CREATE'
   | 'THREAD_UPDATE'
   | 'THREAD_MESSAGE_CREATE'
+  | 'THREAD_MESSAGE_DELETE'
   | 'POLL_CREATE'
   | 'POLL_VOTE'
   | 'MENTION_CREATE'
@@ -459,6 +460,12 @@ export interface ThreadMessageCreateData {
   author_avatar_url: string | null
   channel_id: string
   message_count: number
+}
+
+export interface ThreadMessageDeleteData {
+  id: string
+  thread_id: string
+  channel_id: string
 }
 
 export interface PollCreateData {

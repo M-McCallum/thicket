@@ -22,6 +22,7 @@ interface ThreadState {
   fetchMoreThreadMessages: (threadId: string) => Promise<void>
   sendThreadMessage: (threadId: string, content: string) => Promise<void>
   addThreadMessage: (message: ThreadMessage) => void
+  removeThreadMessage: (messageId: string) => void
   updateThreadMessageCount: (threadId: string, parentMessageId: string, count: number) => void
   clearThreads: () => void
 }
@@ -113,6 +114,11 @@ export const useThreadStore = create<ThreadState>((set, get) => ({
       if (state.threadMessages.some((m) => m.id === message.id)) return state
       return { threadMessages: [message, ...state.threadMessages] }
     }),
+
+  removeThreadMessage: (messageId) =>
+    set((state) => ({
+      threadMessages: state.threadMessages.filter((m) => m.id !== messageId)
+    })),
 
   updateThreadMessageCount: (threadId, parentMessageId, count) =>
     set((state) => {
