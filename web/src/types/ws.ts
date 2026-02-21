@@ -51,9 +51,6 @@ export type WSEventType =
   | 'THREAD_CREATE'
   | 'THREAD_UPDATE'
   | 'THREAD_MESSAGE_CREATE'
-  | 'EVENT_CREATE'
-  | 'EVENT_UPDATE'
-  | 'EVENT_DELETE'
   | 'POLL_CREATE'
   | 'POLL_VOTE'
   | 'MENTION_CREATE'
@@ -460,33 +457,6 @@ export interface ThreadMessageCreateData {
   author_avatar_url: string | null
   channel_id: string
   message_count: number
-}
-
-export interface EventCreateData {
-  id: string
-  server_id: string
-  creator_id: string
-  name: string
-  description: string
-  location_type: string
-  channel_id: string | null
-  external_location: string
-  start_time: string
-  end_time: string | null
-  image_url: string | null
-  status: string
-  created_at: string
-}
-
-export interface EventUpdateData {
-  id: string
-  server_id: string
-  rsvp?: boolean
-}
-
-export interface EventDeleteData {
-  id: string
-  server_id: string
 }
 
 export interface PollCreateData {

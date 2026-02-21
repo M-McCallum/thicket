@@ -15,7 +15,7 @@ import type {
   SoundboardSound, BotUser, Webhook,
   ServerInvite, PublicServer, ServerFolder,
   DMMessageEdit, ScheduledMessage, ServerBan, ServerTimeout, AuditLogEntry,
-  Thread, ThreadMessage, ThreadSubscription, ServerEvent, PollWithOptions,
+  Thread, ThreadMessage, ThreadSubscription, PollWithOptions,
   ForumTag, ForumPost, ForumPostMessage,
   WelcomeConfig, OnboardingPrompt,
   ChannelFollow, AutoModRule
@@ -717,50 +717,6 @@ export const threads = {
       method: 'PUT',
       body: JSON.stringify({ notification_level: notificationLevel })
     })
-}
-
-// Scheduled Events
-export const events = {
-  list: (serverId: string) =>
-    request<ServerEvent[]>(`/servers/${serverId}/events`),
-  get: (serverId: string, eventId: string) =>
-    request<ServerEvent>(`/servers/${serverId}/events/${eventId}`),
-  create: (serverId: string, data: {
-    name: string
-    description?: string
-    location_type: string
-    channel_id?: string
-    external_location?: string
-    start_time: string
-    end_time?: string
-  }) =>
-    request<ServerEvent>(`/servers/${serverId}/events`, {
-      method: 'POST',
-      body: JSON.stringify(data)
-    }),
-  update: (serverId: string, eventId: string, data: Partial<{
-    name: string
-    description: string
-    location_type: string
-    channel_id: string
-    external_location: string
-    start_time: string
-    end_time: string
-    status: string
-  }>) =>
-    request<ServerEvent>(`/servers/${serverId}/events/${eventId}`, {
-      method: 'PATCH',
-      body: JSON.stringify(data)
-    }),
-  delete: (serverId: string, eventId: string) =>
-    request<{ message: string }>(`/servers/${serverId}/events/${eventId}`, { method: 'DELETE' }),
-  rsvp: (serverId: string, eventId: string, status?: string) =>
-    request<{ message: string }>(`/servers/${serverId}/events/${eventId}/rsvp`, {
-      method: 'POST',
-      body: JSON.stringify({ status: status || 'interested' })
-    }),
-  removeRsvp: (serverId: string, eventId: string) =>
-    request<{ message: string }>(`/servers/${serverId}/events/${eventId}/rsvp`, { method: 'DELETE' })
 }
 
 // Polls

@@ -11,8 +11,6 @@ import ChannelSettingsModal from './ChannelSettingsModal'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
 
 const ServerSettingsModal = lazy(() => import('./ServerSettingsModal'))
-const EventsPanel = lazy(() => import('./EventsPanel'))
-
 export default function ChannelSidebar() {
   const { channels, categories, activeChannelId, setActiveChannel, servers, activeServerId, createChannel } = useServerStore()
   const { activeChannelId: voiceChannelId, participants, joinVoiceChannel, speakingUserIds } = useVoiceStore()
@@ -26,7 +24,6 @@ export default function ChannelSidebar() {
   const [showInvite, setShowInvite] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
-  const [showEvents, setShowEvents] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice' | 'forum'>('text')
   const [newChannelName, setNewChannelName] = useState('')
   const [isAnnouncement, setIsAnnouncement] = useState(false)
@@ -405,18 +402,6 @@ export default function ChannelSidebar() {
             </button>
           )}
           <button
-            onClick={() => setShowEvents(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-sage bg-sol-bg/50 hover:bg-sol-sage/10 rounded-lg transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-              <line x1="16" y1="2" x2="16" y2="6" />
-              <line x1="8" y1="2" x2="8" y2="6" />
-              <line x1="3" y1="10" x2="21" y2="10" />
-            </svg>
-            Events
-          </button>
-          <button
             onClick={() => setShowStickers(true)}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-violet bg-sol-bg/50 hover:bg-sol-violet/10 rounded-lg transition-colors"
           >
@@ -432,17 +417,6 @@ export default function ChannelSidebar() {
       {/* Invite modal */}
       {showInvite && activeServer && (
         <InviteModal serverId={activeServerId!} onClose={() => setShowInvite(false)} />
-      )}
-
-      {/* Events panel */}
-      {showEvents && activeServerId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowEvents(false)}>
-          <div className="bg-sol-bg-secondary rounded-lg shadow-lg w-full max-w-lg h-[600px] overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <Suspense fallback={null}>
-              <EventsPanel />
-            </Suspense>
-          </div>
-        </div>
       )}
 
       {/* Sticker manager */}

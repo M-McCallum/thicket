@@ -82,7 +82,6 @@ func main() {
 	onboardingService := service.NewOnboardingService(queries, permissionService)
 	moderationService := service.NewModerationService(queries, permissionService)
 	threadService := service.NewThreadService(queries)
-	eventService := service.NewEventService(queries)
 	pollService := service.NewPollService(queries)
 	inviteService := service.NewInviteService(queries, permissionService)
 
@@ -179,7 +178,6 @@ func main() {
 	automodHandler := handler.NewAutoModHandler(automodService)
 	moderationHandler := handler.NewModerationHandler(moderationService, serverService, hub)
 	threadHandler := handler.NewThreadHandler(threadService, hub)
-	eventHandler := handler.NewEventHandler(eventService, serverService, hub)
 	pollHandler := handler.NewPollHandler(pollService, hub)
 	readStateHandler := handler.NewReadStateHandler(readStateService)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefService)
@@ -219,7 +217,6 @@ func main() {
 		AttachmentHandler:  attachmentHandler,
 		ModerationHandler:  moderationHandler,
 		ThreadHandler:      threadHandler,
-		EventHandler:       eventHandler,
 		PollHandler:        pollHandler,
 		InviteHandler:          inviteHandler,
 		ReadStateHandler:       readStateHandler,

@@ -11,7 +11,6 @@ import { useStageStore } from '@/stores/stageStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { useDMStore } from '@/stores/dmStore'
 import { useThreadStore } from '@/stores/threadStore'
-import { useEventStore } from '@/stores/eventStore'
 import type {
   ReadyData,
   PresenceData,
@@ -58,8 +57,6 @@ import type {
   ThreadCreateData,
   ThreadUpdateData,
   ThreadMessageCreateData,
-  EventCreateData,
-  EventDeleteData,
   PollVoteData,
   StageStartData,
   StageEndData,
@@ -552,38 +549,6 @@ export function useWebSocketEvents() {
               break
             }
           }
-        }
-      })
-    )
-
-    // EVENT_CREATE
-    unsubs.push(
-      wsService.on('EVENT_CREATE', (data) => {
-        const event = data as EventCreateData
-        const { activeServerId } = useServerStore.getState()
-        if (event.server_id === activeServerId) {
-          useEventStore.getState().addEvent(event as any)
-        }
-      })
-    )
-
-    // EVENT_UPDATE
-    unsubs.push(
-      wsService.on('EVENT_UPDATE', (_data) => {
-        const { activeServerId } = useServerStore.getState()
-        if (activeServerId) {
-          useEventStore.getState().fetchEvents(activeServerId)
-        }
-      })
-    )
-
-    // EVENT_DELETE
-    unsubs.push(
-      wsService.on('EVENT_DELETE', (data) => {
-        const event = data as EventDeleteData
-        const { activeServerId } = useServerStore.getState()
-        if (event.server_id === activeServerId) {
-          useEventStore.getState().removeEvent(event.id)
         }
       })
     )

@@ -29,7 +29,6 @@ type Config struct {
 	AttachmentHandler  *handler.AttachmentHandler
 	ModerationHandler  *handler.ModerationHandler
 	ThreadHandler      *handler.ThreadHandler
-	EventHandler       *handler.EventHandler
 	PollHandler        *handler.PollHandler
 	InviteHandler          *handler.InviteHandler
 	ReadStateHandler       *handler.ReadStateHandler
@@ -185,17 +184,6 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Put("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.SetChannelOverride)
 		protected.Delete("/servers/:id/channels/:channelId/permissions/:roleId", cfg.RoleHandler.DeleteChannelOverride)
 		protected.Get("/servers/:id/members-with-roles", cfg.RoleHandler.GetMembersWithRoles)
-	}
-
-	// Events
-	if cfg.EventHandler != nil {
-		protected.Post("/servers/:id/events", cfg.EventHandler.CreateEvent)
-		protected.Get("/servers/:id/events", cfg.EventHandler.GetServerEvents)
-		protected.Get("/servers/:id/events/:eventId", cfg.EventHandler.GetEvent)
-		protected.Patch("/servers/:id/events/:eventId", cfg.EventHandler.UpdateEvent)
-		protected.Delete("/servers/:id/events/:eventId", cfg.EventHandler.DeleteEvent)
-		protected.Post("/servers/:id/events/:eventId/rsvp", cfg.EventHandler.RSVP)
-		protected.Delete("/servers/:id/events/:eventId/rsvp", cfg.EventHandler.RemoveRSVP)
 	}
 
 	// Polls

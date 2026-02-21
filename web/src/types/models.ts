@@ -303,32 +303,6 @@ export interface NotificationPref {
   updated_at: string
 }
 
-// Scheduled Events
-export interface ServerEvent {
-  id: string
-  server_id: string
-  creator_id: string
-  name: string
-  description: string
-  location_type: 'voice' | 'stage' | 'external'
-  channel_id: string | null
-  external_location: string
-  start_time: string
-  end_time: string | null
-  image_url: string | null
-  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
-  created_at: string
-  interested_count: number
-  user_rsvp: string | null
-  creator_username: string
-}
-
-export interface EventRSVP {
-  event_id: string
-  user_id: string
-  status: 'interested' | 'going'
-}
-
 // Polls
 export interface PollOption {
   id: string
