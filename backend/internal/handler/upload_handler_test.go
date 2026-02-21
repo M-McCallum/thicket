@@ -9,7 +9,6 @@ import (
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/service"
 	"github.com/M-McCallum/thicket/internal/storage"
-	"github.com/M-McCallum/thicket/internal/testutil"
 )
 
 func setupUploadApp(mock *storage.MockStorage) *fiber.App {
@@ -247,5 +246,3 @@ func TestCompleteUpload_404_WrongUser(t *testing.T) {
 	}
 }
 
-// Suppress unused imports
-var _ = testutil.CreateTestUser

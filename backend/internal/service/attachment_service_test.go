@@ -1,7 +1,6 @@
 package service
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -474,5 +473,3 @@ func TestResolveURLs_ExternalFile(t *testing.T) {
 	}
 }
 
-// Suppress unused import warning
-var _ = bytes.NewReader

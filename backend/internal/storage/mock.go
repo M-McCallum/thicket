@@ -1,7 +1,6 @@
 package storage
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -118,6 +117,3 @@ func (m *MockStorage) AbortMultipartUpload(_ context.Context, objectKey, uploadI
 // Compile-time interface check
 var _ ObjectStorage = (*MockStorage)(nil)
 var _ ObjectStorage = (*Client)(nil)
-
-// ignore unused import
-var _ = bytes.NewReader
