@@ -169,13 +169,13 @@ export default function VoiceControls() {
       </div>
 
       {/* Controls */}
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-center justify-center flex-wrap gap-2">
         {/* Mute */}
         <button
           ref={micButtonRef}
           onClick={toggleMute}
           data-mic-active="0"
-          className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             isMuted
               ? 'bg-sol-amber/20 text-sol-amber'
               : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary data-[mic-active=1]:text-sol-sage data-[mic-active=1]:ring-1 data-[mic-active=1]:ring-sol-sage/50'
@@ -204,7 +204,7 @@ export default function VoiceControls() {
         {/* Deafen */}
         <button
           onClick={toggleDeafen}
-          className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             isDeafened
               ? 'bg-sol-amber/20 text-sol-amber'
               : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary'
@@ -229,7 +229,7 @@ export default function VoiceControls() {
         {/* Camera */}
         <button
           onClick={() => toggleCamera()}
-          className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             isCameraEnabled
               ? 'bg-sol-sage/20 text-sol-sage'
               : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary'
@@ -252,7 +252,7 @@ export default function VoiceControls() {
         {/* Screen Share */}
         <button
           onClick={() => toggleScreenShare()}
-          className={`flex-1 flex items-center justify-center p-1.5 rounded transition-colors ${
+          className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors ${
             isScreenSharing
               ? 'bg-sol-sage/20 text-sol-sage'
               : 'bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary'
@@ -270,7 +270,7 @@ export default function VoiceControls() {
         {/* Soundboard */}
         <button
           onClick={() => setShowSoundboard(true)}
-          className="flex-1 flex items-center justify-center p-1.5 rounded bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
           title="Soundboard"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -282,7 +282,7 @@ export default function VoiceControls() {
         {/* Settings */}
         <button
           onClick={() => setShowSettings(true)}
-          className="flex-1 flex items-center justify-center p-1.5 rounded bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-sol-bg-elevated text-sol-text-secondary hover:text-sol-text-primary transition-colors"
           title="Voice & Video Settings"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -294,7 +294,7 @@ export default function VoiceControls() {
         {/* Disconnect */}
         <button
           onClick={leaveVoiceChannel}
-          className="flex-1 flex items-center justify-center p-1.5 rounded bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors"
+          className="w-9 h-9 flex items-center justify-center rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-colors"
           title="Disconnect"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
