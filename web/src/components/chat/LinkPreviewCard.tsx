@@ -28,7 +28,7 @@ export default function LinkPreviewCard({ url }: LinkPreviewCardProps) {
       rel="noopener noreferrer"
       className="flex gap-3 mt-1.5 max-w-md p-3 rounded-lg border-l-4 border-sol-amber/40 bg-sol-bg-elevated/50 hover:bg-sol-bg-elevated/80 transition-colors"
     >
-      {preview.image_url && (
+      {preview.image_url && preview.image_url.startsWith('https://') && (
         <img
           src={preview.image_url}
           alt=""

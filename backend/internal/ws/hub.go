@@ -8,10 +8,13 @@ import (
 	"github.com/google/uuid"
 )
 
+// MaxConnectionsPerUser is the maximum number of concurrent WebSocket connections per user.
+const MaxConnectionsPerUser = 5
+
 type Hub struct {
-	clients      map[uuid.UUID]*Client
-	channels     map[string]map[uuid.UUID]bool // channelID -> set of client userIDs
-	voiceStates  map[string]map[uuid.UUID]VoiceState // channelID -> userID -> state
+	clients      map[uuid.UUID][]*Client                // userID -> list of connections
+	channels     map[string]map[uuid.UUID]bool           // channelID -> set of client userIDs
+	voiceStates  map[string]map[uuid.UUID]VoiceState     // channelID -> userID -> state
 	register     chan *Client
 	unregister   chan *Client
 	broadcast    chan *ChannelMessage
@@ -37,7 +40,7 @@ type ChannelMessage struct {
 
 func NewHub() *Hub {
 	return &Hub{
-		clients:     make(map[uuid.UUID]*Client),
+		clients:     make(map[uuid.UUID][]*Client),
 		channels:    make(map[string]map[uuid.UUID]bool),
 		voiceStates: make(map[string]map[uuid.UUID]VoiceState),
 		register:    make(chan *Client, 256),
@@ -59,18 +62,39 @@ func (h *Hub) Run() {
 		select {
 		case client := <-h.register:
 			h.mu.Lock()
-			h.clients[client.UserID] = client
+			conns := h.clients[client.UserID]
+
+			// Enforce per-user connection limit: close oldest if at max
+			if len(conns) >= MaxConnectionsPerUser {
+				oldest := conns[0]
+				close(oldest.send)
+				conns = conns[1:]
+				log.Printf("Evicted oldest connection for user %s (limit %d)", client.UserID, MaxConnectionsPerUser)
+			}
+
+			wasOffline := len(conns) == 0
+			h.clients[client.UserID] = append(conns, client)
 			h.mu.Unlock()
 			log.Printf("Client registered: %s (%s)", client.Username, client.UserID)
-			if h.onConnect != nil {
+			if wasOffline && h.onConnect != nil {
 				go h.onConnect(client.UserID, client.Username)
 			}
 
 		case client := <-h.unregister:
 			h.mu.Lock()
-			if _, ok := h.clients[client.UserID]; ok {
+			conns := h.clients[client.UserID]
+			// Remove this specific client from the slice
+			for i, c := range conns {
+				if c == client {
+					close(c.send)
+					conns = append(conns[:i], conns[i+1:]...)
+					break
+				}
+			}
+
+			nowOffline := len(conns) == 0
+			if nowOffline {
 				delete(h.clients, client.UserID)
-				close(client.send)
 
 				// Remove from all channels
 				for chID, members := range h.channels {
@@ -89,10 +113,12 @@ func (h *Hub) Run() {
 						}
 					}
 				}
+			} else {
+				h.clients[client.UserID] = conns
 			}
 			h.mu.Unlock()
 			log.Printf("Client unregistered: %s (%s)", client.Username, client.UserID)
-			if h.onDisconnect != nil {
+			if nowOffline && h.onDisconnect != nil {
 				go h.onDisconnect(client.UserID, client.Username)
 			}
 
@@ -108,7 +134,7 @@ func (h *Hub) Run() {
 					if msg.ExcludeID != nil && userID == *msg.ExcludeID {
 						continue
 					}
-					if client, ok := h.clients[userID]; ok {
+					for _, client := range h.clients[userID] {
 						select {
 						case client.send <- data:
 						default:
@@ -156,7 +182,7 @@ func (h *Hub) SendToUser(userID uuid.UUID, event *Event) {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
-	client, ok := h.clients[userID]
+	conns, ok := h.clients[userID]
 	if !ok {
 		return
 	}
@@ -166,17 +192,19 @@ func (h *Hub) SendToUser(userID uuid.UUID, event *Event) {
 		return
 	}
 
-	select {
-	case client.send <- data:
-	default:
+	for _, client := range conns {
+		select {
+		case client.send <- data:
+		default:
+		}
 	}
 }
 
 func (h *Hub) IsOnline(userID uuid.UUID) bool {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	_, ok := h.clients[userID]
-	return ok
+	conns := h.clients[userID]
+	return len(conns) > 0
 }
 
 func (h *Hub) GetOnlineUsers() []uuid.UUID {

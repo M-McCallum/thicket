@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/microcosm-cc/bluemonday"
 
 	"github.com/M-McCallum/thicket/internal/models"
 )
@@ -17,12 +18,13 @@ var (
 )
 
 type WebhookService struct {
-	queries *models.Queries
-	permSvc *PermissionService
+	queries   *models.Queries
+	permSvc   *PermissionService
+	sanitizer *bluemonday.Policy
 }
 
 func NewWebhookService(q *models.Queries, permSvc *PermissionService) *WebhookService {
-	return &WebhookService{queries: q, permSvc: permSvc}
+	return &WebhookService{queries: q, permSvc: permSvc, sanitizer: bluemonday.StrictPolicy()}
 }
 
 // CreateWebhook creates a webhook for a channel. The caller must have ManageChannels.
@@ -153,6 +155,9 @@ func (s *WebhookService) ExecuteWebhook(ctx context.Context, webhookID uuid.UUID
 	if content == "" {
 		return nil, nil, ErrEmptyMessage
 	}
+
+	// Sanitize content the same way normal messages are sanitized
+	content = s.sanitizer.Sanitize(content)
 
 	// Create message with the webhook's creator as the author
 	msg, err := s.queries.CreateMessage(ctx, models.CreateMessageParams{

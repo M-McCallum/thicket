@@ -12,9 +12,10 @@ import (
 )
 
 type Client struct {
-	client *minio.Client
-	core   minio.Core
-	bucket string
+	client         *minio.Client
+	core           minio.Core
+	bucket         string
+	publicEndpoint string // browser-reachable base URL; if empty, presigned URLs use the default minio endpoint
 }
 
 func NewClient(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*Client, error) {
@@ -26,6 +27,37 @@ func NewClient(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*Cli
 		return nil, fmt.Errorf("minio client: %w", err)
 	}
 	return &Client{client: mc, core: minio.Core{Client: mc}, bucket: bucket}, nil
+}
+
+// SetPublicEndpoint sets a browser-reachable base URL (e.g. "https://chat.example.com/storage")
+// for rewriting presigned URLs so browsers can reach MinIO through a reverse proxy.
+func (c *Client) SetPublicEndpoint(publicEndpoint string) {
+	c.publicEndpoint = publicEndpoint
+}
+
+// rewritePresignedURL replaces the internal MinIO host in a presigned URL with the
+// public endpoint so browsers can reach it. If no public endpoint is configured,
+// the URL is returned unchanged.
+func (c *Client) rewritePresignedURL(raw string) (string, error) {
+	if c.publicEndpoint == "" {
+		return raw, nil
+	}
+
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "", fmt.Errorf("parse presigned URL: %w", err)
+	}
+
+	pub, err := url.Parse(c.publicEndpoint)
+	if err != nil {
+		return "", fmt.Errorf("parse public endpoint: %w", err)
+	}
+
+	parsed.Scheme = pub.Scheme
+	parsed.Host = pub.Host
+	parsed.Path = pub.Path + parsed.Path
+
+	return parsed.String(), nil
 }
 
 func (c *Client) EnsureBucket(ctx context.Context) error {
@@ -53,11 +85,11 @@ func (c *Client) Delete(ctx context.Context, objectKey string) error {
 }
 
 func (c *Client) GetPresignedURL(ctx context.Context, objectKey string) (string, error) {
-	u, err := c.client.PresignedGetObject(ctx, c.bucket, objectKey, time.Hour, url.Values{})
+	u, err := c.client.PresignedGetObject(ctx, c.bucket, objectKey, 15*time.Minute, url.Values{})
 	if err != nil {
 		return "", err
 	}
-	return u.String(), nil
+	return c.rewritePresignedURL(u.String())
 }
 
 func (c *Client) GetObject(ctx context.Context, objectKey string) (*minio.Object, error) {
@@ -84,7 +116,7 @@ func (c *Client) PresignedUploadPartURL(ctx context.Context, objectKey, uploadID
 	if err != nil {
 		return "", err
 	}
-	return u.String(), nil
+	return c.rewritePresignedURL(u.String())
 }
 
 func (c *Client) CompleteMultipartUpload(ctx context.Context, objectKey, uploadID string, parts []minio.CompletePart) error {

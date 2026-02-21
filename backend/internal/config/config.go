@@ -20,11 +20,12 @@ type GiphyConfig struct {
 }
 
 type MinIOConfig struct {
-	Endpoint  string
-	AccessKey string
-	SecretKey string
-	Bucket    string
-	UseSSL    bool
+	Endpoint       string
+	PublicEndpoint string // browser-reachable endpoint for presigned URLs (e.g. https://chat.example.com/storage)
+	AccessKey      string
+	SecretKey      string
+	Bucket         string
+	UseSSL         bool
 }
 
 type OryConfig struct {
@@ -66,6 +67,14 @@ type LiveKitConfig struct {
 }
 
 func Load() (*Config, error) {
+	env := getEnv("ENV", "development")
+
+	// Default to "require" for production, "disable" for development
+	sslDefault := "require"
+	if env == "development" {
+		sslDefault = "disable"
+	}
+
 	cfg := &Config{
 		DB: DBConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
@@ -73,7 +82,7 @@ func Load() (*Config, error) {
 			User:     getEnv("DB_USER", "thicket"),
 			Password: getEnv("DB_PASSWORD", "thicket_dev"),
 			Name:     getEnv("DB_NAME", "thicket"),
-			SSLMode:  getEnv("DB_SSL_MODE", "disable"),
+			SSLMode:  getEnv("DB_SSL_MODE", sslDefault),
 		},
 		API: APIConfig{
 			Port:       getEnv("API_PORT", "8080"),
@@ -93,16 +102,17 @@ func Load() (*Config, error) {
 			HydraAdminURL:    getEnv("HYDRA_ADMIN_URL", "http://localhost:4445"),
 		},
 		MinIO: MinIOConfig{
-			Endpoint:  getEnv("MINIO_ENDPOINT", "localhost:9000"),
-			AccessKey: getEnv("MINIO_ACCESS_KEY", "thicket_dev"),
-			SecretKey: getEnv("MINIO_SECRET_KEY", "thicket_dev_secret"),
-			Bucket:    getEnv("MINIO_BUCKET", "thicket"),
-			UseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
+			Endpoint:       getEnv("MINIO_ENDPOINT", "localhost:9000"),
+			PublicEndpoint: getEnv("MINIO_PUBLIC_ENDPOINT", ""),
+			AccessKey:      getEnv("MINIO_ACCESS_KEY", "thicket_dev"),
+			SecretKey:      getEnv("MINIO_SECRET_KEY", "thicket_dev_secret"),
+			Bucket:         getEnv("MINIO_BUCKET", "thicket"),
+			UseSSL:         getEnv("MINIO_USE_SSL", "false") == "true",
 		},
 		Giphy: GiphyConfig{
 			APIKey: getEnv("GIPHY_API_KEY", ""),
 		},
-		Env: getEnv("ENV", "development"),
+		Env: env,
 	}
 
 	return cfg, nil

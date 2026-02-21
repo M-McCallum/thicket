@@ -143,9 +143,9 @@ type CreateWebhookParams struct {
 func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (Webhook, error) {
 	var w Webhook
 	err := q.db.QueryRow(ctx,
-		`INSERT INTO webhooks (channel_id, name, token, creator_id)
+		`INSERT INTO webhooks (channel_id, name, token_hash, creator_id)
 		VALUES ($1, $2, $3, $4)
-		RETURNING id, channel_id, name, avatar_url, token, creator_id, created_at`,
+		RETURNING id, channel_id, name, avatar_url, token_hash, creator_id, created_at`,
 		arg.ChannelID, arg.Name, arg.Token, arg.CreatorID,
 	).Scan(&w.ID, &w.ChannelID, &w.Name, &w.AvatarURL, &w.TokenHash, &w.CreatorID, &w.CreatedAt)
 	return w, err
@@ -154,7 +154,7 @@ func (q *Queries) CreateWebhook(ctx context.Context, arg CreateWebhookParams) (W
 func (q *Queries) GetWebhookByID(ctx context.Context, id uuid.UUID) (Webhook, error) {
 	var w Webhook
 	err := q.db.QueryRow(ctx,
-		`SELECT id, channel_id, name, avatar_url, token, creator_id, created_at
+		`SELECT id, channel_id, name, avatar_url, token_hash, creator_id, created_at
 		FROM webhooks WHERE id = $1`, id,
 	).Scan(&w.ID, &w.ChannelID, &w.Name, &w.AvatarURL, &w.TokenHash, &w.CreatorID, &w.CreatedAt)
 	return w, err
@@ -162,7 +162,7 @@ func (q *Queries) GetWebhookByID(ctx context.Context, id uuid.UUID) (Webhook, er
 
 func (q *Queries) GetWebhooksByChannel(ctx context.Context, channelID uuid.UUID) ([]Webhook, error) {
 	rows, err := q.db.Query(ctx,
-		`SELECT id, channel_id, name, avatar_url, token, creator_id, created_at
+		`SELECT id, channel_id, name, avatar_url, token_hash, creator_id, created_at
 		FROM webhooks WHERE channel_id = $1 ORDER BY created_at DESC`, channelID,
 	)
 	if err != nil {

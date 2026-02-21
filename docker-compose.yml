@@ -156,15 +156,27 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ACCESS_KEY}
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
+      MINIO_API_CORS_ALLOW_ORIGIN: https://${DOMAIN}
     volumes:
       - minio_data:/data
     networks:
       - internal
+      - dokploy-network
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 10s
       timeout: 5s
       retries: 5
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.thicket-minio.rule=Host(`${DOMAIN}`) && PathPrefix(`/storage/`)"
+      - "traefik.http.routers.thicket-minio.entrypoints=websecure"
+      - "traefik.http.routers.thicket-minio.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-minio.service=thicket-minio-svc"
+      - "traefik.http.middlewares.thicket-minio-strip.stripprefix.prefixes=/storage"
+      - "traefik.http.routers.thicket-minio.middlewares=thicket-minio-strip"
+      - "traefik.http.services.thicket-minio-svc.loadbalancer.server.port=9000"
+      - "traefik.docker.network=dokploy-network"
 
   backend:
     build:
@@ -197,6 +209,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - MINIO_BUCKET=${MINIO_BUCKET:-thicket}
       - MINIO_USE_SSL=false
+      - MINIO_PUBLIC_ENDPOINT=https://${DOMAIN}/storage
       - GIPHY_API_KEY=${GIPHY_API_KEY}
       - ENV=production
     depends_on:

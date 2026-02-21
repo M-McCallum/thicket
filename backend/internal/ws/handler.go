@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"strings"
 
 	"github.com/fasthttp/websocket"
 	"github.com/gofiber/fiber/v3"
@@ -13,9 +14,21 @@ import (
 	"github.com/M-McCallum/thicket/internal/auth"
 )
 
+// AllowedOrigins is set during setup to restrict WebSocket connections.
+var AllowedOrigins []string
+
 var upgrader = websocket.FastHTTPUpgrader{
 	CheckOrigin: func(ctx *fasthttp.RequestCtx) bool {
-		return true // Origin check handled by CORS middleware
+		origin := string(ctx.Request.Header.Peek("Origin"))
+		if origin == "" {
+			return false
+		}
+		for _, allowed := range AllowedOrigins {
+			if strings.EqualFold(origin, allowed) {
+				return true
+			}
+		}
+		return false
 	},
 }
 

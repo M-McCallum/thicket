@@ -105,6 +105,16 @@ func (h *WebhookHandler) ExecuteWebhook(c fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
+	if len(body.Content) > 4000 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "content must be 4000 characters or fewer"})
+	}
+	if len(body.Username) > 80 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "username must be 80 characters or fewer"})
+	}
+	if len(body.AvatarURL) > 2048 {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "avatar_url must be 2048 characters or fewer"})
+	}
+
 	webhook, msg, err := h.webhookService.ExecuteWebhook(c.Context(), webhookID, token, body.Content)
 	if err != nil {
 		return handleWebhookError(c, err)
