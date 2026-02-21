@@ -396,6 +396,24 @@ func (h *ForumHandler) CreatePostMessage(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(msg)
 }
 
+func (h *ForumHandler) DeletePostMessage(c fiber.Ctx) error {
+	postID, err := uuid.Parse(c.Params("postId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid post ID"})
+	}
+	messageID, err := uuid.Parse(c.Params("messageId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+	userID := auth.GetUserID(c)
+
+	if err := h.forumService.DeletePostMessage(c.Context(), postID, messageID, userID); err != nil {
+		return handleForumError(c, err)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 // --- Helpers ---
 
 func splitTags(s string) []string {

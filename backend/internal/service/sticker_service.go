@@ -106,6 +106,28 @@ func (s *StickerService) DeleteSticker(ctx context.Context, id uuid.UUID) error 
 	return s.queries.DeleteSticker(ctx, id)
 }
 
+func (s *StickerService) DeletePack(ctx context.Context, serverID, packID uuid.UUID) error {
+	pack, err := s.queries.GetStickerPackByID(ctx, packID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrStickerPackNotFound
+		}
+		return err
+	}
+	if pack.ServerID == nil || *pack.ServerID != serverID {
+		return ErrStickerPackNotFound
+	}
+	stickers, err := s.queries.GetStickersByPackID(ctx, packID)
+	if err != nil {
+		return err
+	}
+	for _, sticker := range stickers {
+		_ = s.storage.Delete(ctx, sticker.ObjectKey)
+		_ = s.queries.DeleteSticker(ctx, sticker.ID)
+	}
+	return s.queries.DeleteStickerPack(ctx, packID)
+}
+
 func (s *StickerService) resolveURLs(_ context.Context, stickers []models.Sticker) {
 	for i := range stickers {
 		stickers[i].URL = "/api/files/" + stickers[i].ObjectKey

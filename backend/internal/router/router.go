@@ -1,6 +1,7 @@
 package router
 
 import (
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
@@ -94,6 +95,11 @@ func Setup(app *fiber.App, cfg Config) {
 	webhookExecRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
 		Max:    10,
 		Window: time.Second,
+	})
+	webhookCrudRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		Max:     10,
+		Window:  time.Minute,
+		KeyFunc: middleware.UserKeyFunc,
 	})
 	uploadInitRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
 		Max:    10,
@@ -446,8 +452,8 @@ func Setup(app *fiber.App, cfg Config) {
 	// Webhooks (CRUD — protected)
 	if cfg.WebhookHandler != nil {
 		protected.Get("/channels/:channelId/webhooks", cfg.WebhookHandler.ListWebhooks)
-		protected.Post("/channels/:channelId/webhooks", cfg.WebhookHandler.CreateWebhook)
-		protected.Delete("/webhooks/:webhookId", cfg.WebhookHandler.DeleteWebhook)
+		protected.Post("/channels/:channelId/webhooks", webhookCrudRateLimit, cfg.WebhookHandler.CreateWebhook)
+		protected.Delete("/webhooks/:webhookId", webhookCrudRateLimit, cfg.WebhookHandler.DeleteWebhook)
 	}
 
 	// Exports
@@ -475,6 +481,12 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Post("/uploads/:pendingId/part-complete", cfg.UploadHandler.ReportPartComplete)
 		protected.Post("/uploads/:pendingId/complete", cfg.UploadHandler.CompleteUpload)
 		protected.Delete("/uploads/:pendingId", cfg.UploadHandler.AbortUpload)
+	}
+
+	// Configure allowed origins for WebSocket upgrade
+	ws.AllowedOrigins = strings.Split(cfg.CORSOrigin, ",")
+	for i, o := range ws.AllowedOrigins {
+		ws.AllowedOrigins[i] = strings.TrimSpace(o)
 	}
 
 	// WebSocket

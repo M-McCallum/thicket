@@ -60,6 +60,7 @@ const (
 	EventThreadCreate        = "THREAD_CREATE"
 	EventThreadUpdate        = "THREAD_UPDATE"
 	EventThreadMessageCreate = "THREAD_MESSAGE_CREATE"
+	EventThreadMessageDelete = "THREAD_MESSAGE_DELETE"
 	EventPollCreate          = "POLL_CREATE"
 	EventPollVote            = "POLL_VOTE"
 	EventMentionCreate        = "MENTION_CREATE"

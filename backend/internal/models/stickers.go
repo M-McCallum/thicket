@@ -112,3 +112,9 @@ func (q *Queries) DeleteSticker(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, `DELETE FROM stickers WHERE id = $1`, id)
 	return err
 }
+
+// DeleteStickerPack deletes a sticker pack by its ID.
+func (q *Queries) DeleteStickerPack(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, `DELETE FROM sticker_packs WHERE id = $1`, id)
+	return err
+}

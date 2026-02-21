@@ -52,6 +52,9 @@ func main() {
 	if err := storageClient.EnsureBucket(context.Background()); err != nil {
 		log.Fatalf("Failed to ensure storage bucket: %v", err)
 	}
+	if cfg.MinIO.PublicEndpoint != "" {
+		storageClient.SetPublicEndpoint(cfg.MinIO.PublicEndpoint)
+	}
 
 	queries := models.New(pool)
 	jwksManager := auth.NewJWKSManager(cfg.Ory.JWKSURL())

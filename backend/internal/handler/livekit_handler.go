@@ -57,7 +57,7 @@ func (h *LiveKitHandler) GetVoiceToken(c fiber.Ctx) error {
 	at.AddGrant(grant).
 		SetIdentity(userID.String()).
 		SetName(username).
-		SetValidFor(time.Hour)
+		SetValidFor(15 * time.Minute)
 
 	token, err := at.ToJWT()
 	if err != nil {
@@ -106,7 +106,7 @@ func (h *LiveKitHandler) GetDMVoiceToken(c fiber.Ctx) error {
 	at.AddGrant(grant).
 		SetIdentity(userID.String()).
 		SetName(username).
-		SetValidFor(time.Hour)
+		SetValidFor(15 * time.Minute)
 
 	token, err := at.ToJWT()
 	if err != nil {

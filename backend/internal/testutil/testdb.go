@@ -110,6 +110,7 @@ func runMigrations(ctx context.Context, pool *pgxpool.Pool) error {
 		"000035_add_pin_to_default_perms.up.sql",
 		"000036_e2ee_identity_keys.up.sql",
 		"000037_large_file_uploads.up.sql",
+		"000038_rename_webhook_token_column.up.sql",
 	}
 
 	for _, name := range migrations {

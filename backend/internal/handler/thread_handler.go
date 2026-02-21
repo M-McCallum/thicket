@@ -189,6 +189,34 @@ func (h *ThreadHandler) SendMessage(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(msg)
 }
 
+func (h *ThreadHandler) DeleteMessage(c fiber.Ctx) error {
+	threadID, err := uuid.Parse(c.Params("threadId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid thread ID"})
+	}
+	messageID, err := uuid.Parse(c.Params("messageId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid message ID"})
+	}
+
+	userID := auth.GetUserID(c)
+	thread, err := h.threadService.DeleteThreadMessage(c.Context(), threadID, messageID, userID)
+	if err != nil {
+		return handleThreadError(c, err)
+	}
+
+	event, _ := ws.NewEvent(ws.EventThreadMessageDelete, fiber.Map{
+		"id":         messageID,
+		"thread_id":  threadID,
+		"channel_id": thread.ChannelID,
+	})
+	if event != nil {
+		h.hub.BroadcastToChannel(thread.ChannelID.String(), event, nil)
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *ThreadHandler) GetMessages(c fiber.Ctx) error {
 	threadID, err := uuid.Parse(c.Params("threadId"))
 	if err != nil {

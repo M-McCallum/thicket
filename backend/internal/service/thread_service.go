@@ -216,6 +216,31 @@ func (s *ThreadService) GetThreadMessages(ctx context.Context, threadID uuid.UUI
 	return messages, nil
 }
 
+// DeleteThreadMessage deletes a thread message if the user is the author.
+func (s *ThreadService) DeleteThreadMessage(ctx context.Context, threadID, messageID, userID uuid.UUID) (*models.Thread, error) {
+	msg, err := s.queries.GetThreadMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrMessageNotFound
+		}
+		return nil, err
+	}
+	if msg.ThreadID != threadID {
+		return nil, ErrMessageNotFound
+	}
+	if msg.AuthorID != userID {
+		return nil, ErrNotMember
+	}
+	if err := s.queries.DeleteThreadMessage(ctx, messageID); err != nil {
+		return nil, err
+	}
+	thread, err := s.queries.GetThreadByID(ctx, threadID)
+	if err != nil {
+		return nil, err
+	}
+	return &thread, nil
+}
+
 // UpdateSubscription updates a user's subscription for a thread.
 func (s *ThreadService) UpdateSubscription(ctx context.Context, threadID, userID uuid.UUID, notificationLevel string) (*models.ThreadSubscription, error) {
 	_, err := s.queries.GetThreadByID(ctx, threadID)

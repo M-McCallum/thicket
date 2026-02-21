@@ -455,6 +455,24 @@ func (s *ForumService) CreatePostMessage(ctx context.Context, postID, userID uui
 	return result, nil
 }
 
+// DeletePostMessage deletes a forum post message if the user is the author.
+func (s *ForumService) DeletePostMessage(ctx context.Context, postID, messageID, userID uuid.UUID) error {
+	msg, err := s.queries.GetForumPostMessageByID(ctx, messageID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return ErrForumPostNotFound
+		}
+		return err
+	}
+	if msg.PostID != postID {
+		return ErrForumPostNotFound
+	}
+	if msg.AuthorID != userID {
+		return ErrNotMember
+	}
+	return s.queries.DeleteForumPostMessage(ctx, messageID)
+}
+
 // GetPostChannelID returns the channel ID for a given forum post.
 func (s *ForumService) GetPostChannelID(ctx context.Context, postID uuid.UUID) (uuid.UUID, error) {
 	post, err := s.queries.GetForumPostByID(ctx, postID)

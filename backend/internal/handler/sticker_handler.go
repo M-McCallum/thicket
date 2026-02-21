@@ -100,6 +100,23 @@ func (h *StickerHandler) CreateSticker(c fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(sticker)
 }
 
+func (h *StickerHandler) DeletePack(c fiber.Ctx) error {
+	serverID, err := uuid.Parse(c.Params("serverId"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid server ID"})
+	}
+	packID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid pack ID"})
+	}
+
+	if err := h.stickerService.DeletePack(c.Context(), serverID, packID); err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	return c.SendStatus(fiber.StatusNoContent)
+}
+
 func (h *StickerHandler) DeleteSticker(c fiber.Ctx) error {
 	stickerID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
