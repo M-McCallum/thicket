@@ -6,12 +6,18 @@ interface GifPickerProps {
   onClose: () => void
 }
 
+const PAGE_SIZE = 30
+
 export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<GifResult[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
   const ref = useRef<HTMLDivElement>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
+  const loadingMore = useRef(false)
+  const currentQuery = useRef('')
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -21,17 +27,22 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
     return () => document.removeEventListener('mousedown', handleClick)
   }, [onClose])
 
-  const doSearch = useCallback(async (q: string) => {
-    setIsLoading(true)
+  const doSearch = useCallback(async (q: string, offset = 0) => {
+    if (offset === 0) setIsLoading(true)
+    loadingMore.current = offset > 0
+    currentQuery.current = q
     try {
       const data = q.trim()
-        ? await gifs.search(q.trim())
-        : await gifs.trending()
-      setResults(data.data)
+        ? await gifs.search(q.trim(), PAGE_SIZE, offset)
+        : await gifs.trending(PAGE_SIZE, offset)
+      if (currentQuery.current !== q) return
+      setResults(prev => offset === 0 ? data.data : [...prev, ...data.data])
+      setHasMore(data.data.length >= PAGE_SIZE)
     } catch {
       // ignore
     }
     setIsLoading(false)
+    loadingMore.current = false
   }, [])
 
   useEffect(() => {
@@ -40,12 +51,21 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
 
   const handleQueryChange = (value: string) => {
     setQuery(value)
+    setHasMore(true)
     if (debounceRef.current) clearTimeout(debounceRef.current)
     debounceRef.current = setTimeout(() => doSearch(value), 300)
   }
 
+  const handleScroll = () => {
+    const el = scrollRef.current
+    if (!el || loadingMore.current || !hasMore) return
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 200) {
+      doSearch(query, results.length)
+    }
+  }
+
   return (
-    <div ref={ref} className="absolute bottom-full mb-2 right-0 z-50 w-96 bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl shadow-xl overflow-hidden">
+    <div ref={ref} className="absolute bottom-full mb-2 right-0 z-50 w-[28rem] bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl shadow-xl overflow-hidden">
       <div className="p-2">
         <input
           type="text"
@@ -56,13 +76,13 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
           autoFocus
         />
       </div>
-      <div className="h-96 overflow-y-auto px-2 pb-2">
+      <div ref={scrollRef} onScroll={handleScroll} className="h-[28rem] overflow-y-auto px-2 pb-2">
         {isLoading ? (
           <div className="flex items-center justify-center h-full text-sol-text-muted text-sm">Loading...</div>
         ) : results.length === 0 ? (
           <div className="flex items-center justify-center h-full text-sol-text-muted text-sm">No results</div>
         ) : (
-          <div className="grid grid-cols-2 gap-1">
+          <div className="grid grid-cols-3 gap-1">
             {results.map((gif) => (
               <button
                 key={gif.id}
@@ -77,6 +97,9 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
                 />
               </button>
             ))}
+            {loadingMore.current && (
+              <div className="col-span-3 flex justify-center py-2 text-sol-text-muted text-sm">Loading more...</div>
+            )}
           </div>
         )}
       </div>
