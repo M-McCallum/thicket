@@ -9,7 +9,7 @@ interface ServerSettingsModalProps {
   onClose: () => void
 }
 
-type Tab = 'general' | 'roles'
+type Tab = 'general' | 'members'
 
 export default function ServerSettingsModal({ server, onClose }: ServerSettingsModalProps) {
   const [tab, setTab] = useState<Tab>('general')
@@ -50,14 +50,14 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             General
           </button>
           <button
-            onClick={() => setTab('roles')}
+            onClick={() => setTab('members')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-              tab === 'roles'
+              tab === 'members'
                 ? 'border-sol-amber text-sol-amber'
                 : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
             }`}
           >
-            Roles
+            Members
           </button>
           <div className="flex-1" />
           <button onClick={onClose} className="text-sol-text-muted hover:text-sol-text-primary transition-colors pb-2">
@@ -121,8 +121,8 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             </div>
           )}
 
-          {tab === 'roles' && (
-            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading roles...</div>}>
+          {tab === 'members' && (
+            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
               <RoleSettingsPanel />
             </Suspense>
           )}

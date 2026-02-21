@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
-import { usePermissionStore, useHasPermission } from '@/stores/permissionStore'
-import { PermManageRoles } from '@/types/permissions'
+import { usePermissionStore } from '@/stores/permissionStore'
 import UserProfilePopup from '@/components/profile/UserProfilePopup'
-import MemberRoleManager from './MemberRoleManager'
 
 const statusColors: Record<string, string> = {
   online: 'bg-sol-green',
@@ -18,10 +16,8 @@ export default function MemberList() {
   const currentUserId = useAuthStore((s) => s.user?.id)
   const roles = usePermissionStore((s) => s.roles)
   const memberRoleIds = usePermissionStore((s) => s.memberRoleIds)
-  const canManageRoles = useHasPermission(PermManageRoles)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [preloadedData, setPreloadedData] = useState<{ display_name?: string | null; username?: string; status?: string } | undefined>()
-  const [roleManagerTarget, setRoleManagerTarget] = useState<{ memberId: string; x: number; y: number } | null>(null)
 
   // Get hoisted roles sorted by position desc (highest first)
   const hoistedRoles = useMemo(
@@ -92,12 +88,6 @@ export default function MemberList() {
     setSelectedUserId(member.id)
   }
 
-  const handleContextMenu = (e: React.MouseEvent, memberId: string) => {
-    if (!canManageRoles) return
-    e.preventDefault()
-    setRoleManagerTarget({ memberId, x: e.clientX, y: e.clientY })
-  }
-
   return (
     <div className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col">
       <div className="flex-1 overflow-y-auto py-2">
@@ -107,7 +97,7 @@ export default function MemberList() {
               {section.label}
             </div>
             {section.members.map((member) => (
-              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} onContextMenu={(e) => handleContextMenu(e, member.id)} />
+              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} />
             ))}
           </div>
         ))}
@@ -118,7 +108,7 @@ export default function MemberList() {
               Offline — {grouped.offline.length}
             </div>
             {grouped.offline.map((member) => (
-              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} onContextMenu={(e) => handleContextMenu(e, member.id)} />
+              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} />
             ))}
           </div>
         )}
@@ -131,23 +121,11 @@ export default function MemberList() {
           preloaded={preloadedData}
         />
       )}
-
-      {roleManagerTarget && (
-        <div className="fixed inset-0 z-50" onClick={() => setRoleManagerTarget(null)}>
-          <div
-            className="absolute"
-            style={{ left: roleManagerTarget.x, top: roleManagerTarget.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MemberRoleManager memberId={roleManagerTarget.memberId} onClose={() => setRoleManagerTarget(null)} />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
 
-function MemberItem({ member, color, onClick, onContextMenu }: { member: { id: string; username: string; display_name: string | null; status: string; role: string }; color: string | null; onClick: () => void; onContextMenu: (e: React.MouseEvent) => void }) {
+function MemberItem({ member, color, onClick }: { member: { id: string; username: string; display_name: string | null; status: string; role: string }; color: string | null; onClick: () => void }) {
   const fallbackColors: Record<string, string> = {
     owner: 'text-sol-amber',
     admin: 'text-sol-rose',
@@ -155,7 +133,7 @@ function MemberItem({ member, color, onClick, onContextMenu }: { member: { id: s
   }
 
   return (
-    <div onClick={onClick} onContextMenu={onContextMenu} className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
+    <div onClick={onClick} className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
       <div className="relative">
         <div className="w-8 h-8 rounded-full bg-sol-bg-elevated flex items-center justify-center text-sm font-medium">
           {(member.display_name ?? member.username).charAt(0).toUpperCase()}
