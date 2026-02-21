@@ -67,9 +67,10 @@ func Setup(app *fiber.App, cfg Config) {
 		api.Get("/servers/invite/:code/preview", cfg.ServerHandler.GetServerPreview)
 	}
 
-	// Attachment file proxy (public — URL acts as capability)
+	// Attachment file proxy (public — no auth, registered on app directly
+	// because Fiber v3 group middleware bleeds to sibling routes)
 	if cfg.AttachmentHandler != nil {
-		api.Get("/attachments/:id/:filename", cfg.AttachmentHandler.ServeAttachment)
+		app.Get("/api/attachments/:id/:filename", cfg.AttachmentHandler.ServeAttachment)
 	}
 
 	// Protected routes

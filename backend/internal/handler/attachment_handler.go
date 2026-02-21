@@ -42,9 +42,14 @@ func (h *AttachmentHandler) ServeAttachment(c fiber.Ctx) error {
 	}
 	defer obj.Close()
 
+	data, err := io.ReadAll(obj)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to read file"})
+	}
+
 	c.Set("Content-Type", att.ContentType)
 	c.Set("Content-Disposition", fmt.Sprintf(`inline; filename="%s"`, att.OriginalFilename))
 	c.Set("Cache-Control", "public, max-age=86400, immutable")
 
-	return c.SendStream(io.NopCloser(obj))
+	return c.Send(data)
 }
