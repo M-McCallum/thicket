@@ -45,13 +45,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const tokens = getTokens()
       if (tokens.access_token) {
+        // Set refresh token in store BEFORE making API calls so the
+        // 401 interceptor in request() can use it for token refresh.
+        set({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token })
         setTokens(tokens.access_token, tokens.refresh_token ?? '')
         wsService.connect(tokens.access_token)
         const user = await profileApi.get()
         set({
           user,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
           isAuthenticated: true,
           isLoading: false
         })
@@ -59,28 +60,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       set({ isLoading: false })
     } catch {
-      // Access token expired or invalid — try refreshing before giving up
-      const tokens = getTokens()
-      if (tokens.refresh_token) {
-        try {
-          const refreshed = await oauthService.refreshToken(tokens.refresh_token)
-          storeTokensLocally(refreshed)
-          setTokens(refreshed.access_token, refreshed.refresh_token ?? '')
-          wsService.connect(refreshed.access_token)
-          const user = await profileApi.get()
-          set({
-            user,
-            accessToken: refreshed.access_token,
-            refreshToken: refreshed.refresh_token,
-            isAuthenticated: true,
-            isLoading: false
-          })
-          return
-        } catch {
-          // Refresh also failed — give up
-        }
-      }
-      set({ isLoading: false })
+      set({ isLoading: false, isAuthenticated: false, user: null, accessToken: null, refreshToken: null })
     }
   },
 
