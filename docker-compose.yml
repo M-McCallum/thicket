@@ -197,6 +197,7 @@ services:
       - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
       - MINIO_BUCKET=${MINIO_BUCKET:-thicket}
       - MINIO_USE_SSL=false
+      - GIPHY_API_KEY=${GIPHY_API_KEY}
       - ENV=production
     depends_on:
       postgres:
