@@ -120,19 +120,9 @@ export default function VideoGrid() {
       </div>
 
       {isFocusMode ? (
-        // Focus layout: large tile + sidebar strip
-        <div className="flex h-full gap-2">
-          <div className="flex-1 min-w-0">
-            <VideoTile
-              participant={focusedTile.participant}
-              track={focusedTile.track}
-              isSpeaking={speakingUserIds.includes(focusedTile.participant.userId)}
-              isLocal={focusedTile.isLocal}
-              isScreenShare={focusedTile.isScreenShare}
-              className="w-full h-full"
-            />
-          </div>
-          <div className="w-48 flex flex-col gap-2 overflow-y-auto">
+        // Focus layout: thumbnail strip on top, focused tile fills remaining height
+        <div className="flex flex-col h-full gap-2">
+          <div className="flex gap-2 overflow-x-auto shrink-0">
             {tiles
               .filter((t) => t.key !== focusedTile.key)
               .map((tile) => (
@@ -144,9 +134,19 @@ export default function VideoGrid() {
                   isLocal={tile.isLocal}
                   isScreenShare={tile.isScreenShare}
                   onClick={() => setFocusedParticipant(tile.key)}
-                  className="aspect-video"
+                  className="h-24 aspect-video shrink-0"
                 />
               ))}
+          </div>
+          <div className="flex-1 min-h-0">
+            <VideoTile
+              participant={focusedTile.participant}
+              track={focusedTile.track}
+              isSpeaking={speakingUserIds.includes(focusedTile.participant.userId)}
+              isLocal={focusedTile.isLocal}
+              isScreenShare={focusedTile.isScreenShare}
+              className="w-full h-full"
+            />
           </div>
         </div>
       ) : (
