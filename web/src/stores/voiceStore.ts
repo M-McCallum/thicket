@@ -1,13 +1,20 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant, Participant } from 'livekit-client'
+import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack } from 'livekit-client'
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
+
+export type VideoLayoutMode = 'grid' | 'focus'
+export type VideoQuality = 'auto' | '720p' | '480p' | '360p'
 
 export interface VoiceParticipant {
   userId: string
   username: string
   muted: boolean
   deafened: boolean
+  cameraEnabled: boolean
+  screenShareEnabled: boolean
+  videoTrack: Track | null
+  screenTrack: Track | null
 }
 
 interface VoiceState {
@@ -21,6 +28,16 @@ interface VoiceState {
   selectedInputDeviceId: string | null
   selectedOutputDeviceId: string | null
 
+  // Video state
+  isCameraEnabled: boolean
+  isScreenSharing: boolean
+  selectedVideoDeviceId: string | null
+  videoLayoutMode: VideoLayoutMode
+  focusedParticipantId: string | null
+  isPiPActive: boolean
+  videoQuality: VideoQuality
+  localTrackVersion: number
+
   joinVoiceChannel: (serverId: string, channelId: string) => Promise<void>
   leaveVoiceChannel: () => void
   toggleMute: () => void
@@ -30,6 +47,15 @@ interface VoiceState {
   addParticipant: (participant: VoiceParticipant) => void
   removeParticipant: (userId: string) => void
   clearParticipants: () => void
+
+  // Video actions
+  toggleCamera: () => Promise<void>
+  toggleScreenShare: () => Promise<void>
+  setVideoDevice: (deviceId: string) => void
+  setVideoLayoutMode: (mode: VideoLayoutMode) => void
+  setFocusedParticipant: (participantId: string | null) => void
+  togglePiP: () => void
+  setVideoQuality: (quality: VideoQuality) => void
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -42,6 +68,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   speakingUserIds: [],
   selectedInputDeviceId: localStorage.getItem('voice:inputDeviceId'),
   selectedOutputDeviceId: localStorage.getItem('voice:outputDeviceId'),
+
+  // Video state
+  isCameraEnabled: false,
+  isScreenSharing: false,
+  selectedVideoDeviceId: localStorage.getItem('voice:videoDeviceId'),
+  videoLayoutMode: 'grid',
+  focusedParticipantId: null,
+  isPiPActive: false,
+  videoQuality: 'auto',
+  localTrackVersion: 0,
 
   joinVoiceChannel: async (serverId, channelId) => {
     const { room: existingRoom } = get()
@@ -62,7 +98,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
             userId: participant.identity,
             username: participant.name || participant.identity,
             muted: false,
-            deafened: false
+            deafened: false,
+            cameraEnabled: false,
+            screenShareEnabled: false,
+            videoTrack: null,
+            screenTrack: null
           }
         ]
       }))
@@ -90,6 +130,54 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       }))
     })
 
+    // Track remote video/screen-share tracks
+    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+      if (track.kind !== Track.Kind.Video) return
+      const isScreenShare = track.source === Track.Source.ScreenShare
+      set((state) => ({
+        participants: state.participants.map((p) =>
+          p.userId === participant.identity
+            ? isScreenShare
+              ? { ...p, screenShareEnabled: true, screenTrack: track }
+              : { ...p, cameraEnabled: true, videoTrack: track }
+            : p
+        ),
+        // Auto-focus screen shares
+        ...(isScreenShare ? { focusedParticipantId: participant.identity, videoLayoutMode: 'focus' as VideoLayoutMode } : {})
+      }))
+    })
+
+    room.on(RoomEvent.TrackUnsubscribed, (track: RemoteTrack, publication: RemoteTrackPublication, participant: RemoteParticipant) => {
+      if (track.kind !== Track.Kind.Video) return
+      const isScreenShare = track.source === Track.Source.ScreenShare
+      set((state) => {
+        const updates: Partial<VoiceState> = {
+          participants: state.participants.map((p) =>
+            p.userId === participant.identity
+              ? isScreenShare
+                ? { ...p, screenShareEnabled: false, screenTrack: null }
+                : { ...p, cameraEnabled: false, videoTrack: null }
+              : p
+          )
+        }
+        // Clear focus if the screen-sharer stopped sharing
+        if (isScreenShare && state.focusedParticipantId === participant.identity) {
+          updates.focusedParticipantId = null
+          updates.videoLayoutMode = 'grid'
+        }
+        return updates
+      })
+    })
+
+    // Bump localTrackVersion when local tracks are published/unpublished
+    // so VideoGrid re-reads tracks from the room object
+    room.on(RoomEvent.LocalTrackPublished, () => {
+      set((state) => ({ localTrackVersion: state.localTrackVersion + 1 }))
+    })
+    room.on(RoomEvent.LocalTrackUnpublished, () => {
+      set((state) => ({ localTrackVersion: state.localTrackVersion + 1 }))
+    })
+
     await room.connect(livekitUrl, token)
 
     // Enable microphone with saved device preference
@@ -110,12 +198,35 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     // Build initial participant list from existing participants
     const existingParticipants: VoiceParticipant[] = Array.from(
       room.remoteParticipants.values()
-    ).map((p) => ({
-      userId: p.identity,
-      username: p.name || p.identity,
-      muted: !p.isMicrophoneEnabled,
-      deafened: false
-    }))
+    ).map((p) => {
+      let videoTrack: Track | null = null
+      let screenTrack: Track | null = null
+      let cameraEnabled = false
+      let screenShareEnabled = false
+
+      p.videoTrackPublications.forEach((pub) => {
+        if (pub.track) {
+          if (pub.track.source === Track.Source.ScreenShare) {
+            screenTrack = pub.track
+            screenShareEnabled = true
+          } else {
+            videoTrack = pub.track
+            cameraEnabled = true
+          }
+        }
+      })
+
+      return {
+        userId: p.identity,
+        username: p.name || p.identity,
+        muted: !p.isMicrophoneEnabled,
+        deafened: false,
+        cameraEnabled,
+        screenShareEnabled,
+        videoTrack,
+        screenTrack
+      }
+    })
 
     set({
       room,
@@ -123,7 +234,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       activeServerId: serverId,
       participants: existingParticipants,
       isMuted: false,
-      isDeafened: false
+      isDeafened: false,
+      isCameraEnabled: false,
+      isScreenSharing: false
     })
 
     // Notify server via WebSocket
@@ -154,7 +267,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       participants: [],
       isMuted: false,
       isDeafened: false,
-      speakingUserIds: []
+      speakingUserIds: [],
+      isCameraEnabled: false,
+      isScreenSharing: false,
+      focusedParticipantId: null,
+      isPiPActive: false
     })
   },
 
@@ -215,5 +332,53 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       participants: state.participants.filter((p) => p.userId !== userId)
     })),
 
-  clearParticipants: () => set({ participants: [] })
+  clearParticipants: () => set({ participants: [] }),
+
+  // Video actions
+  toggleCamera: async () => {
+    const { room, isCameraEnabled, selectedVideoDeviceId } = get()
+    if (!room) return
+    const enabling = !isCameraEnabled
+    // Set state immediately to avoid race with event handlers
+    set({ isCameraEnabled: enabling })
+    try {
+      await room.localParticipant.setCameraEnabled(
+        enabling,
+        selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : undefined
+      )
+    } catch {
+      // Revert on failure
+      set({ isCameraEnabled: !enabling })
+    }
+  },
+
+  toggleScreenShare: async () => {
+    const { room, isScreenSharing } = get()
+    if (!room) return
+    const enabling = !isScreenSharing
+    set({ isScreenSharing: enabling })
+    try {
+      await room.localParticipant.setScreenShareEnabled(enabling)
+    } catch {
+      // User cancelled the screen share picker or error — revert
+      set({ isScreenSharing: !enabling })
+    }
+  },
+
+  setVideoDevice: (deviceId) => {
+    localStorage.setItem('voice:videoDeviceId', deviceId)
+    set({ selectedVideoDeviceId: deviceId })
+    const { room, isCameraEnabled } = get()
+    if (room && isCameraEnabled) {
+      room.switchActiveDevice('videoinput', deviceId)
+    }
+  },
+
+  setVideoLayoutMode: (mode) => set({ videoLayoutMode: mode }),
+
+  setFocusedParticipant: (participantId) => set({ focusedParticipantId: participantId }),
+
+  togglePiP: () => set((state) => ({ isPiPActive: !state.isPiPActive })),
+
+  setVideoQuality: (quality) => set({ videoQuality: quality })
 }))

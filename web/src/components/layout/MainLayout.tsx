@@ -4,6 +4,8 @@ import ChannelSidebar from '@/components/server/ChannelSidebar'
 import ChatArea from '@/components/chat/ChatArea'
 import MemberList from '@/components/server/MemberList'
 import VoiceControls from '@/components/voice/VoiceControls'
+import VideoGrid from '@/components/voice/VideoGrid'
+import PiPOverlay from '@/components/voice/PiPOverlay'
 import ConversationList from '@/components/dm/ConversationList'
 import DMChatArea from '@/components/dm/DMChatArea'
 import FriendsList from '@/components/dm/FriendsList'
@@ -11,12 +13,14 @@ import FriendRequests from '@/components/dm/FriendRequests'
 import AddFriendModal from '@/components/dm/AddFriendModal'
 import IncomingCallOverlay from '@/components/dm/IncomingCallOverlay'
 import { useServerStore } from '@/stores/serverStore'
+import { useVoiceStore } from '@/stores/voiceStore'
 import { useWebSocketEvents } from '@/hooks/useWebSocketEvents'
 
 type DMTab = 'conversations' | 'friends' | 'requests'
 
 export default function MainLayout() {
-  const { activeServerId, fetchServers } = useServerStore()
+  const { activeServerId, activeChannelId, channels, fetchServers } = useServerStore()
+  const { activeChannelId: voiceChannelId } = useVoiceStore()
   const [dmTab, setDMTab] = useState<DMTab>('conversations')
   const [showAddFriend, setShowAddFriend] = useState(false)
 
@@ -25,6 +29,10 @@ export default function MainLayout() {
   useEffect(() => {
     fetchServers()
   }, [fetchServers])
+
+  // Check if the currently selected channel is a voice channel
+  const activeChannel = channels.find((c) => c.id === activeChannelId)
+  const isViewingVoiceChannel = activeChannel?.type === 'voice' && voiceChannelId === activeChannelId
 
   return (
     <div className="h-screen w-screen flex flex-col bg-sol-bg overflow-hidden">
@@ -41,7 +49,13 @@ export default function MainLayout() {
               </div>
               <VoiceControls />
             </div>
-            <ChatArea />
+            {isViewingVoiceChannel ? (
+              <div className="flex-1 flex flex-col min-w-0">
+                <VideoGrid />
+              </div>
+            ) : (
+              <ChatArea />
+            )}
             <MemberList />
           </>
         ) : (
@@ -102,6 +116,9 @@ export default function MainLayout() {
 
       {/* Incoming call overlay */}
       <IncomingCallOverlay />
+
+      {/* Picture-in-Picture overlay */}
+      <PiPOverlay />
 
       {/* Add friend modal */}
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} />}

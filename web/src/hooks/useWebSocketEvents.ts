@@ -164,7 +164,11 @@ export function useWebSocketEvents() {
             userId: state.user_id,
             username: state.username,
             muted: state.muted,
-            deafened: state.deafened
+            deafened: state.deafened,
+            cameraEnabled: false,
+            screenShareEnabled: false,
+            videoTrack: null,
+            screenTrack: null
           })
         } else {
           voiceStore.removeParticipant(state.user_id)

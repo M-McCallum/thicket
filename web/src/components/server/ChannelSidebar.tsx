@@ -33,6 +33,7 @@ export default function ChannelSidebar() {
 
   const handleVoiceChannelClick = (channelId: string) => {
     if (!activeServerId) return
+    setActiveChannel(channelId)
     joinVoiceChannel(activeServerId, channelId)
   }
 
@@ -133,6 +134,19 @@ export default function ChannelSidebar() {
                           <span className={`truncate ${isSpeaking ? 'text-sol-text-primary' : ''}`}>
                             {p.username}
                           </span>
+                          {p.cameraEnabled && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-sage shrink-0">
+                              <path d="M23 7l-7 5 7 5V7z" />
+                              <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+                            </svg>
+                          )}
+                          {p.screenShareEnabled && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-sol-sage shrink-0">
+                              <rect x="2" y="3" width="20" height="14" rx="2" ry="2" />
+                              <line x1="8" y1="21" x2="16" y2="21" />
+                              <line x1="12" y1="17" x2="12" y2="21" />
+                            </svg>
+                          )}
                           {p.muted && <span className="text-sol-text-muted text-[10px]">M</span>}
                         </div>
                       )

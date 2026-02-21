@@ -31,7 +31,7 @@ interface ServerState {
 
 export const useServerStore = create<ServerState>((set, get) => ({
   servers: [],
-  activeServerId: null,
+  activeServerId: localStorage.getItem('app:activeServerId'),
   channels: [],
   activeChannelId: null,
   members: [],
@@ -43,23 +43,37 @@ export const useServerStore = create<ServerState>((set, get) => ({
     try {
       const servers = await serversApi.list()
       set({ servers, isLoading: false })
+
+      // Restore active server after fetching
+      const savedServerId = get().activeServerId
+      if (savedServerId && servers.some((s) => s.id === savedServerId)) {
+        get().setActiveServer(savedServerId)
+      } else {
+        localStorage.removeItem('app:activeServerId')
+        localStorage.removeItem('app:activeChannelId')
+      }
     } catch (err) {
       set({ isLoading: false, error: err instanceof Error ? err.message : 'Failed to fetch servers' })
     }
   },
 
   setActiveServer: async (serverId) => {
+    localStorage.setItem('app:activeServerId', serverId)
     set({ activeServerId: serverId, isLoading: true })
     try {
       const [channels, members] = await Promise.all([
         channelsApi.list(serverId),
         serversApi.members(serverId)
       ])
+      const savedChannelId = localStorage.getItem('app:activeChannelId')
+      const restoredChannel = savedChannelId ? channels.find((c) => c.id === savedChannelId) : null
       const textChannels = channels.filter((c) => c.type === 'text')
+      const activeChannelId = restoredChannel?.id ?? textChannels[0]?.id ?? null
+      if (activeChannelId) localStorage.setItem('app:activeChannelId', activeChannelId)
       set({
         channels,
         members,
-        activeChannelId: textChannels[0]?.id ?? null,
+        activeChannelId,
         isLoading: false
       })
     } catch (err) {
@@ -67,7 +81,10 @@ export const useServerStore = create<ServerState>((set, get) => ({
     }
   },
 
-  setActiveChannel: (channelId) => set({ activeChannelId: channelId }),
+  setActiveChannel: (channelId) => {
+    localStorage.setItem('app:activeChannelId', channelId)
+    set({ activeChannelId: channelId })
+  },
 
   createServer: async (name) => {
     const result = await serversApi.create({ name })
@@ -136,7 +153,11 @@ export const useServerStore = create<ServerState>((set, get) => ({
       )
     })),
 
-  setActiveServerNull: () => set({ activeServerId: null, channels: [], activeChannelId: null, members: [] }),
+  setActiveServerNull: () => {
+    localStorage.removeItem('app:activeServerId')
+    localStorage.removeItem('app:activeChannelId')
+    set({ activeServerId: null, channels: [], activeChannelId: null, members: [] })
+  },
 
   clearError: () => set({ error: null })
 }))
