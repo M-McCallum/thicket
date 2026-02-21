@@ -137,17 +137,21 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
   }
 
   const qualityOptions: { value: VideoQuality; label: string }[] = [
-    { value: '1080p', label: '1080p (Full HD)' },
-    { value: '720p', label: '720p (HD)' },
+    { value: '1080p_60', label: '1080p @ 60fps (Smooth)' },
+    { value: '1080p', label: '1080p @ 30fps (Full HD)' },
+    { value: '720p_60', label: '720p @ 60fps (Smooth)' },
+    { value: '720p', label: '720p @ 30fps (HD)' },
     { value: '480p', label: '480p' },
     { value: '360p', label: '360p' }
   ]
 
   const screenShareOptions: { value: ScreenShareQuality; label: string }[] = [
-    { value: '4k_15', label: '4K @ 15fps (Best quality)' },
+    { value: '1080p_60', label: '1080p @ 60fps (Smooth)' },
     { value: '1080p_30', label: '1080p @ 30fps (Recommended)' },
     { value: '1080p_15', label: '1080p @ 15fps (Low bandwidth)' },
-    { value: '720p_30', label: '720p @ 30fps (Fastest)' }
+    { value: '720p_60', label: '720p @ 60fps (Smooth)' },
+    { value: '720p_30', label: '720p @ 30fps (Fastest)' },
+    { value: '4k_15', label: '4K @ 15fps (Best quality)' }
   ]
 
   // Format key code for display

@@ -1,26 +1,51 @@
 import { create } from 'zustand'
-import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack, AudioPresets } from 'livekit-client'
+import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack, AudioPresets, VideoCodec, TrackPublishOptions, type ScalabilityMode } from 'livekit-client'
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { soundService } from '@/services/soundService'
 
 export type VideoLayoutMode = 'grid' | 'focus'
-export type VideoQuality = '1080p' | '720p' | '480p' | '360p'
-export type ScreenShareQuality = '1080p_30' | '1080p_15' | '720p_30' | '4k_15'
+export type VideoQuality = '1080p_60' | '1080p' | '720p_60' | '720p' | '480p' | '360p'
+export type ScreenShareQuality = '1080p_60' | '1080p_30' | '1080p_15' | '720p_60' | '720p_30' | '4k_15'
 export type InputMode = 'voice_activity' | 'push_to_talk'
 
-const VIDEO_RESOLUTIONS: Record<VideoQuality, { width: number; height: number; frameRate: number }> = {
+interface VideoPreset {
+  width: number
+  height: number
+  frameRate: number
+  maxBitrate?: number
+  codec?: VideoCodec
+  scalabilityMode?: ScalabilityMode
+}
+
+// Bitrates: 60fps presets use VP9 SVC (single encode, multiple quality layers)
+// which is more CPU-efficient than simulcast for high frame rates.
+const VIDEO_RESOLUTIONS: Record<VideoQuality, VideoPreset> = {
+  '1080p_60': { width: 1920, height: 1080, frameRate: 60, maxBitrate: 4_500_000, codec: 'vp9', scalabilityMode: 'L3T3' },
   '1080p': { width: 1920, height: 1080, frameRate: 30 },
+  '720p_60': { width: 1280, height: 720, frameRate: 60, maxBitrate: 2_500_000, codec: 'vp9', scalabilityMode: 'L3T3' },
   '720p': { width: 1280, height: 720, frameRate: 30 },
   '480p': { width: 854, height: 480, frameRate: 30 },
   '360p': { width: 640, height: 360, frameRate: 24 },
 }
 
-const SCREEN_SHARE_RESOLUTIONS: Record<ScreenShareQuality, { width: number; height: number; frameRate: number }> = {
-  '4k_15': { width: 3840, height: 2160, frameRate: 15 },
+const SCREEN_SHARE_RESOLUTIONS: Record<ScreenShareQuality, VideoPreset> = {
+  '1080p_60': { width: 1920, height: 1080, frameRate: 60, maxBitrate: 6_000_000, codec: 'vp9', scalabilityMode: 'L3T3' },
   '1080p_30': { width: 1920, height: 1080, frameRate: 30 },
   '1080p_15': { width: 1920, height: 1080, frameRate: 15 },
+  '720p_60': { width: 1280, height: 720, frameRate: 60, maxBitrate: 3_000_000, codec: 'vp9', scalabilityMode: 'L3T3' },
   '720p_30': { width: 1280, height: 720, frameRate: 30 },
+  '4k_15': { width: 3840, height: 2160, frameRate: 15 },
+}
+
+function buildPublishOptions(preset: VideoPreset): TrackPublishOptions | undefined {
+  if (!preset.codec) return undefined
+  return {
+    videoCodec: preset.codec,
+    videoEncoding: { maxBitrate: preset.maxBitrate!, maxFramerate: preset.frameRate },
+    backupCodec: { codec: 'vp8' },
+    scalabilityMode: preset.scalabilityMode,
+  }
 }
 
 export interface VoiceParticipant {
@@ -420,11 +445,12 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     const enabling = !isCameraEnabled
     set({ isCameraEnabled: enabling })
     try {
-      const resolution = VIDEO_RESOLUTIONS[videoQuality]
+      const preset = VIDEO_RESOLUTIONS[videoQuality]
+      const { width, height, frameRate } = preset
       await room.localParticipant.setCameraEnabled(enabling, {
         ...(selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : {}),
-        resolution,
-      })
+        resolution: { width, height, frameRate },
+      }, buildPublishOptions(preset))
     } catch {
       set({ isCameraEnabled: !enabling })
     }
@@ -435,11 +461,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     if (!room) return
     const enabling = !isScreenSharing
     set({ isScreenSharing: enabling })
-    const ssRes = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
+    const preset = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
+    const { width, height, frameRate } = preset
     try {
       await room.localParticipant.setScreenShareEnabled(enabling, {
-        resolution: ssRes,
-      })
+        resolution: { width, height, frameRate },
+        contentHint: frameRate >= 30 ? 'motion' : 'detail',
+      }, buildPublishOptions(preset))
     } catch {
       // User cancelled the screen share picker or error — revert
       set({ isScreenSharing: !enabling })
@@ -471,12 +499,13 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     set({ videoQuality: quality })
     const { room, isCameraEnabled, selectedVideoDeviceId } = get()
     if (room && isCameraEnabled) {
-      const resolution = VIDEO_RESOLUTIONS[quality]
+      const preset = VIDEO_RESOLUTIONS[quality]
+      const { width, height, frameRate } = preset
       await room.localParticipant.setCameraEnabled(false)
       await room.localParticipant.setCameraEnabled(true, {
         ...(selectedVideoDeviceId ? { deviceId: selectedVideoDeviceId } : {}),
-        resolution,
-      })
+        resolution: { width, height, frameRate },
+      }, buildPublishOptions(preset))
     }
   },
 
