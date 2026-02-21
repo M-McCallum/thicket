@@ -8,6 +8,9 @@ import { useDMCallStore } from '@/stores/dmCallStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissionStore } from '@/stores/permissionStore'
 import { useNotificationStore } from '@/stores/notificationStore'
+import { useDMStore } from '@/stores/dmStore'
+import { useThreadStore } from '@/stores/threadStore'
+import { useEventStore } from '@/stores/eventStore'
 import type {
   ReadyData,
   PresenceData,
@@ -40,8 +43,36 @@ import type {
   RoleDeleteData,
   MemberRoleUpdateData,
   MentionCreateData,
-  DMMessageCreateData
+  DMMessageCreateData,
+  DMParticipantAddData,
+  DMParticipantRemoveData,
+  DMConversationUpdateData,
+  DMMessageUpdateData,
+  DMMessageDeleteData,
+  DMReactionAddData,
+  DMReactionRemoveData,
+  DMMessagePinData,
+  DMMessageUnpinData,
+  NotificationData,
+  ThreadCreateData,
+  ThreadUpdateData,
+  ThreadMessageCreateData,
+  EventCreateData,
+  EventDeleteData,
+  PollVoteData
 } from '@/types/ws'
+
+/** Fire a browser notification if permission is granted and the window/channel is not active. */
+function fireBrowserNotification(title: string, body: string, channelId?: string) {
+  if (typeof Notification === 'undefined') return
+  if (Notification.permission !== 'granted') return
+
+  // Don't notify if user is focused on the same channel
+  const { activeChannelId } = useServerStore.getState()
+  if (document.hasFocus() && channelId && channelId === activeChannelId) return
+
+  new Notification(title, { body, icon: '/favicon.ico' })
+}
 
 export function useWebSocketEvents() {
   useEffect(() => {
@@ -155,6 +186,7 @@ export function useWebSocketEvents() {
             position: channel.position,
             topic: channel.topic || '',
             category_id: channel.category_id,
+            slow_mode_interval: channel.slow_mode_interval ?? 0,
             created_at: channel.created_at
           })
         }
@@ -175,6 +207,7 @@ export function useWebSocketEvents() {
             position: channel.position,
             topic: channel.topic || '',
             category_id: channel.category_id,
+            slow_mode_interval: channel.slow_mode_interval ?? 0,
             created_at: channel.created_at
           })
         }
@@ -458,6 +491,100 @@ export function useWebSocketEvents() {
       })
     )
 
+    // THREAD_CREATE
+    unsubs.push(
+      wsService.on('THREAD_CREATE', (data) => {
+        const thread = data as ThreadCreateData
+        const { activeChannelId } = useServerStore.getState()
+        if (thread.channel_id === activeChannelId) {
+          useThreadStore.getState().addThread(thread)
+        }
+      })
+    )
+
+    // THREAD_UPDATE
+    unsubs.push(
+      wsService.on('THREAD_UPDATE', (data) => {
+        const thread = data as ThreadUpdateData
+        const { activeChannelId } = useServerStore.getState()
+        if (thread.channel_id === activeChannelId) {
+          useThreadStore.getState().updateThread(thread)
+        }
+      })
+    )
+
+    // THREAD_MESSAGE_CREATE
+    unsubs.push(
+      wsService.on('THREAD_MESSAGE_CREATE', (data) => {
+        const msg = data as ThreadMessageCreateData
+        const { activeChannelId } = useServerStore.getState()
+        if (msg.channel_id === activeChannelId) {
+          useThreadStore.getState().addThreadMessage({
+            id: msg.id,
+            thread_id: msg.thread_id,
+            author_id: msg.author_id,
+            content: msg.content,
+            reply_to_id: msg.reply_to_id,
+            created_at: msg.created_at,
+            updated_at: msg.updated_at,
+            author_username: msg.author_username,
+            author_display_name: msg.author_display_name,
+            author_avatar_url: msg.author_avatar_url
+          })
+          // Update the thread's message_count in the threadsByMessage map
+          const threadsByMessage = useThreadStore.getState().threadsByMessage
+          for (const [parentMsgId, thread] of Object.entries(threadsByMessage)) {
+            if (thread.id === msg.thread_id) {
+              useThreadStore.getState().updateThreadMessageCount(msg.thread_id, parentMsgId, msg.message_count)
+              break
+            }
+          }
+        }
+      })
+    )
+
+    // EVENT_CREATE
+    unsubs.push(
+      wsService.on('EVENT_CREATE', (data) => {
+        const event = data as EventCreateData
+        const { activeServerId } = useServerStore.getState()
+        if (event.server_id === activeServerId) {
+          useEventStore.getState().addEvent(event as any)
+        }
+      })
+    )
+
+    // EVENT_UPDATE
+    unsubs.push(
+      wsService.on('EVENT_UPDATE', (_data) => {
+        const { activeServerId } = useServerStore.getState()
+        if (activeServerId) {
+          useEventStore.getState().fetchEvents(activeServerId)
+        }
+      })
+    )
+
+    // EVENT_DELETE
+    unsubs.push(
+      wsService.on('EVENT_DELETE', (data) => {
+        const event = data as EventDeleteData
+        const { activeServerId } = useServerStore.getState()
+        if (event.server_id === activeServerId) {
+          useEventStore.getState().removeEvent(event.id)
+        }
+      })
+    )
+
+    // POLL_VOTE
+    unsubs.push(
+      wsService.on('POLL_VOTE', (data) => {
+        const poll = data as PollVoteData
+        if (poll.message_id) {
+          useMessageStore.getState().updateMessagePoll(poll.message_id, poll)
+        }
+      })
+    )
+
     // DM_CALL_RING
     unsubs.push(
       wsService.on('DM_CALL_RING', (data) => {
@@ -488,6 +615,118 @@ export function useWebSocketEvents() {
         if (callStore.incomingCall?.conversationId === end.conversation_id) {
           callStore.setIncomingCall(null)
         }
+      })
+    )
+
+    // DM_PARTICIPANT_ADD
+    unsubs.push(
+      wsService.on('DM_PARTICIPANT_ADD', (data) => {
+        const add = data as DMParticipantAddData
+        // Re-fetch conversations to get updated participant list
+        useDMStore.getState().fetchConversations()
+        void add
+      })
+    )
+
+    // DM_PARTICIPANT_REMOVE
+    unsubs.push(
+      wsService.on('DM_PARTICIPANT_REMOVE', (data) => {
+        const remove = data as DMParticipantRemoveData
+        useDMStore.getState().removeConversationParticipant(remove.conversation_id, remove.user_id)
+      })
+    )
+
+    // DM_CONVERSATION_UPDATE
+    unsubs.push(
+      wsService.on('DM_CONVERSATION_UPDATE', (data) => {
+        const update = data as DMConversationUpdateData
+        useDMStore.getState().updateConversation(update.conversation_id, {
+          name: update.name || null
+        })
+      })
+    )
+
+    // DM_MESSAGE_UPDATE
+    unsubs.push(
+      wsService.on('DM_MESSAGE_UPDATE', (data) => {
+        const msg = data as DMMessageUpdateData
+        const { activeConversationId } = useDMStore.getState()
+        if (msg.conversation_id === activeConversationId) {
+          useDMStore.getState().updateMessage({
+            id: msg.id,
+            content: msg.content,
+            updated_at: msg.updated_at
+          })
+        }
+      })
+    )
+
+    // DM_MESSAGE_DELETE
+    unsubs.push(
+      wsService.on('DM_MESSAGE_DELETE', (data) => {
+        const msg = data as DMMessageDeleteData
+        const { activeConversationId } = useDMStore.getState()
+        if (msg.conversation_id === activeConversationId) {
+          useDMStore.getState().removeMessage(msg.id)
+        }
+      })
+    )
+
+    // DM_REACTION_ADD
+    unsubs.push(
+      wsService.on('DM_REACTION_ADD', (data) => {
+        const reaction = data as DMReactionAddData
+        const { activeConversationId } = useDMStore.getState()
+        if (reaction.conversation_id === activeConversationId) {
+          const isMe = reaction.user_id === useAuthStore.getState().user?.id
+          useDMStore.getState().addReaction(reaction.message_id, reaction.emoji, isMe)
+        }
+      })
+    )
+
+    // DM_REACTION_REMOVE
+    unsubs.push(
+      wsService.on('DM_REACTION_REMOVE', (data) => {
+        const reaction = data as DMReactionRemoveData
+        const { activeConversationId } = useDMStore.getState()
+        if (reaction.conversation_id === activeConversationId) {
+          const isMe = reaction.user_id === useAuthStore.getState().user?.id
+          useDMStore.getState().removeReaction(reaction.message_id, reaction.emoji, isMe)
+        }
+      })
+    )
+
+    // DM_MESSAGE_PIN
+    unsubs.push(
+      wsService.on('DM_MESSAGE_PIN', (data) => {
+        const pin = data as DMMessagePinData
+        const { activeConversationId, showPinnedPanel, fetchPinnedMessages } = useDMStore.getState()
+        if (pin.conversation_id === activeConversationId && showPinnedPanel) {
+          fetchPinnedMessages(pin.conversation_id)
+        }
+      })
+    )
+
+    // DM_MESSAGE_UNPIN
+    unsubs.push(
+      wsService.on('DM_MESSAGE_UNPIN', (data) => {
+        const unpin = data as DMMessageUnpinData
+        const { activeConversationId, showPinnedPanel, fetchPinnedMessages } = useDMStore.getState()
+        if (unpin.conversation_id === activeConversationId && showPinnedPanel) {
+          fetchPinnedMessages(unpin.conversation_id)
+        }
+      })
+    )
+
+    // NOTIFICATION -- server-side notification based on user prefs
+    unsubs.push(
+      wsService.on('NOTIFICATION', (data) => {
+        const notif = data as NotificationData
+        fireBrowserNotification(
+          notif.username,
+          notif.content.length > 100 ? notif.content.slice(0, 100) + '...' : notif.content,
+          notif.channel_id
+        )
       })
     )
 

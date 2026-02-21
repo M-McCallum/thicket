@@ -27,10 +27,16 @@ type Config struct {
 	LinkPreviewHandler *handler.LinkPreviewHandler
 	SearchHandler      *handler.SearchHandler
 	AttachmentHandler  *handler.AttachmentHandler
+	ModerationHandler  *handler.ModerationHandler
+	ThreadHandler      *handler.ThreadHandler
+	EventHandler       *handler.EventHandler
+	PollHandler        *handler.PollHandler
 	InviteHandler          *handler.InviteHandler
 	ReadStateHandler       *handler.ReadStateHandler
 	NotificationPrefHandler *handler.NotificationPrefHandler
+	ScheduleHandler         *handler.ScheduleHandler
 	UserPrefHandler         *handler.UserPrefHandler
+	ServerFolderHandler     *handler.ServerFolderHandler
 	JWKSManager        *auth.JWKSManager
 	Hub                *ws.Hub
 	CoMemberIDsFn      ws.CoMemberIDsFn
@@ -167,6 +173,25 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Get("/servers/:id/members-with-roles", cfg.RoleHandler.GetMembersWithRoles)
 	}
 
+	// Events
+	if cfg.EventHandler != nil {
+		protected.Post("/servers/:id/events", cfg.EventHandler.CreateEvent)
+		protected.Get("/servers/:id/events", cfg.EventHandler.GetServerEvents)
+		protected.Get("/servers/:id/events/:eventId", cfg.EventHandler.GetEvent)
+		protected.Patch("/servers/:id/events/:eventId", cfg.EventHandler.UpdateEvent)
+		protected.Delete("/servers/:id/events/:eventId", cfg.EventHandler.DeleteEvent)
+		protected.Post("/servers/:id/events/:eventId/rsvp", cfg.EventHandler.RSVP)
+		protected.Delete("/servers/:id/events/:eventId/rsvp", cfg.EventHandler.RemoveRSVP)
+	}
+
+	// Polls
+	if cfg.PollHandler != nil {
+		protected.Post("/channels/:channelId/polls", cfg.PollHandler.CreatePoll)
+		protected.Get("/polls/:id", cfg.PollHandler.GetPoll)
+		protected.Post("/polls/:id/vote", cfg.PollHandler.Vote)
+		protected.Delete("/polls/:id/vote/:optionId", cfg.PollHandler.RemoveVote)
+	}
+
 	// Search
 	if cfg.SearchHandler != nil {
 		protected.Get("/search/messages", cfg.SearchHandler.SearchMessages)
@@ -180,10 +205,24 @@ func Setup(app *fiber.App, cfg Config) {
 
 	// Direct Messages
 	protected.Post("/dm/conversations", cfg.DMHandler.CreateConversation)
+	protected.Post("/dm/conversations/group", cfg.DMHandler.CreateGroupConversation)
 	protected.Get("/dm/conversations", cfg.DMHandler.GetConversations)
 	protected.Get("/dm/conversations/:id/messages", cfg.DMHandler.GetDMMessages)
 	protected.Get("/dm/conversations/:id/messages/around", cfg.DMHandler.GetDMMessagesAround)
 	protected.Post("/dm/conversations/:id/messages", cfg.DMHandler.SendDM)
+	protected.Post("/dm/conversations/:id/accept", cfg.DMHandler.AcceptRequest)
+	protected.Post("/dm/conversations/:id/decline", cfg.DMHandler.DeclineRequest)
+	protected.Post("/dm/conversations/:id/participants", cfg.DMHandler.AddParticipant)
+	protected.Delete("/dm/conversations/:id/participants/:userId", cfg.DMHandler.RemoveParticipant)
+	protected.Patch("/dm/conversations/:id", cfg.DMHandler.RenameConversation)
+	protected.Put("/dm/messages/:id", cfg.DMHandler.EditDMMessage)
+	protected.Delete("/dm/messages/:id", cfg.DMHandler.DeleteDMMessage)
+	protected.Put("/dm/messages/:id/reactions", cfg.DMHandler.AddDMReaction)
+	protected.Delete("/dm/messages/:id/reactions", cfg.DMHandler.RemoveDMReaction)
+	protected.Get("/dm/messages/:id/edits", cfg.DMHandler.GetDMEditHistory)
+	protected.Put("/dm/conversations/:id/pins/:messageId", cfg.DMHandler.PinDMMessage)
+	protected.Delete("/dm/conversations/:id/pins/:messageId", cfg.DMHandler.UnpinDMMessage)
+	protected.Get("/dm/conversations/:id/pins", cfg.DMHandler.GetDMPinnedMessages)
 
 	// Voice
 	if cfg.LiveKitHandler != nil {
@@ -213,6 +252,18 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Delete("/stickers/:id", cfg.StickerHandler.DeleteSticker)
 	}
 
+	// Moderation
+	if cfg.ModerationHandler != nil {
+		protected.Post("/servers/:id/bans", cfg.ModerationHandler.BanUser)
+		protected.Get("/servers/:id/bans", cfg.ModerationHandler.GetBans)
+		protected.Delete("/servers/:id/bans/:userId", cfg.ModerationHandler.UnbanUser)
+		protected.Post("/servers/:id/kick/:userId", cfg.ModerationHandler.KickUser)
+		protected.Post("/servers/:id/timeout/:userId", cfg.ModerationHandler.TimeoutUser)
+		protected.Delete("/servers/:id/timeout/:userId", cfg.ModerationHandler.RemoveTimeout)
+		protected.Get("/servers/:id/timeouts", cfg.ModerationHandler.GetTimeouts)
+		protected.Get("/servers/:id/audit-log", cfg.ModerationHandler.GetAuditLog)
+	}
+
 	// Friends
 	if cfg.FriendHandler != nil {
 		protected.Get("/friends", cfg.FriendHandler.GetFriends)
@@ -221,8 +272,20 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Post("/friends/:id/accept", cfg.FriendHandler.AcceptRequest)
 		protected.Post("/friends/:id/decline", cfg.FriendHandler.DeclineRequest)
 		protected.Delete("/friends/:id", cfg.FriendHandler.RemoveFriend)
+		protected.Get("/users/blocked", cfg.FriendHandler.GetBlockedUsers)
 		protected.Post("/users/:id/block", cfg.FriendHandler.BlockUser)
 		protected.Delete("/users/:id/block", cfg.FriendHandler.UnblockUser)
+	}
+
+	// Threads
+	if cfg.ThreadHandler != nil {
+		protected.Post("/channels/:channelId/threads", cfg.ThreadHandler.CreateThread)
+		protected.Get("/channels/:channelId/threads", cfg.ThreadHandler.ListThreads)
+		protected.Get("/threads/:threadId", cfg.ThreadHandler.GetThread)
+		protected.Patch("/threads/:threadId", cfg.ThreadHandler.UpdateThread)
+		protected.Post("/threads/:threadId/messages", cfg.ThreadHandler.SendMessage)
+		protected.Get("/threads/:threadId/messages", cfg.ThreadHandler.GetMessages)
+		protected.Put("/threads/:threadId/subscription", cfg.ThreadHandler.UpdateSubscription)
 	}
 
 	// Read state
@@ -238,10 +301,28 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Put("/me/notification-prefs/:scopeType/:scopeId", cfg.NotificationPrefHandler.SetPref)
 	}
 
+	// Scheduled Messages
+	if cfg.ScheduleHandler != nil {
+		protected.Get("/me/scheduled-messages", cfg.ScheduleHandler.ListScheduledMessages)
+		protected.Post("/me/scheduled-messages", cfg.ScheduleHandler.CreateScheduledMessage)
+		protected.Patch("/me/scheduled-messages/:id", cfg.ScheduleHandler.UpdateScheduledMessage)
+		protected.Delete("/me/scheduled-messages/:id", cfg.ScheduleHandler.DeleteScheduledMessage)
+	}
+
 	// User preferences
 	if cfg.UserPrefHandler != nil {
 		protected.Get("/me/preferences", cfg.UserPrefHandler.GetPreferences)
 		protected.Patch("/me/preferences", cfg.UserPrefHandler.UpdatePreferences)
+	}
+
+	// Server folders
+	if cfg.ServerFolderHandler != nil {
+		protected.Get("/me/server-folders", cfg.ServerFolderHandler.ListFolders)
+		protected.Post("/me/server-folders", cfg.ServerFolderHandler.CreateFolder)
+		protected.Patch("/me/server-folders/:id", cfg.ServerFolderHandler.UpdateFolder)
+		protected.Delete("/me/server-folders/:id", cfg.ServerFolderHandler.DeleteFolder)
+		protected.Put("/me/server-folders/:id/servers/:serverId", cfg.ServerFolderHandler.AddServerToFolder)
+		protected.Delete("/me/server-folders/:id/servers/:serverId", cfg.ServerFolderHandler.RemoveServerFromFolder)
 	}
 
 	// WebSocket

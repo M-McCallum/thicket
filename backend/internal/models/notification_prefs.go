@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type NotificationPref struct {
@@ -53,4 +54,47 @@ func (q *Queries) DeleteNotificationPref(ctx context.Context, userID uuid.UUID, 
 		userID, scopeType, scopeID,
 	)
 	return err
+}
+
+// GetNotificationPrefForUser performs a cascading lookup:
+//  1. Channel-level pref (if channelID is non-nil)
+//  2. Server-level pref (if serverID is non-nil)
+//
+// Returns the setting string ("all", "mentions", "none").
+// If no pref is found at any level, returns "mentions" (the default).
+func (q *Queries) GetNotificationPrefForUser(ctx context.Context, userID uuid.UUID, channelID *uuid.UUID, serverID *uuid.UUID) (string, error) {
+	// 1. Channel-level pref
+	if channelID != nil {
+		var setting string
+		err := q.db.QueryRow(ctx,
+			`SELECT setting FROM notification_preferences
+			 WHERE user_id = $1 AND scope_type = 'channel' AND scope_id = $2`,
+			userID, *channelID,
+		).Scan(&setting)
+		if err == nil {
+			return setting, nil
+		}
+		if err != pgx.ErrNoRows {
+			return "", err
+		}
+	}
+
+	// 2. Server-level pref
+	if serverID != nil {
+		var setting string
+		err := q.db.QueryRow(ctx,
+			`SELECT setting FROM notification_preferences
+			 WHERE user_id = $1 AND scope_type = 'server' AND scope_id = $2`,
+			userID, *serverID,
+		).Scan(&setting)
+		if err == nil {
+			return setting, nil
+		}
+		if err != pgx.ErrNoRows {
+			return "", err
+		}
+	}
+
+	// Default behavior
+	return "mentions", nil
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Room } from 'livekit-client'
 import { useVoiceStore } from '@/stores/voiceStore'
-import type { VideoQuality } from '@/stores/voiceStore'
+import type { VideoQuality, ScreenShareQuality } from '@/stores/voiceStore'
 import { soundService } from '@/services/soundService'
 
 interface VoiceSettingsModalProps {
@@ -18,7 +18,8 @@ type SettingsTab = 'audio' | 'video' | 'sounds'
 export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps) {
   const {
     selectedInputDeviceId, selectedOutputDeviceId, setInputDevice, setOutputDevice,
-    selectedVideoDeviceId, setVideoDevice, videoQuality, setVideoQuality
+    selectedVideoDeviceId, setVideoDevice, videoQuality, setVideoQuality,
+    screenShareQuality, setScreenShareQuality
   } = useVoiceStore()
   const [activeTab, setActiveTab] = useState<SettingsTab>('audio')
   const [inputDevices, setInputDevices] = useState<DeviceInfo[]>([])
@@ -107,6 +108,13 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
     { value: '720p', label: '720p (HD)' },
     { value: '480p', label: '480p' },
     { value: '360p', label: '360p' }
+  ]
+
+  const screenShareOptions: { value: ScreenShareQuality; label: string }[] = [
+    { value: '4k_15', label: '4K @ 15fps (Best quality)' },
+    { value: '1080p_30', label: '1080p @ 30fps (Recommended)' },
+    { value: '1080p_15', label: '1080p @ 15fps (Low bandwidth)' },
+    { value: '720p_30', label: '720p @ 30fps (Fastest)' }
   ]
 
   return (
@@ -200,6 +208,20 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
                 onChange={(e) => setVideoQuality(e.target.value as VideoQuality)}
               >
                 {qualityOptions.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+
+            {/* Screen Share Quality */}
+            <div>
+              <label className="block text-xs text-sol-text-secondary mb-1 uppercase tracking-wider">Screen Share Quality</label>
+              <select
+                className="input-field"
+                value={screenShareQuality}
+                onChange={(e) => setScreenShareQuality(e.target.value as ScreenShareQuality)}
+              >
+                {screenShareOptions.map((o) => (
                   <option key={o.value} value={o.value}>{o.label}</option>
                 ))}
               </select>

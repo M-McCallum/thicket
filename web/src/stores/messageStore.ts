@@ -12,6 +12,7 @@ interface MessageState {
   showPinnedPanel: boolean
   highlightedMessageId: string | null
   isJumpedState: boolean
+  editingMessageId: string | null
 
   fetchMessages: (channelId: string, before?: string) => Promise<void>
   fetchMoreMessages: (channelId: string) => Promise<void>
@@ -29,6 +30,10 @@ interface MessageState {
   removeReaction: (messageId: string, emoji: string, isMe: boolean) => void
   toggleReaction: (messageId: string, emoji: string) => Promise<void>
   setHighlightedMessageId: (id: string | null) => void
+  setEditingMessageId: (id: string | null) => void
+  editMessage: (messageId: string, content: string) => Promise<void>
+  deleteMessage: (messageId: string) => Promise<void>
+  updateMessagePoll: (messageId: string, poll: Message['poll']) => void
 }
 
 export const useMessageStore = create<MessageState>((set, get) => ({
@@ -41,6 +46,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
   showPinnedPanel: false,
   highlightedMessageId: null,
   isJumpedState: false,
+  editingMessageId: null,
 
   fetchMessages: async (channelId, before) => {
     set({ isLoading: true })
@@ -128,7 +134,7 @@ export const useMessageStore = create<MessageState>((set, get) => ({
       pinnedMessages: state.pinnedMessages.filter((m) => m.id !== messageId)
     })),
 
-  clearMessages: () => set({ messages: [], hasMore: true, replyingTo: null, pinnedMessages: [], showPinnedPanel: false, highlightedMessageId: null, isJumpedState: false }),
+  clearMessages: () => set({ messages: [], hasMore: true, replyingTo: null, pinnedMessages: [], showPinnedPanel: false, highlightedMessageId: null, isJumpedState: false, editingMessageId: null }),
 
   setReplyingTo: (message) => set({ replyingTo: message }),
 
@@ -206,5 +212,33 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     }
   },
 
-  setHighlightedMessageId: (id) => set({ highlightedMessageId: id })
+  setHighlightedMessageId: (id) => set({ highlightedMessageId: id }),
+
+  setEditingMessageId: (id) => set({ editingMessageId: id }),
+
+  editMessage: async (messageId, content) => {
+    try {
+      const updated = await messagesApi.update(messageId, content)
+      get().updateMessage(updated)
+      set({ editingMessageId: null })
+    } catch {
+      // ignore
+    }
+  },
+
+  deleteMessage: async (messageId) => {
+    try {
+      await messagesApi.delete(messageId)
+      get().removeMessage(messageId)
+    } catch {
+      // ignore
+    }
+  },
+
+  updateMessagePoll: (messageId, poll) =>
+    set((state) => ({
+      messages: state.messages.map((m) =>
+        m.id === messageId ? { ...m, poll } : m
+      )
+    }))
 }))

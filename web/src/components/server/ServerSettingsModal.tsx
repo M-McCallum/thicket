@@ -3,19 +3,22 @@ import type { Server } from '@/types/models'
 import { servers as serversApi } from '@/services/api'
 
 const RoleSettingsPanel = lazy(() => import('./RoleSettingsPanel'))
+const RoleEditor = lazy(() => import('./RoleEditor'))
+const ModerationPanel = lazy(() => import('./ModerationPanel'))
 
 interface ServerSettingsModalProps {
   server: Server
   onClose: () => void
 }
 
-type Tab = 'general' | 'visibility' | 'members'
+type Tab = 'general' | 'visibility' | 'roles' | 'members' | 'moderation'
 
 export default function ServerSettingsModal({ server, onClose }: ServerSettingsModalProps) {
   const [tab, setTab] = useState<Tab>('general')
   const [name, setName] = useState(server.name)
   const [isPublic, setIsPublic] = useState(server.is_public ?? false)
   const [description, setDescription] = useState(server.description ?? '')
+  const [gifsEnabled, setGifsEnabled] = useState(server.gifs_enabled ?? true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -24,7 +27,7 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
     setSaving(true)
     setError('')
     try {
-      await serversApi.update(server.id, { name: name.trim() })
+      await serversApi.update(server.id, { name: name.trim(), gifs_enabled: gifsEnabled })
       onClose()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update server')
@@ -75,6 +78,16 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             Visibility
           </button>
           <button
+            onClick={() => setTab('roles')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'roles'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Roles
+          </button>
+          <button
             onClick={() => setTab('members')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === 'members'
@@ -83,6 +96,16 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             }`}
           >
             Members
+          </button>
+          <button
+            onClick={() => setTab('moderation')}
+            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+              tab === 'moderation'
+                ? 'border-sol-amber text-sol-amber'
+                : 'border-transparent text-sol-text-muted hover:text-sol-text-primary'
+            }`}
+          >
+            Moderation
           </button>
           <div className="flex-1" />
           <button onClick={onClose} className="text-sol-text-muted hover:text-sol-text-primary transition-colors pb-2">
@@ -122,6 +145,29 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
                     className="px-3 py-2 bg-sol-bg-elevated text-sol-text-secondary rounded-lg hover:text-sol-amber transition-colors text-sm"
                   >
                     Copy
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="block text-sm text-sol-text-secondary">GIFs</label>
+                    <p className="text-xs text-sol-text-muted mt-0.5">
+                      Allow members to send GIF messages in this server.
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setGifsEnabled(!gifsEnabled)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      gifsEnabled ? 'bg-sol-amber' : 'bg-sol-bg-elevated'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${
+                        gifsEnabled ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
                   </button>
                 </div>
               </div>
@@ -209,9 +255,21 @@ export default function ServerSettingsModal({ server, onClose }: ServerSettingsM
             </div>
           )}
 
+          {tab === 'roles' && (
+            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
+              <RoleEditor />
+            </Suspense>
+          )}
+
           {tab === 'members' && (
             <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
               <RoleSettingsPanel />
+            </Suspense>
+          )}
+
+          {tab === 'moderation' && (
+            <Suspense fallback={<div className="text-sol-text-muted text-sm">Loading...</div>}>
+              <ModerationPanel />
             </Suspense>
           )}
         </div>

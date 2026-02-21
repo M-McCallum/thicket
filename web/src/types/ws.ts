@@ -48,8 +48,26 @@ export type WSEventType =
   | 'ROLE_UPDATE'
   | 'ROLE_DELETE'
   | 'MEMBER_ROLE_UPDATE'
+  | 'THREAD_CREATE'
+  | 'THREAD_UPDATE'
+  | 'THREAD_MESSAGE_CREATE'
+  | 'EVENT_CREATE'
+  | 'EVENT_UPDATE'
+  | 'EVENT_DELETE'
+  | 'POLL_CREATE'
+  | 'POLL_VOTE'
   | 'MENTION_CREATE'
   | 'UNREAD_UPDATE'
+  | 'DM_PARTICIPANT_ADD'
+  | 'DM_PARTICIPANT_REMOVE'
+  | 'DM_CONVERSATION_UPDATE'
+  | 'DM_MESSAGE_UPDATE'
+  | 'DM_MESSAGE_DELETE'
+  | 'DM_REACTION_ADD'
+  | 'DM_REACTION_REMOVE'
+  | 'DM_MESSAGE_PIN'
+  | 'DM_MESSAGE_UNPIN'
+  | 'NOTIFICATION'
 
 export interface WSEvent<T = unknown> {
   type: WSEventType
@@ -113,6 +131,7 @@ export interface ChannelCreateData {
   position: number
   topic: string
   category_id: string | null
+  slow_mode_interval?: number
   created_at: string
 }
 
@@ -321,4 +340,181 @@ export interface MentionCreateData {
 export interface UnreadUpdateData {
   channel_id: string
   count: number
+}
+
+export interface DMParticipantAddData {
+  conversation_id: string
+  user_id: string
+  added_by: string
+}
+
+export interface DMParticipantRemoveData {
+  conversation_id: string
+  user_id: string
+  removed_by: string
+}
+
+export interface DMConversationUpdateData {
+  conversation_id: string
+  name: string
+}
+
+export interface DMMessageUpdateData {
+  id: string
+  conversation_id: string
+  author_id: string
+  content: string
+  created_at: string
+  updated_at: string
+}
+
+export interface DMMessageDeleteData {
+  id: string
+  conversation_id: string
+}
+
+export interface DMReactionAddData {
+  message_id: string
+  conversation_id: string
+  user_id: string
+  emoji: string
+}
+
+export interface DMReactionRemoveData {
+  message_id: string
+  conversation_id: string
+  user_id: string
+  emoji: string
+}
+
+export interface DMMessagePinData {
+  conversation_id: string
+  message_id: string
+  pinned_by: string
+}
+
+export interface DMMessageUnpinData {
+  conversation_id: string
+  message_id: string
+}
+
+export interface NotificationData {
+  type: string
+  channel_id: string
+  server_id: string
+  message_id: string
+  author_id: string
+  username: string
+  content: string
+  created_at: string
+}
+
+export interface ThreadCreateData {
+  id: string
+  channel_id: string
+  parent_message_id: string
+  name: string
+  creator_id: string
+  archived: boolean
+  locked: boolean
+  auto_archive_minutes: number
+  message_count: number
+  last_message_at: string | null
+  created_at: string
+}
+
+export interface ThreadUpdateData {
+  id: string
+  channel_id: string
+  parent_message_id: string
+  name: string
+  creator_id: string
+  archived: boolean
+  locked: boolean
+  auto_archive_minutes: number
+  message_count: number
+  last_message_at: string | null
+  created_at: string
+}
+
+export interface ThreadMessageCreateData {
+  id: string
+  thread_id: string
+  author_id: string
+  content: string
+  reply_to_id: string | null
+  created_at: string
+  updated_at: string | null
+  author_username: string
+  author_display_name: string | null
+  author_avatar_url: string | null
+  channel_id: string
+  message_count: number
+}
+
+export interface EventCreateData {
+  id: string
+  server_id: string
+  creator_id: string
+  name: string
+  description: string
+  location_type: string
+  channel_id: string | null
+  external_location: string
+  start_time: string
+  end_time: string | null
+  image_url: string | null
+  status: string
+  created_at: string
+}
+
+export interface EventUpdateData {
+  id: string
+  server_id: string
+  rsvp?: boolean
+}
+
+export interface EventDeleteData {
+  id: string
+  server_id: string
+}
+
+export interface PollCreateData {
+  id: string
+  message_id: string | null
+  question: string
+  multi_select: boolean
+  anonymous: boolean
+  expires_at: string | null
+  created_at: string
+  options: {
+    id: string
+    poll_id: string
+    text: string
+    emoji: string
+    position: number
+    vote_count: number
+    voted: boolean
+  }[]
+  total_votes: number
+}
+
+export interface PollVoteData {
+  id: string
+  message_id: string | null
+  question: string
+  multi_select: boolean
+  anonymous: boolean
+  expires_at: string | null
+  created_at: string
+  options: {
+    id: string
+    poll_id: string
+    text: string
+    emoji: string
+    position: number
+    vote_count: number
+    voted: boolean
+  }[]
+  total_votes: number
 }

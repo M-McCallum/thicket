@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"context"
 	"errors"
+	"log"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -14,6 +17,8 @@ import (
 	"github.com/M-McCallum/thicket/internal/storage"
 	"github.com/M-McCallum/thicket/internal/ws"
 )
+
+var notifMentionRegex = regexp.MustCompile(`@(\w+)`)
 
 type MessageHandler struct {
 	messageService    *service.MessageService
@@ -192,6 +197,10 @@ func (h *MessageHandler) SendMessage(c fiber.Ctx) error {
 			}
 		}
 	}
+
+	// Send NOTIFICATION events based on notification prefs.
+	// This runs in a goroutine to avoid blocking the response.
+	go h.sendNotifications(msg, channelID, userID, auth.GetUsername(c))
 
 	return c.Status(fiber.StatusCreated).JSON(msg)
 }
@@ -509,7 +518,91 @@ func (h *MessageHandler) GetEditHistory(c fiber.Ctx) error {
 	return c.JSON(edits)
 }
 
+// sendNotifications sends NOTIFICATION WS events to channel members based on
+// their notification preferences. Called asynchronously after message creation.
+func (h *MessageHandler) sendNotifications(msg *models.Message, channelID, authorID uuid.UUID, authorUsername string) {
+	ctx := context.Background()
+	queries := h.messageService.Queries()
+
+	// Get the channel to find the server
+	channel, err := queries.GetChannelByID(ctx, channelID)
+	if err != nil {
+		log.Printf("sendNotifications: failed to get channel: %v", err)
+		return
+	}
+
+	// Get all server members
+	memberIDs, err := queries.GetServerMemberUserIDs(ctx, channel.ServerID)
+	if err != nil {
+		log.Printf("sendNotifications: failed to get server member IDs: %v", err)
+		return
+	}
+
+	// Parse @mentions from message content
+	mentionedUsernames := make(map[string]bool)
+	for _, match := range notifMentionRegex.FindAllStringSubmatch(msg.Content, -1) {
+		if len(match) > 1 {
+			mentionedUsernames[match[1]] = true
+		}
+	}
+
+	for _, memberID := range memberIDs {
+		// Skip the message author
+		if memberID == authorID {
+			continue
+		}
+
+		// Look up this member's notification pref
+		level, err := queries.GetNotificationPrefForUser(ctx, memberID, &channelID, &channel.ServerID)
+		if err != nil {
+			log.Printf("sendNotifications: failed to get pref for user %s: %v", memberID, err)
+			continue
+		}
+
+		switch level {
+		case "none":
+			// User wants no notifications at all -- skip
+			continue
+		case "all":
+			// User wants notifications for all messages -- send it
+		case "mentions":
+			// Only notify if this user was @mentioned
+			user, err := queries.GetUserByID(ctx, memberID)
+			if err != nil {
+				continue
+			}
+			if !mentionedUsernames[user.Username] {
+				continue
+			}
+		default:
+			continue
+		}
+
+		notifEvent, _ := ws.NewEvent(ws.EventNotification, map[string]interface{}{
+			"type":       "message",
+			"channel_id": channelID,
+			"server_id":  channel.ServerID,
+			"message_id": msg.ID,
+			"author_id":  authorID,
+			"username":   authorUsername,
+			"content":    msg.Content,
+			"created_at": msg.CreatedAt,
+		})
+		if notifEvent != nil {
+			h.hub.SendToUser(memberID, notifEvent)
+		}
+	}
+}
+
 func handleMessageError(c fiber.Ctx, err error) error {
+	var slowModeErr *service.SlowModeError
+	if errors.As(err, &slowModeErr) {
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"error":       slowModeErr.Error(),
+			"retry_after": slowModeErr.RetryAfter,
+		})
+	}
+
 	switch {
 	case errors.Is(err, service.ErrNotMember):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
@@ -527,6 +620,10 @@ func handleMessageError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrReplyNotInChannel):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrGifsDisabled):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrUserTimedOut):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}

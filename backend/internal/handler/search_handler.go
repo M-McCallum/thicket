@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/M-McCallum/thicket/internal/auth"
+	"github.com/M-McCallum/thicket/internal/models"
 	"github.com/M-McCallum/thicket/internal/service"
 )
 
@@ -56,7 +57,28 @@ func (h *SearchHandler) SearchMessages(c fiber.Ctx) error {
 		}
 	}
 
-	results, err := h.searchService.SearchMessages(c.Context(), userID, query, channelID, serverID, before, int32(limitVal))
+	var filters models.SearchFilters
+	if aid := c.Query("author_id"); aid != "" {
+		parsed, err := uuid.Parse(aid)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid author_id"})
+		}
+		filters.AuthorID = &parsed
+	}
+	if c.Query("has_attachment") == "true" {
+		filters.HasAttachment = true
+	}
+	if c.Query("has_link") == "true" {
+		filters.HasLink = true
+	}
+	if df := c.Query("date_from"); df != "" {
+		filters.DateFrom = &df
+	}
+	if dt := c.Query("date_to"); dt != "" {
+		filters.DateTo = &dt
+	}
+
+	results, err := h.searchService.SearchMessages(c.Context(), userID, query, channelID, serverID, before, int32(limitVal), filters)
 	if err != nil {
 		return handleMessageError(c, err)
 	}

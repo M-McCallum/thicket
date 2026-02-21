@@ -11,7 +11,9 @@ import type {
   DMConversationWithParticipants, DMMessage, User,
   CustomEmoji, StickerPack, Sticker, Friendship, ServerPreview,
   ChannelCategory, Role, ChannelPermissionOverride, MemberWithRoles,
-  MessageEdit, LinkPreview, ServerInvite, PublicServer
+  MessageEdit, LinkPreview, ServerInvite, PublicServer, ServerFolder,
+  DMMessageEdit, ScheduledMessage, ServerBan, ServerTimeout, AuditLogEntry,
+  Thread, ThreadMessage, ThreadSubscription, ServerEvent, PollWithOptions
 } from '@/types/models'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
@@ -70,7 +72,7 @@ async function request<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new ApiError(error.error || 'Unknown error', response.status)
+    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after)
   }
 
   return response.json()
@@ -87,10 +89,12 @@ async function refreshAccessToken(): Promise<boolean> {
 
 export class ApiError extends Error {
   status: number
-  constructor(message: string, status: number) {
+  retryAfter?: number
+  constructor(message: string, status: number, retryAfter?: number) {
     super(message)
     this.name = 'ApiError'
     this.status = status
+    this.retryAfter = retryAfter
   }
 }
 
@@ -119,7 +123,7 @@ async function requestMultipart<T>(
 
   if (!response.ok) {
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
-    throw new ApiError(error.error || 'Unknown error', response.status)
+    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after)
   }
 
   return response.json()
@@ -155,7 +159,7 @@ export const servers = {
   delete: (id: string) =>
     request<{ message: string }>(`/servers/${id}`, { method: 'DELETE' }),
   members: (id: string) => request<ServerMember[]>(`/servers/${id}/members`),
-  update: (id: string, data: { name?: string; icon_url?: string; is_public?: boolean; description?: string }) =>
+  update: (id: string, data: { name?: string; icon_url?: string; is_public?: boolean; description?: string; gifs_enabled?: boolean }) =>
     request<Server>(`/servers/${id}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
@@ -175,7 +179,7 @@ export const channels = {
       method: 'POST',
       body: JSON.stringify(data)
     }),
-  update: (serverId: string, channelId: string, data: { name?: string; topic?: string; category_id?: string }) =>
+  update: (serverId: string, channelId: string, data: { name?: string; topic?: string; category_id?: string; slow_mode_interval?: number }) =>
     request<Channel>(`/servers/${serverId}/channels/${channelId}`, {
       method: 'PATCH',
       body: JSON.stringify(data)
@@ -335,11 +339,53 @@ export const dm = {
     if (limit) params.set('limit', String(limit))
     return request<DMMessage[]>(`/dm/conversations/${conversationId}/messages/around?${params}`)
   },
+  acceptRequest: (conversationId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/accept`, { method: 'POST' }),
+  declineRequest: (conversationId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/decline`, { method: 'POST' }),
   getVoiceToken: (conversationId: string) =>
     request<{ token: string; room: string }>(
       `/dm/conversations/${conversationId}/voice-token`,
       { method: 'POST' }
-    )
+    ),
+  createGroup: (participantIds: string[]) =>
+    request<DMConversationWithParticipants>('/dm/conversations/group', {
+      method: 'POST',
+      body: JSON.stringify({ participant_ids: participantIds })
+    }),
+  addParticipant: (conversationId: string, userId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/participants`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId })
+    }),
+  removeParticipant: (conversationId: string, userId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/participants/${userId}`, {
+      method: 'DELETE'
+    }),
+  renameConversation: (conversationId: string, name: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ name })
+    }),
+  editMessage: (id: string, content: string) =>
+    request<DMMessage>(`/dm/messages/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ content })
+    }),
+  deleteMessage: (id: string) =>
+    request<{ message: string }>(`/dm/messages/${id}`, { method: 'DELETE' }),
+  addReaction: (id: string, emoji: string) =>
+    request<{ message: string }>(`/dm/messages/${id}/reactions?emoji=${encodeURIComponent(emoji)}`, { method: 'PUT' }),
+  removeReaction: (id: string, emoji: string) =>
+    request<{ message: string }>(`/dm/messages/${id}/reactions?emoji=${encodeURIComponent(emoji)}`, { method: 'DELETE' }),
+  getEdits: (id: string) =>
+    request<DMMessageEdit[]>(`/dm/messages/${id}/edits`),
+  pinMessage: (conversationId: string, messageId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/pins/${messageId}`, { method: 'PUT' }),
+  unpinMessage: (conversationId: string, messageId: string) =>
+    request<{ message: string }>(`/dm/conversations/${conversationId}/pins/${messageId}`, { method: 'DELETE' }),
+  getPinnedMessages: (conversationId: string) =>
+    request<DMMessage[]>(`/dm/conversations/${conversationId}/pins`)
 }
 
 // Custom Emojis
@@ -414,7 +460,12 @@ export const friends = {
   decline: (id: string) =>
     request<{ message: string }>(`/friends/${id}/decline`, { method: 'POST' }),
   remove: (id: string) =>
-    request<{ message: string }>(`/friends/${id}`, { method: 'DELETE' })
+    request<{ message: string }>(`/friends/${id}`, { method: 'DELETE' }),
+  blocked: () => request<string[]>('/users/blocked'),
+  block: (userId: string) =>
+    request<{ message: string }>(`/users/${userId}/block`, { method: 'POST' }),
+  unblock: (userId: string) =>
+    request<{ message: string }>(`/users/${userId}/block`, { method: 'DELETE' })
 }
 
 // Roles
@@ -470,12 +521,17 @@ export const readState = {
 
 // Search
 export const search = {
-  messages: (query: string, channelId?: string, serverId?: string, before?: string, limit?: number) => {
+  messages: (query: string, channelId?: string, serverId?: string, before?: string, limit?: number, filters?: { author_id?: string; has_attachment?: boolean; has_link?: boolean; date_from?: string; date_to?: string }) => {
     const params = new URLSearchParams({ q: query })
     if (channelId) params.set('channel_id', channelId)
     if (serverId) params.set('server_id', serverId)
     if (before) params.set('before', before)
     if (limit) params.set('limit', String(limit))
+    if (filters?.author_id) params.set('author_id', filters.author_id)
+    if (filters?.has_attachment) params.set('has_attachment', 'true')
+    if (filters?.has_link) params.set('has_link', 'true')
+    if (filters?.date_from) params.set('date_from', filters.date_from)
+    if (filters?.date_to) params.set('date_to', filters.date_to)
     return request<Message[]>(`/search/messages?${params}`)
   },
   dm: (query: string, conversationId?: string, before?: string, limit?: number) => {
@@ -539,6 +595,45 @@ export const userPreferences = {
     })
 }
 
+// Server folders
+export const serverFolders = {
+  list: () => request<ServerFolder[]>('/me/server-folders'),
+  create: (name: string, color: string) =>
+    request<ServerFolder>('/me/server-folders', {
+      method: 'POST',
+      body: JSON.stringify({ name, color })
+    }),
+  update: (id: string, data: { name?: string; color?: string; position?: number }) =>
+    request<ServerFolder>(`/me/server-folders/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (id: string) =>
+    request<{ message: string }>(`/me/server-folders/${id}`, { method: 'DELETE' }),
+  addServer: (folderId: string, serverId: string) =>
+    request<{ message: string }>(`/me/server-folders/${folderId}/servers/${serverId}`, { method: 'PUT' }),
+  removeServer: (folderId: string, serverId: string) =>
+    request<{ message: string }>(`/me/server-folders/${folderId}/servers/${serverId}`, { method: 'DELETE' }),
+}
+
+// Scheduled Messages
+export const scheduledMessages = {
+  list: () =>
+    request<ScheduledMessage[]>('/me/scheduled-messages'),
+  create: (data: { channel_id?: string; dm_conversation_id?: string; content: string; type?: string; scheduled_at: string }) =>
+    request<ScheduledMessage>('/me/scheduled-messages', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (id: string, data: { content: string; scheduled_at: string }) =>
+    request<ScheduledMessage>(`/me/scheduled-messages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (id: string) =>
+    request<{ message: string }>(`/me/scheduled-messages/${id}`, { method: 'DELETE' })
+}
+
 // Server discovery
 export const discover = {
   search: (query: string, limit?: number, offset?: number) => {
@@ -548,4 +643,141 @@ export const discover = {
     if (offset) params.set('offset', String(offset))
     return request<PublicServer[]>(`/servers/discover?${params}`)
   }
+}
+
+// Moderation
+export const moderation = {
+  ban: (serverId: string, userId: string, reason = '') =>
+    request<ServerBan>(`/servers/${serverId}/bans`, {
+      method: 'POST',
+      body: JSON.stringify({ user_id: userId, reason })
+    }),
+  unban: (serverId: string, userId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/bans/${userId}`, { method: 'DELETE' }),
+  getBans: (serverId: string) =>
+    request<ServerBan[]>(`/servers/${serverId}/bans`),
+  kick: (serverId: string, userId: string, reason = '') =>
+    request<{ message: string }>(`/servers/${serverId}/kick/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ reason })
+    }),
+  timeout: (serverId: string, userId: string, duration: number, reason = '') =>
+    request<ServerTimeout>(`/servers/${serverId}/timeout/${userId}`, {
+      method: 'POST',
+      body: JSON.stringify({ duration, reason })
+    }),
+  removeTimeout: (serverId: string, userId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/timeout/${userId}`, { method: 'DELETE' }),
+  getTimeouts: (serverId: string) =>
+    request<ServerTimeout[]>(`/servers/${serverId}/timeouts`),
+  getAuditLog: (serverId: string, limit?: number, before?: string) => {
+    const params = new URLSearchParams()
+    if (limit) params.set('limit', String(limit))
+    if (before) params.set('before', before)
+    const query = params.toString()
+    return request<AuditLogEntry[]>(`/servers/${serverId}/audit-log${query ? `?${query}` : ''}`)
+  }
+}
+
+// Threads
+export const threads = {
+  create: (channelId: string, parentMessageId: string, name?: string) =>
+    request<Thread>(`/channels/${channelId}/threads`, {
+      method: 'POST',
+      body: JSON.stringify({ parent_message_id: parentMessageId, name: name || '' })
+    }),
+  list: (channelId: string) =>
+    request<Thread[]>(`/channels/${channelId}/threads`),
+  get: (threadId: string) =>
+    request<Thread>(`/threads/${threadId}`),
+  update: (threadId: string, data: { name?: string; archived?: boolean; locked?: boolean }) =>
+    request<Thread>(`/threads/${threadId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  sendMessage: (threadId: string, content: string, replyToId?: string) =>
+    request<ThreadMessage>(`/threads/${threadId}/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ content, reply_to_id: replyToId })
+    }),
+  getMessages: (threadId: string, before?: string, limit?: number) => {
+    const params = new URLSearchParams()
+    if (before) params.set('before', before)
+    if (limit) params.set('limit', String(limit))
+    const query = params.toString()
+    return request<ThreadMessage[]>(`/threads/${threadId}/messages${query ? `?${query}` : ''}`)
+  },
+  updateSubscription: (threadId: string, notificationLevel: string) =>
+    request<ThreadSubscription>(`/threads/${threadId}/subscription`, {
+      method: 'PUT',
+      body: JSON.stringify({ notification_level: notificationLevel })
+    })
+}
+
+// Scheduled Events
+export const events = {
+  list: (serverId: string) =>
+    request<ServerEvent[]>(`/servers/${serverId}/events`),
+  get: (serverId: string, eventId: string) =>
+    request<ServerEvent>(`/servers/${serverId}/events/${eventId}`),
+  create: (serverId: string, data: {
+    name: string
+    description?: string
+    location_type: string
+    channel_id?: string
+    external_location?: string
+    start_time: string
+    end_time?: string
+  }) =>
+    request<ServerEvent>(`/servers/${serverId}/events`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  update: (serverId: string, eventId: string, data: Partial<{
+    name: string
+    description: string
+    location_type: string
+    channel_id: string
+    external_location: string
+    start_time: string
+    end_time: string
+    status: string
+  }>) =>
+    request<ServerEvent>(`/servers/${serverId}/events/${eventId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data)
+    }),
+  delete: (serverId: string, eventId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/events/${eventId}`, { method: 'DELETE' }),
+  rsvp: (serverId: string, eventId: string, status?: string) =>
+    request<{ message: string }>(`/servers/${serverId}/events/${eventId}/rsvp`, {
+      method: 'POST',
+      body: JSON.stringify({ status: status || 'interested' })
+    }),
+  removeRsvp: (serverId: string, eventId: string) =>
+    request<{ message: string }>(`/servers/${serverId}/events/${eventId}/rsvp`, { method: 'DELETE' })
+}
+
+// Polls
+export const polls = {
+  create: (channelId: string, data: {
+    question: string
+    options: { text: string; emoji?: string }[]
+    multi_select?: boolean
+    anonymous?: boolean
+    expires_at?: string
+  }) =>
+    request<PollWithOptions>(`/channels/${channelId}/polls`, {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
+  get: (pollId: string) =>
+    request<PollWithOptions>(`/polls/${pollId}`),
+  vote: (pollId: string, optionId: string) =>
+    request<{ message: string }>(`/polls/${pollId}/vote`, {
+      method: 'POST',
+      body: JSON.stringify({ option_id: optionId })
+    }),
+  removeVote: (pollId: string, optionId: string) =>
+    request<{ message: string }>(`/polls/${pollId}/vote/${optionId}`, { method: 'DELETE' })
 }

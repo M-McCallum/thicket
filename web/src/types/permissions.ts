@@ -29,3 +29,20 @@ export function parsePermissions(s: string | undefined | null): bigint {
     return 0n
   }
 }
+
+export const PERMISSION_LABELS: { perm: bigint; name: string; description: string; category: string }[] = [
+  { perm: PermViewChannels, name: 'View Channels', description: 'Allows members to view channels', category: 'General' },
+  { perm: PermSendMessages, name: 'Send Messages', description: 'Allows members to send messages in text channels', category: 'Text' },
+  { perm: PermManageMessages, name: 'Manage Messages', description: 'Allows deleting messages from other members', category: 'Text' },
+  { perm: PermAddReactions, name: 'Add Reactions', description: 'Allows adding reactions to messages', category: 'Text' },
+  { perm: PermAttachFiles, name: 'Attach Files', description: 'Allows uploading files and images', category: 'Text' },
+  { perm: PermPinMessages, name: 'Pin Messages', description: 'Allows pinning messages in a channel', category: 'Text' },
+  { perm: PermManageChannels, name: 'Manage Channels', description: 'Allows creating, editing, and deleting channels', category: 'Management' },
+  { perm: PermManageRoles, name: 'Manage Roles', description: 'Allows creating and editing roles below their highest role', category: 'Management' },
+  { perm: PermManageServer, name: 'Manage Server', description: 'Allows editing server name, icon, and settings', category: 'Management' },
+  { perm: PermKickMembers, name: 'Kick Members', description: 'Allows removing members from the server', category: 'Moderation' },
+  { perm: PermBanMembers, name: 'Ban Members', description: 'Allows permanently banning members', category: 'Moderation' },
+  { perm: PermVoiceConnect, name: 'Connect', description: 'Allows joining voice channels', category: 'Voice' },
+  { perm: PermVoiceSpeak, name: 'Speak', description: 'Allows speaking in voice channels', category: 'Voice' },
+  { perm: PermAdministrator, name: 'Administrator', description: 'Full access to all permissions. Use with caution.', category: 'Dangerous' },
+]

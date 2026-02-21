@@ -73,10 +73,19 @@ func main() {
 	emojiService := service.NewEmojiService(queries, storageClient)
 	stickerService := service.NewStickerService(queries, storageClient)
 	friendService := service.NewFriendService(queries)
+	moderationService := service.NewModerationService(queries, permissionService)
+	threadService := service.NewThreadService(queries)
+	eventService := service.NewEventService(queries)
+	pollService := service.NewPollService(queries)
 	inviteService := service.NewInviteService(queries, permissionService)
+
+	// Scheduler service
+	schedulerService := service.NewSchedulerService(queries, messageService, dmService)
+	schedulerService.Start()
 	readStateService := service.NewReadStateService(queries)
 	notifPrefService := service.NewNotificationPrefService(queries)
 	userPrefService := service.NewUserPrefService(queries)
+	serverFolderService := service.NewServerFolderService(queries)
 
 	// WebSocket hub
 	hub := ws.NewHub()
@@ -103,7 +112,9 @@ func main() {
 			Status:   status,
 		})
 		if presenceEvent != nil {
-			ws.BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
+			// Filter out users blocked by or blocking this user
+			blockedIDs, _ := queries.GetBlockedUserIDs(ctx, userID)
+			ws.BroadcastToServerMembers(hub, filterBlockedFromList(coMemberIDs, blockedIDs), presenceEvent, nil)
 		}
 	})
 	hub.SetOnDisconnect(func(userID uuid.UUID, username string) {
@@ -120,7 +131,9 @@ func main() {
 			Status:   "offline",
 		})
 		if presenceEvent != nil {
-			ws.BroadcastToServerMembers(hub, coMemberIDs, presenceEvent, nil)
+			// Filter out users blocked by or blocking this user
+			blockedIDs, _ := queries.GetBlockedUserIDs(ctx, userID)
+			ws.BroadcastToServerMembers(hub, filterBlockedFromList(coMemberIDs, blockedIDs), presenceEvent, nil)
 		}
 	})
 
@@ -144,9 +157,15 @@ func main() {
 	searchService := service.NewSearchService(queries)
 	searchHandler := handler.NewSearchHandler(searchService)
 	attachmentHandler := handler.NewAttachmentHandler(queries, storageClient)
+	moderationHandler := handler.NewModerationHandler(moderationService, serverService, hub)
+	threadHandler := handler.NewThreadHandler(threadService, hub)
+	eventHandler := handler.NewEventHandler(eventService, serverService, hub)
+	pollHandler := handler.NewPollHandler(pollService, hub)
 	readStateHandler := handler.NewReadStateHandler(readStateService)
 	notifPrefHandler := handler.NewNotificationPrefHandler(notifPrefService)
+	scheduleHandler := handler.NewScheduleHandler(schedulerService)
 	userPrefHandler := handler.NewUserPrefHandler(userPrefService)
+	serverFolderHandler := handler.NewServerFolderHandler(serverFolderService)
 
 	// Fiber app
 	app := fiber.New(fiber.Config{
@@ -178,10 +197,16 @@ func main() {
 		LinkPreviewHandler: linkPreviewHandler,
 		SearchHandler:      searchHandler,
 		AttachmentHandler:  attachmentHandler,
+		ModerationHandler:  moderationHandler,
+		ThreadHandler:      threadHandler,
+		EventHandler:       eventHandler,
+		PollHandler:        pollHandler,
 		InviteHandler:          inviteHandler,
 		ReadStateHandler:       readStateHandler,
 		NotificationPrefHandler: notifPrefHandler,
+		ScheduleHandler:         scheduleHandler,
 		UserPrefHandler:         userPrefHandler,
+		ServerFolderHandler:     serverFolderHandler,
 		JWKSManager:        jwksManager,
 		Hub:                hub,
 		CoMemberIDsFn:      serverService.GetUserCoMemberIDs,
@@ -195,4 +220,22 @@ func main() {
 	if err := app.Listen(addr); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+// filterBlockedFromList removes blocked user IDs from a list.
+func filterBlockedFromList(ids []uuid.UUID, blockedIDs []uuid.UUID) []uuid.UUID {
+	if len(blockedIDs) == 0 {
+		return ids
+	}
+	blocked := make(map[uuid.UUID]bool, len(blockedIDs))
+	for _, id := range blockedIDs {
+		blocked[id] = true
+	}
+	filtered := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if !blocked[id] {
+			filtered = append(filtered, id)
+		}
+	}
+	return filtered
 }

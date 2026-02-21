@@ -6,12 +6,22 @@ import (
 	"github.com/google/uuid"
 )
 
+// SearchFilters holds optional search filter parameters
+type SearchFilters struct {
+	AuthorID      *uuid.UUID
+	HasAttachment bool
+	HasLink       bool
+	DateFrom      *string
+	DateTo        *string
+}
+
 // Channel-scoped search
 type SearchChannelMessagesParams struct {
 	Query     string
 	ChannelID uuid.UUID
 	Before    *string
 	Limit     int32
+	Filters   SearchFilters
 }
 
 func (q *Queries) SearchChannelMessages(ctx context.Context, arg SearchChannelMessagesParams) ([]MessageWithAuthor, error) {
@@ -26,8 +36,15 @@ func (q *Queries) SearchChannelMessages(ctx context.Context, arg SearchChannelMe
 		WHERE m.channel_id = $1
 		  AND m.search_vec @@ plainto_tsquery('english', $2)
 		  AND ($3::text IS NULL OR m.created_at < $3::timestamptz)
+		  AND ($5::uuid IS NULL OR m.author_id = $5)
+		  AND ($6::boolean = FALSE OR EXISTS (SELECT 1 FROM attachments WHERE message_id = m.id))
+		  AND ($7::boolean = FALSE OR m.content ~ 'https?://')
+		  AND ($8::text IS NULL OR m.created_at >= $8::timestamptz)
+		  AND ($9::text IS NULL OR m.created_at <= $9::timestamptz)
 		ORDER BY m.created_at DESC LIMIT $4`,
 		arg.ChannelID, arg.Query, arg.Before, arg.Limit,
+		arg.Filters.AuthorID, arg.Filters.HasAttachment, arg.Filters.HasLink,
+		arg.Filters.DateFrom, arg.Filters.DateTo,
 	)
 	if err != nil {
 		return nil, err
@@ -42,6 +59,7 @@ type SearchServerMessagesParams struct {
 	ServerID uuid.UUID
 	Before   *string
 	Limit    int32
+	Filters  SearchFilters
 }
 
 func (q *Queries) SearchServerMessages(ctx context.Context, arg SearchServerMessagesParams) ([]MessageWithAuthor, error) {
@@ -57,8 +75,15 @@ func (q *Queries) SearchServerMessages(ctx context.Context, arg SearchServerMess
 		WHERE c.server_id = $1
 		  AND m.search_vec @@ plainto_tsquery('english', $2)
 		  AND ($3::text IS NULL OR m.created_at < $3::timestamptz)
+		  AND ($5::uuid IS NULL OR m.author_id = $5)
+		  AND ($6::boolean = FALSE OR EXISTS (SELECT 1 FROM attachments WHERE message_id = m.id))
+		  AND ($7::boolean = FALSE OR m.content ~ 'https?://')
+		  AND ($8::text IS NULL OR m.created_at >= $8::timestamptz)
+		  AND ($9::text IS NULL OR m.created_at <= $9::timestamptz)
 		ORDER BY m.created_at DESC LIMIT $4`,
 		arg.ServerID, arg.Query, arg.Before, arg.Limit,
+		arg.Filters.AuthorID, arg.Filters.HasAttachment, arg.Filters.HasLink,
+		arg.Filters.DateFrom, arg.Filters.DateTo,
 	)
 	if err != nil {
 		return nil, err
@@ -69,10 +94,11 @@ func (q *Queries) SearchServerMessages(ctx context.Context, arg SearchServerMess
 
 // User-scoped search (all servers user belongs to)
 type SearchUserMessagesParams struct {
-	Query  string
-	UserID uuid.UUID
-	Before *string
-	Limit  int32
+	Query   string
+	UserID  uuid.UUID
+	Before  *string
+	Limit   int32
+	Filters SearchFilters
 }
 
 func (q *Queries) SearchUserMessages(ctx context.Context, arg SearchUserMessagesParams) ([]MessageWithAuthor, error) {
@@ -88,8 +114,15 @@ func (q *Queries) SearchUserMessages(ctx context.Context, arg SearchUserMessages
 		LEFT JOIN users ru ON rm.author_id = ru.id
 		WHERE m.search_vec @@ plainto_tsquery('english', $2)
 		  AND ($3::text IS NULL OR m.created_at < $3::timestamptz)
+		  AND ($5::uuid IS NULL OR m.author_id = $5)
+		  AND ($6::boolean = FALSE OR EXISTS (SELECT 1 FROM attachments WHERE message_id = m.id))
+		  AND ($7::boolean = FALSE OR m.content ~ 'https?://')
+		  AND ($8::text IS NULL OR m.created_at >= $8::timestamptz)
+		  AND ($9::text IS NULL OR m.created_at <= $9::timestamptz)
 		ORDER BY m.created_at DESC LIMIT $4`,
 		arg.UserID, arg.Query, arg.Before, arg.Limit,
+		arg.Filters.AuthorID, arg.Filters.HasAttachment, arg.Filters.HasLink,
+		arg.Filters.DateFrom, arg.Filters.DateTo,
 	)
 	if err != nil {
 		return nil, err

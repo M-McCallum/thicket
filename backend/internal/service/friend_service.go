@@ -152,3 +152,7 @@ func (s *FriendService) GetFriends(ctx context.Context, userID uuid.UUID) ([]mod
 func (s *FriendService) GetPendingRequests(ctx context.Context, userID uuid.UUID) ([]models.FriendshipWithUser, error) {
 	return s.queries.GetPendingFriendRequests(ctx, userID)
 }
+
+func (s *FriendService) GetBlockedUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	return s.queries.GetBlockedUserIDs(ctx, userID)
+}

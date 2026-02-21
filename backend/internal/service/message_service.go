@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
+	"math"
 	"regexp"
 	"strings"
 	"time"
@@ -36,6 +38,15 @@ func ParseMentions(content string) []uuid.UUID {
 	return ids
 }
 
+// SlowModeError is returned when a user sends messages too quickly in a slow-mode channel.
+type SlowModeError struct {
+	RetryAfter int
+}
+
+func (e *SlowModeError) Error() string {
+	return fmt.Sprintf("slow mode: retry after %ds", e.RetryAfter)
+}
+
 var (
 	ErrMessageNotFound   = errors.New("message not found")
 	ErrNotAuthor         = errors.New("not the author of this message")
@@ -43,6 +54,8 @@ var (
 	ErrTooManyPins       = errors.New("channel has reached the pin limit (50)")
 	ErrMessageNotInChannel = errors.New("message does not belong to this channel")
 	ErrReplyNotInChannel = errors.New("reply target is not in the same channel")
+	ErrGifsDisabled      = errors.New("GIFs are disabled in this server")
+	ErrUserTimedOut      = errors.New("you are timed out in this server")
 )
 
 type MessageService struct {
@@ -89,6 +102,49 @@ func (s *MessageService) SendMessage(ctx context.Context, channelID, authorID uu
 			return nil, ErrNotMember
 		}
 		return nil, err
+	}
+
+	// Enforce slow mode
+	if channel.SlowModeInterval > 0 {
+		// Exempt users with ManageMessages or ManageChannels
+		canBypass := false
+		if ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, authorID, models.PermManageMessages); err == nil && ok {
+			canBypass = true
+		}
+		if !canBypass {
+			if ok, err := s.permSvc.HasServerPermission(ctx, channel.ServerID, authorID, models.PermManageChannels); err == nil && ok {
+				canBypass = true
+			}
+		}
+		if !canBypass {
+			lastTime, err := s.queries.GetLastUserMessageTime(ctx, channelID, authorID)
+			if err != nil {
+				return nil, err
+			}
+			if lastTime != nil {
+				elapsed := time.Since(*lastTime).Seconds()
+				remaining := float64(channel.SlowModeInterval) - elapsed
+				if remaining > 0 {
+					return nil, &SlowModeError{RetryAfter: int(math.Ceil(remaining))}
+				}
+			}
+		}
+	}
+
+	// Check if GIFs are disabled for this server
+	if mt == "gif" {
+		server, err := s.queries.GetServerByID(ctx, channel.ServerID)
+		if err != nil {
+			return nil, err
+		}
+		if !server.GifsEnabled {
+			return nil, ErrGifsDisabled
+		}
+	}
+
+	// Check if user is timed out
+	if timedOut, err := s.queries.IsUserTimedOut(ctx, channel.ServerID, authorID); err == nil && timedOut {
+		return nil, ErrUserTimedOut
 	}
 
 	// Validate reply target
@@ -149,11 +205,16 @@ func (s *MessageService) GetMessages(ctx context.Context, channelID, userID uuid
 		limit = 50
 	}
 
-	return s.queries.GetChannelMessages(ctx, models.GetChannelMessagesParams{
+	msgs, err := s.queries.GetChannelMessages(ctx, models.GetChannelMessagesParams{
 		ChannelID: channelID,
 		Before:    before,
 		Limit:     limit,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.filterBlockedMessages(ctx, userID, msgs)
 }
 
 func (s *MessageService) GetMessagesAfter(ctx context.Context, channelID, userID uuid.UUID, after time.Time, limit int32) ([]models.MessageWithAuthor, error) {
@@ -176,11 +237,16 @@ func (s *MessageService) GetMessagesAfter(ctx context.Context, channelID, userID
 		limit = 50
 	}
 
-	return s.queries.GetChannelMessagesAfter(ctx, models.GetChannelMessagesAfterParams{
+	msgs, err := s.queries.GetChannelMessagesAfter(ctx, models.GetChannelMessagesAfterParams{
 		ChannelID: channelID,
 		After:     after,
 		Limit:     limit,
 	})
+	if err != nil {
+		return nil, err
+	}
+
+	return s.filterBlockedMessages(ctx, userID, msgs)
 }
 
 func (s *MessageService) UpdateMessage(ctx context.Context, messageID, userID uuid.UUID, content string) (*models.Message, error) {
@@ -312,13 +378,6 @@ func (s *MessageService) PinMessage(ctx context.Context, channelID, messageID, u
 	if msg.ChannelID != channelID {
 		return ErrMessageNotInChannel
 	}
-	count, err := s.queries.GetPinnedMessageCount(ctx, channelID)
-	if err != nil {
-		return err
-	}
-	if count >= 50 {
-		return ErrTooManyPins
-	}
 	return s.queries.PinMessage(ctx, channelID, messageID, userID)
 }
 
@@ -439,4 +498,28 @@ func (s *MessageService) AttachReactionsToMessages(ctx context.Context, messages
 		}
 	}
 	return nil
+}
+
+// filterBlockedMessages removes messages authored by users that the requesting user has blocked.
+func (s *MessageService) filterBlockedMessages(ctx context.Context, requestingUserID uuid.UUID, msgs []models.MessageWithAuthor) ([]models.MessageWithAuthor, error) {
+	blockedIDs, err := s.queries.GetBlockedUserIDs(ctx, requestingUserID)
+	if err != nil {
+		return nil, err
+	}
+	if len(blockedIDs) == 0 {
+		return msgs, nil
+	}
+
+	blocked := make(map[uuid.UUID]bool, len(blockedIDs))
+	for _, id := range blockedIDs {
+		blocked[id] = true
+	}
+
+	filtered := make([]models.MessageWithAuthor, 0, len(msgs))
+	for _, m := range msgs {
+		if !blocked[m.AuthorID] {
+			filtered = append(filtered, m)
+		}
+	}
+	return filtered, nil
 }

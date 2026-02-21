@@ -20,7 +20,7 @@ func (s *SearchService) Queries() *models.Queries {
 	return s.queries
 }
 
-func (s *SearchService) SearchMessages(ctx context.Context, userID uuid.UUID, query string, channelID, serverID *uuid.UUID, before *string, limit int32) ([]models.MessageWithAuthor, error) {
+func (s *SearchService) SearchMessages(ctx context.Context, userID uuid.UUID, query string, channelID, serverID *uuid.UUID, before *string, limit int32, filters models.SearchFilters) ([]models.MessageWithAuthor, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 25
 	}
@@ -39,6 +39,7 @@ func (s *SearchService) SearchMessages(ctx context.Context, userID uuid.UUID, qu
 			ChannelID: *channelID,
 			Before:    before,
 			Limit:     limit,
+			Filters:   filters,
 		})
 	}
 
@@ -52,15 +53,17 @@ func (s *SearchService) SearchMessages(ctx context.Context, userID uuid.UUID, qu
 			ServerID: *serverID,
 			Before:   before,
 			Limit:    limit,
+			Filters:  filters,
 		})
 	}
 
 	// No scope — search across all servers user is a member of
 	return s.queries.SearchUserMessages(ctx, models.SearchUserMessagesParams{
-		Query:  query,
-		UserID: userID,
-		Before: before,
-		Limit:  limit,
+		Query:   query,
+		UserID:  userID,
+		Before:  before,
+		Limit:   limit,
+		Filters: filters,
 	})
 }
 

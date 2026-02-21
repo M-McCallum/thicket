@@ -1,15 +1,9 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchStore } from '@/stores/searchStore'
+import type { SearchFilters } from '@/stores/searchStore'
 import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import UserAvatar from '@/components/common/UserAvatar'
-
-function formatDate(dateStr: string) {
-  return new Date(dateStr).toLocaleDateString(undefined, {
-    month: 'short', day: 'numeric', year: 'numeric',
-    hour: '2-digit', minute: '2-digit'
-  })
-}
 
 export default function SearchModal() {
   const isOpen = useSearchStore((s) => s.isOpen)
@@ -18,9 +12,11 @@ export default function SearchModal() {
   const isSearching = useSearchStore((s) => s.isSearching)
   const hasMore = useSearchStore((s) => s.hasMore)
   const scope = useSearchStore((s) => s.scope)
+  const filters = useSearchStore((s) => s.filters)
   const setOpen = useSearchStore((s) => s.setOpen)
   const setQuery = useSearchStore((s) => s.setQuery)
   const setScope = useSearchStore((s) => s.setScope)
+  const setFilters = useSearchStore((s) => s.setFilters)
   const performSearch = useSearchStore((s) => s.performSearch)
   const loadMore = useSearchStore((s) => s.loadMore)
   const clear = useSearchStore((s) => s.clear)
@@ -30,6 +26,11 @@ export default function SearchModal() {
 
   const activeChannelId = useServerStore((s) => s.activeChannelId)
   const activeServerId = useServerStore((s) => s.activeServerId)
+  const members = useServerStore((s) => s.members)
+
+  const [showFilters, setShowFilters] = useState(false)
+  const [authorQuery, setAuthorQuery] = useState('')
+  const [showAuthorDropdown, setShowAuthorDropdown] = useState(false)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(null)
@@ -41,6 +42,8 @@ export default function SearchModal() {
       setTimeout(() => inputRef.current?.focus(), 50)
     } else {
       clear()
+      setShowFilters(false)
+      setAuthorQuery('')
     }
   }, [isOpen, clear])
 
@@ -54,7 +57,7 @@ export default function SearchModal() {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }
-  }, [query, scope, activeChannelId, activeServerId, performSearch])
+  }, [query, scope, filters, activeChannelId, activeServerId, performSearch])
 
   // Ctrl+F / Cmd+F to toggle
   useEffect(() => {
@@ -73,7 +76,6 @@ export default function SearchModal() {
 
   const handleJumpToResult = useCallback((result: typeof results[0]) => {
     if (!result.channel_id) return
-    // Jump to the message's date in the channel
     const date = new Date(result.created_at)
     jumpToDate(result.channel_id, date)
     setHighlightedMessageId(result.id)
@@ -89,6 +91,23 @@ export default function SearchModal() {
       loadMore(activeChannelId ?? undefined, activeServerId ?? undefined)
     }
   }, [loadMore, activeChannelId, activeServerId])
+
+  const updateFilter = useCallback((update: Partial<SearchFilters>) => {
+    setFilters({ ...filters, ...update })
+  }, [filters, setFilters])
+
+  const filteredMembers = authorQuery
+    ? members.filter((m) =>
+        (m.username?.toLowerCase().includes(authorQuery.toLowerCase())) ||
+        (m.display_name?.toLowerCase().includes(authorQuery.toLowerCase()))
+      ).slice(0, 5)
+    : []
+
+  const selectedAuthor = filters.author_id
+    ? members.find((m) => m.id === filters.author_id)
+    : null
+
+  const hasActiveFilters = filters.author_id || filters.has_attachment || filters.has_link || filters.date_from || filters.date_to
 
   if (!isOpen) return null
 
@@ -120,8 +139,8 @@ export default function SearchModal() {
           )}
         </div>
 
-        {/* Scope toggle */}
-        <div className="flex gap-1 px-4 py-2 border-b border-sol-border">
+        {/* Scope toggle + filter toggle */}
+        <div className="flex items-center gap-1 px-4 py-2 border-b border-sol-border">
           {(['channel', 'server', 'all'] as const).map((s) => (
             <button
               key={s}
@@ -135,7 +154,132 @@ export default function SearchModal() {
               {s === 'channel' ? 'This Channel' : s === 'server' ? 'This Server' : 'All Servers'}
             </button>
           ))}
+          <div className="flex-1" />
+          <button
+            onClick={() => setShowFilters(!showFilters)}
+            className={`px-3 py-1 text-xs rounded-full transition-colors flex items-center gap-1 ${
+              showFilters || hasActiveFilters
+                ? 'bg-sol-amber/20 text-sol-amber'
+                : 'text-sol-text-muted hover:text-sol-text-primary hover:bg-sol-bg-elevated'
+            }`}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+            </svg>
+            Filters
+            {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-sol-amber" />}
+          </button>
         </div>
+
+        {/* Filter bar */}
+        {showFilters && (
+          <div className="px-4 py-3 border-b border-sol-border space-y-2">
+            <div className="flex flex-wrap gap-3">
+              {/* Author filter */}
+              <div className="relative">
+                <label className="block text-[10px] text-sol-text-muted uppercase tracking-wider mb-1">Author</label>
+                {selectedAuthor ? (
+                  <div className="flex items-center gap-1.5 bg-sol-bg-elevated rounded-md px-2 py-1 text-xs text-sol-text-primary">
+                    <span>{selectedAuthor.display_name || selectedAuthor.username}</span>
+                    <button
+                      onClick={() => {
+                        updateFilter({ author_id: undefined })
+                        setAuthorQuery('')
+                      }}
+                      className="text-sol-text-muted hover:text-sol-text-primary"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    value={authorQuery}
+                    onChange={(e) => {
+                      setAuthorQuery(e.target.value)
+                      setShowAuthorDropdown(true)
+                    }}
+                    onFocus={() => setShowAuthorDropdown(true)}
+                    placeholder="Username..."
+                    className="w-32 bg-sol-bg-elevated border border-sol-border rounded-md px-2 py-1 text-xs text-sol-text-primary outline-none focus:border-sol-amber/30"
+                  />
+                )}
+                {showAuthorDropdown && filteredMembers.length > 0 && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-sol-bg-elevated border border-sol-border rounded-md shadow-lg z-10 py-1">
+                    {filteredMembers.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          updateFilter({ author_id: m.id })
+                          setAuthorQuery('')
+                          setShowAuthorDropdown(false)
+                        }}
+                        className="w-full text-left px-3 py-1.5 text-xs text-sol-text-secondary hover:bg-sol-bg-secondary hover:text-sol-text-primary"
+                      >
+                        {m.display_name || m.username}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Date from */}
+              <div>
+                <label className="block text-[10px] text-sol-text-muted uppercase tracking-wider mb-1">From</label>
+                <input
+                  type="date"
+                  value={filters.date_from ?? ''}
+                  onChange={(e) => updateFilter({ date_from: e.target.value || undefined })}
+                  className="bg-sol-bg-elevated border border-sol-border rounded-md px-2 py-1 text-xs text-sol-text-primary outline-none focus:border-sol-amber/30"
+                />
+              </div>
+
+              {/* Date to */}
+              <div>
+                <label className="block text-[10px] text-sol-text-muted uppercase tracking-wider mb-1">To</label>
+                <input
+                  type="date"
+                  value={filters.date_to ?? ''}
+                  onChange={(e) => updateFilter({ date_to: e.target.value || undefined })}
+                  className="bg-sol-bg-elevated border border-sol-border rounded-md px-2 py-1 text-xs text-sol-text-primary outline-none focus:border-sol-amber/30"
+                />
+              </div>
+
+              {/* Checkbox filters */}
+              <div className="flex items-end gap-3 pb-0.5">
+                <label className="flex items-center gap-1.5 text-xs text-sol-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.has_attachment ?? false}
+                    onChange={(e) => updateFilter({ has_attachment: e.target.checked || undefined })}
+                    className="accent-sol-amber"
+                  />
+                  Has file
+                </label>
+                <label className="flex items-center gap-1.5 text-xs text-sol-text-secondary cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={filters.has_link ?? false}
+                    onChange={(e) => updateFilter({ has_link: e.target.checked || undefined })}
+                    className="accent-sol-amber"
+                  />
+                  Has link
+                </label>
+              </div>
+            </div>
+
+            {hasActiveFilters && (
+              <button
+                onClick={() => setFilters({})}
+                className="text-[10px] text-sol-text-muted hover:text-sol-amber transition-colors"
+              >
+                Clear all filters
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Results */}
         <div

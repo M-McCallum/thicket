@@ -1,0 +1,1 @@
+ALTER TABLE channels ADD COLUMN slow_mode_interval INTEGER NOT NULL DEFAULT 0;

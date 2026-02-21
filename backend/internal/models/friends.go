@@ -108,6 +108,43 @@ func (q *Queries) GetPendingFriendRequests(ctx context.Context, userID uuid.UUID
 	return requests, rows.Err()
 }
 
+func (q *Queries) IsBlocked(ctx context.Context, userA, userB uuid.UUID) (bool, error) {
+	var exists bool
+	err := q.db.QueryRow(ctx,
+		`SELECT EXISTS(
+			SELECT 1 FROM friendships
+			WHERE ((requester_id = $1 AND addressee_id = $2) OR (requester_id = $2 AND addressee_id = $1))
+			  AND status = 'blocked'
+		)`, userA, userB,
+	).Scan(&exists)
+	return exists, err
+}
+
+// GetBlockedUserIDs returns all user IDs blocked by the given user.
+func (q *Queries) GetBlockedUserIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error) {
+	rows, err := q.db.Query(ctx,
+		`SELECT addressee_id FROM friendships
+		WHERE requester_id = $1 AND status = 'blocked'`, userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []uuid.UUID
+	for rows.Next() {
+		var id uuid.UUID
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	if ids == nil {
+		ids = []uuid.UUID{}
+	}
+	return ids, rows.Err()
+}
+
 func (q *Queries) GetServerMemberCount(ctx context.Context, serverID uuid.UUID) (int64, error) {
 	var count int64
 	err := q.db.QueryRow(ctx,

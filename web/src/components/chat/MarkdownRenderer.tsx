@@ -85,6 +85,24 @@ const remarkSpoiler: Plugin = () => {
 }
 
 const components: Components = {
+  h1({ children }) {
+    return <h1 className="text-xl font-bold text-sol-text-primary mt-2 mb-1">{children}</h1>
+  },
+  h2({ children }) {
+    return <h2 className="text-lg font-bold text-sol-text-primary mt-2 mb-1">{children}</h2>
+  },
+  h3({ children }) {
+    return <h3 className="text-base font-semibold text-sol-text-primary mt-1.5 mb-0.5">{children}</h3>
+  },
+  h4({ children }) {
+    return <h4 className="text-sm font-semibold text-sol-text-primary mt-1 mb-0.5">{children}</h4>
+  },
+  h5({ children }) {
+    return <h5 className="text-sm font-medium text-sol-text-secondary mt-1 mb-0.5">{children}</h5>
+  },
+  h6({ children }) {
+    return <h6 className="text-xs font-medium text-sol-text-muted mt-1 mb-0.5">{children}</h6>
+  },
   code({ className, children, ...props }) {
     const match = /language-(\w+)/.exec(className || '')
     const isInline = !match && !className

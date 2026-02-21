@@ -1,0 +1,1 @@
+ALTER TABLE dm_conversations ADD COLUMN accepted BOOLEAN NOT NULL DEFAULT TRUE;

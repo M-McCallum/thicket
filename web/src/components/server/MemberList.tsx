@@ -1,9 +1,11 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
 import { usePermissionStore } from '@/stores/permissionStore'
 import UserProfilePopup from '@/components/profile/UserProfilePopup'
 import UserAvatar from '@/components/common/UserAvatar'
+import ModerationActionModal from '@/components/server/ModerationActionModal'
+import { moderation } from '@/services/api'
 
 const statusColors: Record<string, string> = {
   online: 'bg-sol-green',
@@ -12,13 +14,56 @@ const statusColors: Record<string, string> = {
   offline: 'bg-sol-text-muted'
 }
 
+// Permission bitmask constants (mirrored from backend)
+const PermKickMembers = 1 << 5
+const PermBanMembers = 1 << 6
+const PermAdministrator = 1 << 30
+
 export default function MemberList() {
   const { members } = useServerStore()
+  const activeServerId = useServerStore((s) => s.activeServerId)
   const currentUserId = useAuthStore((s) => s.user?.id)
   const roles = usePermissionStore((s) => s.roles)
   const memberRoleIds = usePermissionStore((s) => s.memberRoleIds)
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
   const [preloadedData, setPreloadedData] = useState<{ display_name?: string | null; username?: string; status?: string } | undefined>()
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; memberId: string; username: string } | null>(null)
+  const [modAction, setModAction] = useState<{ action: 'kick' | 'ban' | 'timeout'; userId: string; username: string } | null>(null)
+  const contextMenuRef = useRef<HTMLDivElement>(null)
+
+  // Compute current user's permissions
+  const myPermissions = useMemo(() => {
+    if (!currentUserId) return 0
+    const myRoleIds = memberRoleIds[currentUserId] || []
+    let perms = 0
+    // Get @everyone role permissions
+    const everyoneRole = roles.find((r) => r.name === '@everyone')
+    if (everyoneRole) perms |= Number(everyoneRole.permissions)
+    // OR in member-specific roles
+    for (const roleId of myRoleIds) {
+      const role = roles.find((r) => r.id === roleId)
+      if (role) perms |= Number(role.permissions)
+    }
+    // Check if current user is server owner
+    const servers = useServerStore.getState().servers
+    const activeServer = servers.find((s) => s.id === activeServerId)
+    if (activeServer && activeServer.owner_id === currentUserId) {
+      perms |= PermAdministrator
+    }
+    return perms
+  }, [currentUserId, memberRoleIds, roles, activeServerId])
+
+  const canKick = (myPermissions & PermAdministrator) !== 0 || (myPermissions & PermKickMembers) !== 0
+  const canBan = (myPermissions & PermAdministrator) !== 0 || (myPermissions & PermBanMembers) !== 0
+
+  // Close context menu on outside click
+  useEffect(() => {
+    const handleClick = () => setContextMenu(null)
+    if (contextMenu) {
+      document.addEventListener('click', handleClick)
+      return () => document.removeEventListener('click', handleClick)
+    }
+  }, [contextMenu])
 
   // Get hoisted roles sorted by position desc (highest first)
   const hoistedRoles = useMemo(
@@ -89,6 +134,32 @@ export default function MemberList() {
     setSelectedUserId(member.id)
   }
 
+  const handleContextMenu = useCallback((e: React.MouseEvent, member: { id: string; username: string }) => {
+    if (member.id === currentUserId) return
+    if (!canKick && !canBan) return
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY, memberId: member.id, username: member.username })
+  }, [currentUserId, canKick, canBan])
+
+  const handleModAction = async (reason: string, duration?: number) => {
+    if (!modAction || !activeServerId) return
+    const { action, userId } = modAction
+    if (action === 'kick') {
+      await moderation.kick(activeServerId, userId, reason)
+    } else if (action === 'ban') {
+      await moderation.ban(activeServerId, userId, reason)
+    } else if (action === 'timeout' && duration) {
+      await moderation.timeout(activeServerId, userId, duration, reason)
+    }
+  }
+
+  // Check if target is owner (cannot moderate owner)
+  const isOwner = useCallback((userId: string) => {
+    const servers = useServerStore.getState().servers
+    const activeServer = servers.find((s) => s.id === activeServerId)
+    return activeServer?.owner_id === userId
+  }, [activeServerId])
+
   return (
     <div className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col">
       <div className="flex-1 overflow-y-auto py-2">
@@ -98,7 +169,13 @@ export default function MemberList() {
               {section.label}
             </div>
             {section.members.map((member) => (
-              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} />
+              <MemberItem
+                key={member.id}
+                member={member}
+                color={getMemberColor(member.id)}
+                onClick={() => handleMemberClick(member)}
+                onContextMenu={(e) => handleContextMenu(e, member)}
+              />
             ))}
           </div>
         ))}
@@ -109,7 +186,13 @@ export default function MemberList() {
               Offline — {grouped.offline.length}
             </div>
             {grouped.offline.map((member) => (
-              <MemberItem key={member.id} member={member} color={getMemberColor(member.id)} onClick={() => handleMemberClick(member)} />
+              <MemberItem
+                key={member.id}
+                member={member}
+                color={getMemberColor(member.id)}
+                onClick={() => handleMemberClick(member)}
+                onContextMenu={(e) => handleContextMenu(e, member)}
+              />
             ))}
           </div>
         )}
@@ -122,11 +205,69 @@ export default function MemberList() {
           preloaded={preloadedData}
         />
       )}
+
+      {/* Context menu */}
+      {contextMenu && !isOwner(contextMenu.memberId) && (
+        <div
+          ref={contextMenuRef}
+          className="fixed bg-sol-bg-tertiary border border-sol-bg-elevated rounded-lg shadow-xl py-1 z-[70] min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          {canKick && (
+            <button
+              onClick={() => {
+                setModAction({ action: 'kick', userId: contextMenu.memberId, username: contextMenu.username })
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-sol-text-primary hover:bg-sol-bg-elevated/50 transition-colors"
+            >
+              Kick {contextMenu.username}
+            </button>
+          )}
+          {canBan && (
+            <button
+              onClick={() => {
+                setModAction({ action: 'ban', userId: contextMenu.memberId, username: contextMenu.username })
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-sol-coral hover:bg-sol-bg-elevated/50 transition-colors"
+            >
+              Ban {contextMenu.username}
+            </button>
+          )}
+          {canKick && (
+            <button
+              onClick={() => {
+                setModAction({ action: 'timeout', userId: contextMenu.memberId, username: contextMenu.username })
+                setContextMenu(null)
+              }}
+              className="w-full text-left px-4 py-2 text-sm text-sol-amber hover:bg-sol-bg-elevated/50 transition-colors"
+            >
+              Timeout {contextMenu.username}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Moderation action modal */}
+      {modAction && (
+        <ModerationActionModal
+          action={modAction.action}
+          username={modAction.username}
+          onConfirm={handleModAction}
+          onClose={() => setModAction(null)}
+        />
+      )}
     </div>
   )
 }
 
-function MemberItem({ member, color, onClick }: { member: { id: string; username: string; display_name: string | null; avatar_url: string | null; status: string; role: string }; color: string | null; onClick: () => void }) {
+function MemberItem({ member, color, onClick, onContextMenu }: {
+  member: { id: string; username: string; display_name: string | null; avatar_url: string | null; status: string; role: string }
+  color: string | null
+  onClick: () => void
+  onContextMenu: (e: React.MouseEvent) => void
+}) {
   const fallbackColors: Record<string, string> = {
     owner: 'text-sol-amber',
     admin: 'text-sol-rose',
@@ -134,7 +275,11 @@ function MemberItem({ member, color, onClick }: { member: { id: string; username
   }
 
   return (
-    <div onClick={onClick} className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
+    <div
+      onClick={onClick}
+      onContextMenu={onContextMenu}
+      className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg"
+    >
       <div className="relative">
         <UserAvatar avatarUrl={member.avatar_url} username={member.display_name ?? member.username} size="sm" />
         <div

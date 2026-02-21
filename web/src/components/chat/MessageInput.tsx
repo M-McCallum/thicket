@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, useMemo, lazy, Suspense } from 'react'
-import { gifs, stickers as stickersApi } from '@/services/api'
+import { gifs, stickers as stickersApi, scheduledMessages, ApiError } from '@/services/api'
 import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import { useHasPermission } from '@/stores/permissionStore'
@@ -8,10 +8,13 @@ import { PermSendMessages } from '@/types/permissions'
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
 const StickerPicker = lazy(() => import('./StickerPicker'))
+const ScheduledMessagesPanel = lazy(() => import('./ScheduledMessagesPanel'))
 
 interface MessageInputProps {
   channelName: string
   onSend: (content: string, files?: File[], msgType?: string) => Promise<void>
+  channelId?: string
+  dmConversationId?: string
 }
 
 // Cache feature availability across instances
@@ -22,7 +25,7 @@ export function invalidateStickerCache() {
   stickerAvailable = null
 }
 
-export default function MessageInput({ channelName, onSend }: MessageInputProps) {
+export default function MessageInput({ channelName, onSend, channelId, dmConversationId }: MessageInputProps) {
   const canSend = useHasPermission(PermSendMessages)
   const { replyingTo, setReplyingTo } = useMessageStore()
   const [input, setInput] = useState('')
@@ -30,13 +33,27 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showSticker, setShowSticker] = useState(false)
+  const [showSchedulePicker, setShowSchedulePicker] = useState(false)
+  const [showScheduledPanel, setShowScheduledPanel] = useState(false)
+  const [scheduleDate, setScheduleDate] = useState('')
   const [hasGifs, setHasGifs] = useState(gifAvailable ?? false)
   const [hasStickers, setHasStickers] = useState(stickerAvailable ?? false)
   const [mentionQuery, setMentionQuery] = useState<string | null>(null)
   const [mentionIndex, setMentionIndex] = useState(0)
+  const [slowModeCountdown, setSlowModeCountdown] = useState(0)
+  const slowModeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const members = useServerStore((s) => s.members)
+  const activeServer = useServerStore((s) => s.servers.find((sv) => sv.id === s.activeServerId))
+  const gifsEnabledOnServer = activeServer?.gifs_enabled !== false
+
+  // Clean up slow mode timer on unmount
+  useEffect(() => {
+    return () => {
+      if (slowModeTimerRef.current) clearInterval(slowModeTimerRef.current)
+    }
+  }, [])
 
   // Probe feature availability once
   useEffect(() => {
@@ -106,15 +123,37 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
     })
   }, [input])
 
+  const startSlowModeCountdown = useCallback((seconds: number) => {
+    if (slowModeTimerRef.current) clearInterval(slowModeTimerRef.current)
+    setSlowModeCountdown(seconds)
+    slowModeTimerRef.current = setInterval(() => {
+      setSlowModeCountdown((prev) => {
+        if (prev <= 1) {
+          if (slowModeTimerRef.current) clearInterval(slowModeTimerRef.current)
+          slowModeTimerRef.current = null
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }, [])
+
   const handleSend = async () => {
     const trimmed = input.trim()
     if (!trimmed && pendingFiles.length === 0) return
-    await onSend(trimmed, pendingFiles.length > 0 ? pendingFiles : undefined)
-    setInput('')
-    setPendingFiles([])
-    requestAnimationFrame(() => {
-      if (textareaRef.current) textareaRef.current.style.height = 'auto'
-    })
+    if (slowModeCountdown > 0) return
+    try {
+      await onSend(trimmed, pendingFiles.length > 0 ? pendingFiles : undefined)
+      setInput('')
+      setPendingFiles([])
+      requestAnimationFrame(() => {
+        if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      })
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 429 && err.retryAfter) {
+        startSlowModeCountdown(err.retryAfter)
+      }
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -198,6 +237,40 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
   const handleStickerSelect = async (stickerId: string) => {
     setShowSticker(false)
     await onSend(stickerId, undefined, 'sticker')
+  }
+
+  const handleScheduleConfirm = async () => {
+    const trimmed = input.trim()
+    if (!trimmed || !scheduleDate) return
+    try {
+      const scheduledAt = new Date(scheduleDate).toISOString()
+      await scheduledMessages.create({
+        channel_id: channelId,
+        dm_conversation_id: dmConversationId,
+        content: trimmed,
+        scheduled_at: scheduledAt
+      })
+      setInput('')
+      setScheduleDate('')
+      setShowSchedulePicker(false)
+      requestAnimationFrame(() => {
+        if (textareaRef.current) textareaRef.current.style.height = 'auto'
+      })
+    } catch (err) {
+      console.error('Failed to schedule message:', err)
+    }
+  }
+
+  // Set default schedule date to 1 hour from now when opening the picker
+  const openSchedulePicker = () => {
+    if (!showSchedulePicker) {
+      const now = new Date()
+      now.setHours(now.getHours() + 1)
+      const pad = (n: number) => String(n).padStart(2, '0')
+      const defaultDate = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+      setScheduleDate(defaultDate)
+    }
+    setShowSchedulePicker(!showSchedulePicker)
   }
 
   return (
@@ -304,10 +377,10 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
           onChange={handleChange}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          disabled={!canSend}
+          disabled={!canSend || slowModeCountdown > 0}
           className="flex-1 bg-transparent px-2 py-3 text-sol-text-primary placeholder-sol-text-muted focus:outline-none resize-none overflow-y-auto disabled:opacity-50 disabled:cursor-not-allowed"
           style={{ maxHeight: '200px' }}
-          placeholder={canSend ? `Message #${channelName}` : 'You do not have permission to send messages'}
+          placeholder={slowModeCountdown > 0 ? `Slow mode active (${slowModeCountdown}s)` : canSend ? `Message #${channelName}` : 'You do not have permission to send messages'}
         />
 
         {/* Toolbar buttons */}
@@ -316,7 +389,48 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
             {showEmoji && <EmojiPicker onSelect={handleEmojiSelect} onClose={() => setShowEmoji(false)} />}
             {showGif && <GifPicker onSelect={handleGifSelect} onClose={() => setShowGif(false)} />}
             {showSticker && <StickerPicker onSelect={handleStickerSelect} onClose={() => setShowSticker(false)} />}
+            {showScheduledPanel && <ScheduledMessagesPanel onClose={() => setShowScheduledPanel(false)} />}
           </Suspense>
+
+          {/* Schedule picker popover */}
+          {showSchedulePicker && (
+            <div className="absolute bottom-full right-0 mb-2 bg-sol-bg-primary border border-sol-bg-elevated rounded-lg shadow-xl p-3 z-50 w-64">
+              <p className="text-xs text-sol-text-muted mb-2">Schedule message for:</p>
+              <input
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={(e) => setScheduleDate(e.target.value)}
+                min={new Date().toISOString().slice(0, 16)}
+                className="w-full bg-sol-bg-secondary text-sol-text-primary rounded px-2 py-1.5 text-sm border border-sol-bg-elevated focus:outline-none focus:border-sol-amber/30 mb-2"
+              />
+              <div className="flex gap-2 justify-between">
+                <button
+                  type="button"
+                  onClick={() => setShowScheduledPanel(true)}
+                  className="text-xs text-sol-text-muted hover:text-sol-amber transition-colors"
+                >
+                  View scheduled
+                </button>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowSchedulePicker(false)}
+                    className="px-2 py-1 text-xs text-sol-text-muted hover:text-sol-text-primary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleScheduleConfirm}
+                    disabled={!input.trim() || !scheduleDate}
+                    className="px-2 py-1 text-xs bg-sol-amber text-sol-bg-primary rounded hover:bg-sol-amber/80 disabled:opacity-50 transition-colors"
+                  >
+                    Schedule
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <button
             type="button"
@@ -332,7 +446,7 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
             </svg>
           </button>
 
-          {hasGifs && (
+          {hasGifs && gifsEnabledOnServer && (
             <button
               type="button"
               onClick={() => { setShowGif(!showGif); setShowEmoji(false); setShowSticker(false) }}
@@ -356,18 +470,37 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
               </svg>
             </button>
           )}
+
+          {/* Schedule message button */}
+          <button
+            type="button"
+            onClick={openSchedulePicker}
+            className={`px-1.5 py-3 transition-colors ${showSchedulePicker ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-amber'}`}
+            title="Schedule message"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </button>
         </div>
 
-        <button
-          type="button"
-          onClick={handleSend}
-          disabled={!input.trim() && pendingFiles.length === 0}
-          className="px-3 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
-          </svg>
-        </button>
+        {slowModeCountdown > 0 ? (
+          <span className="px-3 py-3 text-xs font-mono text-sol-coral whitespace-nowrap">
+            Slow mode: {slowModeCountdown}s
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSend}
+            disabled={!input.trim() && pendingFiles.length === 0}
+            className="px-3 py-3 text-sol-amber/50 hover:text-sol-amber disabled:text-sol-text-muted transition-colors"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2 21l21-9L2 3v7l15 2-15 2v7z" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   )

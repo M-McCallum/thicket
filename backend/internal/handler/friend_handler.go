@@ -168,6 +168,20 @@ func (h *FriendHandler) GetPendingRequests(c fiber.Ctx) error {
 	return c.JSON(requests)
 }
 
+func (h *FriendHandler) GetBlockedUsers(c fiber.Ctx) error {
+	userID := auth.GetUserID(c)
+	blockedIDs, err := h.friendService.GetBlockedUserIDs(c.Context(), userID)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to get blocked users"})
+	}
+	// Return as string array for frontend consumption
+	ids := make([]string, len(blockedIDs))
+	for i, id := range blockedIDs {
+		ids[i] = id.String()
+	}
+	return c.JSON(ids)
+}
+
 func handleFriendError(c fiber.Ctx, err error) error {
 	switch {
 	case errors.Is(err, service.ErrFriendshipNotFound):

@@ -21,6 +21,7 @@ export interface Server {
   invite_code: string
   is_public?: boolean
   description?: string
+  gifs_enabled?: boolean
   created_at: string
 }
 
@@ -52,6 +53,7 @@ export interface Channel {
   position: number
   topic: string
   category_id: string | null
+  slow_mode_interval: number
   created_at: string
 }
 
@@ -93,7 +95,7 @@ export interface Message {
   channel_id: string
   author_id: string
   content: string
-  type?: 'text' | 'sticker'
+  type?: 'text' | 'sticker' | 'poll'
   reply_to_id?: string | null
   reply_to?: ReplySnippet | null
   reactions?: ReactionCount[]
@@ -103,6 +105,7 @@ export interface Message {
   author_display_name?: string | null
   author_avatar_url?: string | null
   attachments?: Attachment[]
+  poll?: PollWithOptions | null
 }
 
 export interface ServerMember {
@@ -120,7 +123,21 @@ export interface DMConversation {
   id: string
   is_group: boolean
   name: string | null
+  accepted: boolean
   created_at: string
+}
+
+export interface DMReplySnippet {
+  id: string
+  author_id: string
+  author_username: string
+  content: string
+}
+
+export interface DMReactionCount {
+  emoji: string
+  count: number
+  me: boolean
 }
 
 export interface DMMessage {
@@ -128,13 +145,23 @@ export interface DMMessage {
   conversation_id: string
   author_id: string
   content: string
-  type?: 'text' | 'sticker'
+  type?: 'text' | 'sticker' | 'poll'
+  reply_to_id?: string | null
+  reply_to?: DMReplySnippet | null
+  reactions?: DMReactionCount[]
   created_at: string
   updated_at: string
   author_username?: string
   author_display_name?: string | null
   author_avatar_url?: string | null
   attachments?: Attachment[]
+}
+
+export interface DMMessageEdit {
+  id: string
+  dm_message_id: string
+  content: string
+  edited_at: string
 }
 
 export interface DMParticipant {
@@ -224,6 +251,14 @@ export interface MessageEdit {
   edited_at: string
 }
 
+export interface ServerFolder {
+  id: string
+  name: string
+  color: string
+  position: number
+  server_ids: string[]
+}
+
 export interface LinkPreview {
   id: string
   url: string
@@ -232,4 +267,146 @@ export interface LinkPreview {
   image_url: string | null
   site_name: string | null
   fetched_at: string
+}
+
+export interface ScheduledMessage {
+  id: string
+  channel_id: string | null
+  dm_conversation_id: string | null
+  author_id: string
+  content: string
+  type: string
+  scheduled_at: string
+  sent: boolean
+  created_at: string
+}
+
+export interface NotificationPref {
+  id: string
+  user_id: string
+  server_id: string | null
+  channel_id: string | null
+  notification_level: 'all' | 'mentions' | 'none'
+  created_at: string
+  updated_at: string
+}
+
+// Scheduled Events
+export interface ServerEvent {
+  id: string
+  server_id: string
+  creator_id: string
+  name: string
+  description: string
+  location_type: 'voice' | 'stage' | 'external'
+  channel_id: string | null
+  external_location: string
+  start_time: string
+  end_time: string | null
+  image_url: string | null
+  status: 'scheduled' | 'active' | 'completed' | 'cancelled'
+  created_at: string
+  interested_count: number
+  user_rsvp: string | null
+  creator_username: string
+}
+
+export interface EventRSVP {
+  event_id: string
+  user_id: string
+  status: 'interested' | 'going'
+}
+
+// Polls
+export interface PollOption {
+  id: string
+  poll_id: string
+  text: string
+  emoji: string
+  position: number
+  vote_count: number
+  voted: boolean
+}
+
+export interface PollWithOptions {
+  id: string
+  message_id: string | null
+  question: string
+  multi_select: boolean
+  anonymous: boolean
+  expires_at: string | null
+  created_at: string
+  options: PollOption[]
+  total_votes: number
+}
+
+export interface Thread {
+  id: string
+  channel_id: string
+  parent_message_id: string
+  name: string
+  creator_id: string
+  archived: boolean
+  locked: boolean
+  auto_archive_minutes: number
+  message_count: number
+  last_message_at: string | null
+  created_at: string
+}
+
+export interface ThreadMessage {
+  id: string
+  thread_id: string
+  author_id: string
+  content: string
+  reply_to_id: string | null
+  created_at: string
+  updated_at: string | null
+  author_username: string
+  author_display_name: string | null
+  author_avatar_url: string | null
+}
+
+export interface ThreadSubscription {
+  thread_id: string
+  user_id: string
+  notification_level: string
+}
+
+export interface ServerBan {
+  id: string
+  server_id: string
+  user_id: string
+  banned_by: string
+  reason: string
+  created_at: string
+  username?: string
+  display_name?: string | null
+  avatar_url?: string | null
+}
+
+export interface ServerTimeout {
+  id: string
+  server_id: string
+  user_id: string
+  timed_out_by: string
+  reason: string
+  expires_at: string
+  created_at: string
+  username?: string
+  display_name?: string | null
+  avatar_url?: string | null
+}
+
+export interface AuditLogEntry {
+  id: string
+  server_id: string
+  actor_id: string
+  action: string
+  target_id: string | null
+  target_type: string | null
+  changes: Record<string, unknown> | null
+  reason: string
+  created_at: string
+  actor_username?: string
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, lazy, Suspense } from 'react'
+import { useState, useRef, useEffect, useCallback, lazy, Suspense } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -7,9 +7,11 @@ import { PermManageServer, PermManageChannels } from '@/types/permissions'
 import { useNotificationStore } from '@/stores/notificationStore'
 import InviteModal from './InviteModal'
 import StickerManager from './StickerManager'
+import ChannelSettingsModal from './ChannelSettingsModal'
 import { invalidateStickerCache } from '@/components/chat/MessageInput'
 
 const ServerSettingsModal = lazy(() => import('./ServerSettingsModal'))
+const EventsPanel = lazy(() => import('./EventsPanel'))
 
 export default function ChannelSidebar() {
   const { channels, categories, activeChannelId, setActiveChannel, servers, activeServerId, createChannel } = useServerStore()
@@ -24,12 +26,46 @@ export default function ChannelSidebar() {
   const [showInvite, setShowInvite] = useState(false)
   const [showStickers, setShowStickers] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showEvents, setShowEvents] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice'>('text')
   const [newChannelName, setNewChannelName] = useState('')
   const [contextMenu, setContextMenu] = useState<{ x: number; y: number; channelId: string } | null>(null)
+  const [channelSettingsId, setChannelSettingsId] = useState<string | null>(null)
   const contextMenuRef = useRef<HTMLDivElement>(null)
   const prefs = useNotificationStore((s) => s.prefs)
   const setPref = useNotificationStore((s) => s.setPref)
+
+  // Category collapse state persisted in localStorage
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem('collapsed_categories')
+      return stored ? new Set(JSON.parse(stored)) : new Set()
+    } catch {
+      return new Set()
+    }
+  })
+
+  const toggleCategory = useCallback((categoryId: string) => {
+    setCollapsedCategories((prev) => {
+      const next = new Set(prev)
+      if (next.has(categoryId)) {
+        next.delete(categoryId)
+      } else {
+        next.add(categoryId)
+      }
+      localStorage.setItem('collapsed_categories', JSON.stringify([...next]))
+      return next
+    })
+  }, [])
+
+  const isCategoryCollapsed = useCallback((categoryId: string) => collapsedCategories.has(categoryId), [collapsedCategories])
+
+  const categoryHasUnread = useCallback((catChannels: typeof channels) => {
+    return catChannels.some((ch) => {
+      const unread = channelUnread[ch.id]
+      return unread && unread.count > 0
+    })
+  }, [channelUnread])
 
   // Close context menu on outside click
   useEffect(() => {
@@ -159,54 +195,75 @@ export default function ChannelSidebar() {
         )}
 
         {/* Categorized text channels */}
-        {channelsByCategory.map(({ category, channels: catChannels }) => (
-          <div key={category.id} className="mb-2">
-            <div className="px-3 py-1 flex items-center justify-between">
-              <span className="text-xs font-mono text-sol-text-muted uppercase tracking-wider">
-                {category.name}
-              </span>
-              {canManageChannels && (
+        {channelsByCategory.map(({ category, channels: catChannels }) => {
+          const collapsed = isCategoryCollapsed(category.id)
+          const hasUnread = categoryHasUnread(catChannels)
+          return (
+            <div key={category.id} className="mb-2">
+              <div className="px-3 py-1 flex items-center justify-between">
                 <button
-                  onClick={() => openCreateModal('text')}
-                  className="text-sol-text-muted hover:text-sol-amber transition-colors"
-                  title="Create Channel"
+                  onClick={() => toggleCategory(category.id)}
+                  className="flex items-center gap-1 text-xs font-mono text-sol-text-muted uppercase tracking-wider hover:text-sol-text-secondary transition-colors"
                 >
-                  <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M10 3v14M3 10h14" />
+                  <svg
+                    width="10"
+                    height="10"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className={`transition-transform ${collapsed ? '-rotate-90' : ''}`}
+                  >
+                    <polyline points="6 9 12 15 18 9" />
                   </svg>
-                </button>
-              )}
-            </div>
-            {catChannels.map((channel) => {
-              const unread = channelUnread[channel.id]
-              return (
-                <button
-                  key={channel.id}
-                  onClick={() => setActiveChannel(channel.id)}
-                  onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
-                  className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
-                    ${
-                      activeChannelId === channel.id
-                        ? 'text-sol-amber bg-sol-amber/10'
-                        : unread
-                          ? 'text-sol-text-primary font-semibold hover:bg-sol-bg-elevated/50'
-                          : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
-                    }`}
-                >
-                  <span className="text-sol-text-muted">#</span>
-                  <span className="text-sm truncate flex-1">{channel.name}</span>
-                  {unread && unread.count > 0 && (
-                    <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
-                      unread.mentionCount > 0 ? 'bg-red-500 text-white' : 'bg-sol-text-muted/30 text-sol-text-primary'
-                    }`}>
-                      {unread.mentionCount > 0 ? unread.mentionCount : unread.count}
-                    </span>
+                  {category.name}
+                  {collapsed && hasUnread && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-sol-text-primary ml-1" />
                   )}
                 </button>
-              )
-            })}
-          </div>
-        ))}
+                {canManageChannels && (
+                  <button
+                    onClick={() => openCreateModal('text')}
+                    className="text-sol-text-muted hover:text-sol-amber transition-colors"
+                    title="Create Channel"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M10 3v14M3 10h14" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+              {!collapsed && catChannels.map((channel) => {
+                const unread = channelUnread[channel.id]
+                return (
+                  <button
+                    key={channel.id}
+                    onClick={() => setActiveChannel(channel.id)}
+                    onContextMenu={(e) => handleChannelContextMenu(e, channel.id)}
+                    className={`w-full px-3 py-1.5 text-left flex items-center gap-2 transition-colors rounded-lg mx-0
+                      ${
+                        activeChannelId === channel.id
+                          ? 'text-sol-amber bg-sol-amber/10'
+                          : unread
+                            ? 'text-sol-text-primary font-semibold hover:bg-sol-bg-elevated/50'
+                            : 'text-sol-text-secondary hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                      }`}
+                  >
+                    <span className="text-sol-text-muted">#</span>
+                    <span className="text-sm truncate flex-1">{channel.name}</span>
+                    {unread && unread.count > 0 && (
+                      <span className={`text-[10px] min-w-[18px] h-[18px] flex items-center justify-center rounded-full px-1 ${
+                        unread.mentionCount > 0 ? 'bg-red-500 text-white' : 'bg-sol-text-muted/30 text-sol-text-primary'
+                      }`}>
+                        {unread.mentionCount > 0 ? unread.mentionCount : unread.count}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          )
+        })}
 
         {/* Voice channels */}
         <div>
@@ -304,6 +361,18 @@ export default function ChannelSidebar() {
             Invite People
           </button>
           <button
+            onClick={() => setShowEvents(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-sage bg-sol-bg/50 hover:bg-sol-sage/10 rounded-lg transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+              <line x1="16" y1="2" x2="16" y2="6" />
+              <line x1="8" y1="2" x2="8" y2="6" />
+              <line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+            Events
+          </button>
+          <button
             onClick={() => setShowStickers(true)}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-violet bg-sol-bg/50 hover:bg-sol-violet/10 rounded-lg transition-colors"
           >
@@ -319,6 +388,17 @@ export default function ChannelSidebar() {
       {/* Invite modal */}
       {showInvite && activeServer && (
         <InviteModal serverId={activeServerId!} onClose={() => setShowInvite(false)} />
+      )}
+
+      {/* Events panel */}
+      {showEvents && activeServerId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowEvents(false)}>
+          <div className="bg-sol-bg-secondary rounded-lg shadow-lg w-full max-w-lg h-[600px] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <Suspense fallback={null}>
+              <EventsPanel />
+            </Suspense>
+          </div>
+        </div>
       )}
 
       {/* Sticker manager */}
@@ -340,6 +420,24 @@ export default function ChannelSidebar() {
           className="fixed z-50 bg-sol-bg-elevated border border-sol-border rounded-lg shadow-lg py-1 w-48"
           style={{ left: contextMenu.x, top: contextMenu.y }}
         >
+          {canManageChannels && (
+            <>
+              <button
+                onClick={() => {
+                  setChannelSettingsId(contextMenu.channelId)
+                  setContextMenu(null)
+                }}
+                className="w-full px-3 py-1.5 text-left text-sm text-sol-text-secondary hover:bg-sol-bg-secondary hover:text-sol-text-primary transition-colors flex items-center gap-2"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="3" />
+                  <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+                </svg>
+                Channel Settings
+              </button>
+              <div className="border-t border-sol-bg-secondary my-1" />
+            </>
+          )}
           <div className="px-3 py-1.5 text-xs text-sol-text-muted font-mono uppercase tracking-wider">
             Notifications
           </div>
@@ -368,6 +466,15 @@ export default function ChannelSidebar() {
             )
           })}
         </div>
+      )}
+
+      {/* Channel settings modal */}
+      {channelSettingsId && activeServerId && (
+        <ChannelSettingsModal
+          serverId={activeServerId}
+          channelId={channelSettingsId}
+          onClose={() => setChannelSettingsId(null)}
+        />
       )}
 
       {/* Create channel modal */}

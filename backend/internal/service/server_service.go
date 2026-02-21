@@ -108,6 +108,11 @@ func (s *ServerService) JoinServer(ctx context.Context, inviteCode string, userI
 		return nil, ErrAlreadyMember
 	}
 
+	// Check if user is banned
+	if banned, err := s.queries.IsUserBanned(ctx, server.ID, userID); err == nil && banned {
+		return nil, ErrUserBanned
+	}
+
 	err = s.queries.AddServerMember(ctx, models.AddServerMemberParams{
 		ServerID: server.ID,
 		UserID:   userID,
@@ -196,7 +201,7 @@ var (
 	ErrInvalidCategoryName = errors.New("category name must be 1-100 characters")
 )
 
-func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string, isPublic *bool, description *string) (*models.Server, error) {
+func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.UUID, name *string, iconURL *string, isPublic *bool, description *string, gifsEnabled *bool) (*models.Server, error) {
 	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
@@ -219,6 +224,7 @@ func (s *ServerService) UpdateServer(ctx context.Context, serverID, userID uuid.
 		IconURL:     iconURL,
 		IsPublic:    isPublic,
 		Description: description,
+		GifsEnabled: gifsEnabled,
 	})
 	if err != nil {
 		return nil, err
@@ -239,7 +245,7 @@ func (s *ServerService) SetNickname(ctx context.Context, serverID, userID uuid.U
 	return s.queries.UpdateMemberNickname(ctx, serverID, userID, nickname)
 }
 
-func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, userID uuid.UUID, name *string, topic *string, categoryID *uuid.UUID) (*models.Channel, error) {
+func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, userID uuid.UUID, name *string, topic *string, categoryID *uuid.UUID, slowModeInterval *int) (*models.Channel, error) {
 	if _, err := s.queries.GetServerMember(ctx, serverID, userID); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, ErrNotMember
@@ -257,10 +263,11 @@ func (s *ServerService) UpdateChannel(ctx context.Context, serverID, channelID, 
 		return nil, ErrInvalidChannelName
 	}
 	ch, err := s.queries.UpdateChannel(ctx, models.UpdateChannelParams{
-		ID:         channelID,
-		Name:       name,
-		Topic:      topic,
-		CategoryID: categoryID,
+		ID:               channelID,
+		Name:             name,
+		Topic:            topic,
+		CategoryID:       categoryID,
+		SlowModeInterval: slowModeInterval,
 	})
 	if err != nil {
 		return nil, err

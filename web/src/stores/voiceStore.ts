@@ -6,12 +6,20 @@ import { soundService } from '@/services/soundService'
 
 export type VideoLayoutMode = 'grid' | 'focus'
 export type VideoQuality = '1080p' | '720p' | '480p' | '360p'
+export type ScreenShareQuality = '1080p_30' | '1080p_15' | '720p_30' | '4k_15'
 
 const VIDEO_RESOLUTIONS: Record<VideoQuality, { width: number; height: number; frameRate: number }> = {
   '1080p': { width: 1920, height: 1080, frameRate: 30 },
   '720p': { width: 1280, height: 720, frameRate: 30 },
   '480p': { width: 854, height: 480, frameRate: 30 },
   '360p': { width: 640, height: 360, frameRate: 24 },
+}
+
+const SCREEN_SHARE_RESOLUTIONS: Record<ScreenShareQuality, { width: number; height: number; frameRate: number }> = {
+  '4k_15': { width: 3840, height: 2160, frameRate: 15 },
+  '1080p_30': { width: 1920, height: 1080, frameRate: 30 },
+  '1080p_15': { width: 1920, height: 1080, frameRate: 15 },
+  '720p_30': { width: 1280, height: 720, frameRate: 30 },
 }
 
 export interface VoiceParticipant {
@@ -44,6 +52,7 @@ interface VoiceState {
   focusedTileKey: string | null
   isPiPActive: boolean
   videoQuality: VideoQuality
+  screenShareQuality: ScreenShareQuality
   localTrackVersion: number
 
   joinVoiceChannel: (serverId: string, channelId: string) => Promise<void>
@@ -64,6 +73,7 @@ interface VoiceState {
   setFocusedParticipant: (tileKey: string | null) => void
   togglePiP: () => void
   setVideoQuality: (quality: VideoQuality) => Promise<void>
+  setScreenShareQuality: (quality: ScreenShareQuality) => void
 }
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
@@ -85,6 +95,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   focusedTileKey: null,
   isPiPActive: false,
   videoQuality: (localStorage.getItem('voice:videoQuality') as VideoQuality) || '720p',
+  screenShareQuality: (localStorage.getItem('voice:screenShareQuality') as ScreenShareQuality) || '1080p_30',
   localTrackVersion: 0,
 
   joinVoiceChannel: async (serverId, channelId) => {
@@ -378,13 +389,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   toggleScreenShare: async () => {
-    const { room, isScreenSharing } = get()
+    const { room, isScreenSharing, screenShareQuality } = get()
     if (!room) return
     const enabling = !isScreenSharing
     set({ isScreenSharing: enabling })
+    const ssRes = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
     try {
       await room.localParticipant.setScreenShareEnabled(enabling, {
-        resolution: { width: 3840, height: 2160, frameRate: 15 },
+        resolution: ssRes,
       })
     } catch {
       // User cancelled the screen share picker or error — revert
@@ -402,6 +414,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   setVideoLayoutMode: (mode) => set({ videoLayoutMode: mode }),
+
+  setScreenShareQuality: (quality) => {
+    localStorage.setItem('voice:screenShareQuality', quality)
+    set({ screenShareQuality: quality })
+  },
 
   setFocusedParticipant: (tileKey) => set({ focusedTileKey: tileKey }),
 

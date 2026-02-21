@@ -249,13 +249,14 @@ func (h *ServerHandler) UpdateServer(c fiber.Ctx) error {
 		IconURL     *string `json:"icon_url"`
 		IsPublic    *bool   `json:"is_public"`
 		Description *string `json:"description"`
+		GifsEnabled *bool   `json:"gifs_enabled"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
 	userID := auth.GetUserID(c)
-	server, err := h.serverService.UpdateServer(c.Context(), serverID, userID, body.Name, body.IconURL, body.IsPublic, body.Description)
+	server, err := h.serverService.UpdateServer(c.Context(), serverID, userID, body.Name, body.IconURL, body.IsPublic, body.Description, body.GifsEnabled)
 	if err != nil {
 		return handleServerError(c, err)
 	}
@@ -314,16 +315,17 @@ func (h *ServerHandler) UpdateChannel(c fiber.Ctx) error {
 	}
 
 	var body struct {
-		Name       *string    `json:"name"`
-		Topic      *string    `json:"topic"`
-		CategoryID *uuid.UUID `json:"category_id"`
+		Name             *string    `json:"name"`
+		Topic            *string    `json:"topic"`
+		CategoryID       *uuid.UUID `json:"category_id"`
+		SlowModeInterval *int       `json:"slow_mode_interval"`
 	}
 	if err := c.Bind().JSON(&body); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
 	userID := auth.GetUserID(c)
-	channel, err := h.serverService.UpdateChannel(c.Context(), serverID, channelID, userID, body.Name, body.Topic, body.CategoryID)
+	channel, err := h.serverService.UpdateChannel(c.Context(), serverID, channelID, userID, body.Name, body.Topic, body.CategoryID, body.SlowModeInterval)
 	if err != nil {
 		return handleServerError(c, err)
 	}
@@ -485,6 +487,10 @@ func handleServerError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrInvalidCategoryName):
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrUserBanned):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrUserTimedOut):
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}

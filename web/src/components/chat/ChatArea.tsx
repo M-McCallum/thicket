@@ -2,15 +2,19 @@ import { useEffect, useRef, useCallback, useState, lazy, Suspense } from 'react'
 import { useMessageStore } from '@/stores/messageStore'
 import { useServerStore } from '@/stores/serverStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useThreadStore } from '@/stores/threadStore'
 import { wsService } from '@/services/ws'
+import { threads as threadsApi } from '@/services/api'
 import type { MessageCreateData } from '@/types/ws'
 import MessageItem from './MessageItem'
 import MessageInput from './MessageInput'
+import PollCreator from './PollCreator'
 import { useSearchStore } from '@/stores/searchStore'
 import { useNotificationStore } from '@/stores/notificationStore'
 import { readState } from '@/services/api'
 
 const PinnedMessagesPanel = lazy(() => import('./PinnedMessagesPanel'))
+const ThreadPanel = lazy(() => import('./ThreadPanel'))
 
 export default function ChatArea() {
   const fetchMessages = useMessageStore((s) => s.fetchMessages)
@@ -31,6 +35,9 @@ export default function ChatArea() {
   const activeChannelId = useServerStore((s) => s.activeChannelId)
   const channels = useServerStore((s) => s.channels)
   const user = useAuthStore((s) => s.user)
+  const activeThread = useThreadStore((s) => s.activeThread)
+  const setThreadsForChannel = useThreadStore((s) => s.setThreadsForChannel)
+  const clearThreads = useThreadStore((s) => s.clearThreads)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -40,12 +47,17 @@ export default function ChatArea() {
 
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [dateInput, setDateInput] = useState('')
+  const [showPollCreator, setShowPollCreator] = useState(false)
 
   useEffect(() => {
     if (!activeChannelId) return
 
     clearMessages()
+    clearThreads()
     fetchMessages(activeChannelId)
+
+    // Fetch threads for this channel
+    threadsApi.list(activeChannelId).then(setThreadsForChannel).catch(() => {})
 
     // Ack channel + clear unread
     readState.ackChannel(activeChannelId).catch(() => {})
@@ -62,7 +74,7 @@ export default function ChatArea() {
           channel_id: msgData.channel_id,
           author_id: msgData.author_id,
           content: msgData.content,
-          type: msgData.type as 'text' | 'sticker' | undefined,
+          type: msgData.type as 'text' | 'sticker' | 'poll' | undefined,
           reply_to_id: msgData.reply_to_id,
           reply_to: msgData.reply_to,
           reactions: [],
@@ -212,6 +224,15 @@ export default function ChatArea() {
               </svg>
             </button>
             <button
+              onClick={() => setShowPollCreator(!showPollCreator)}
+              className={`p-1.5 rounded transition-colors ${showPollCreator ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-text-primary'}`}
+              title="Create Poll"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M4 6h16M4 10h10M4 14h6M4 18h12" />
+              </svg>
+            </button>
+            <button
               onClick={handleTogglePins}
               className={`p-1.5 rounded transition-colors ${showPinnedPanel ? 'text-sol-amber' : 'text-sol-text-muted hover:text-sol-text-primary'}`}
               title="Pinned Messages"
@@ -251,6 +272,17 @@ export default function ChatArea() {
           )}
         </div>
 
+        {/* Poll creator */}
+        {showPollCreator && activeChannelId && (
+          <PollCreator
+            channelId={activeChannelId}
+            onClose={() => setShowPollCreator(false)}
+            onCreated={() => {
+              if (activeChannelId) fetchMessages(activeChannelId)
+            }}
+          />
+        )}
+
         {/* Message input */}
         <MessageInput channelName={activeChannel?.name ?? 'channel'} onSend={handleSend} />
       </div>
@@ -259,6 +291,13 @@ export default function ChatArea() {
       {showPinnedPanel && (
         <Suspense fallback={null}>
           <PinnedMessagesPanel channelId={activeChannelId} onClose={() => setShowPinnedPanel(false)} />
+        </Suspense>
+      )}
+
+      {/* Thread panel */}
+      {activeThread && (
+        <Suspense fallback={null}>
+          <ThreadPanel />
         </Suspense>
       )}
     </div>

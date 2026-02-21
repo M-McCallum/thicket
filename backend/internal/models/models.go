@@ -31,6 +31,7 @@ type Server struct {
 	InviteCode  string    `json:"invite_code"`
 	IsPublic    bool      `json:"is_public"`
 	Description string    `json:"description"`
+	GifsEnabled bool      `json:"gifs_enabled"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
@@ -44,15 +45,16 @@ type ServerMember struct {
 }
 
 type Channel struct {
-	ID         uuid.UUID  `json:"id"`
-	ServerID   uuid.UUID  `json:"server_id"`
-	Name       string     `json:"name"`
-	Type       string     `json:"type"`
-	Position   int32      `json:"position"`
-	Topic      string     `json:"topic"`
-	CategoryID *uuid.UUID `json:"category_id"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
+	ID               uuid.UUID  `json:"id"`
+	ServerID         uuid.UUID  `json:"server_id"`
+	Name             string     `json:"name"`
+	Type             string     `json:"type"`
+	Position         int32      `json:"position"`
+	Topic            string     `json:"topic"`
+	CategoryID       *uuid.UUID `json:"category_id"`
+	SlowModeInterval int        `json:"slow_mode_interval"`
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
 }
 
 type Message struct {
@@ -101,6 +103,7 @@ type DMConversation struct {
 	ID        uuid.UUID `json:"id"`
 	IsGroup   bool      `json:"is_group"`
 	Name      *string   `json:"name"`
+	Accepted  bool      `json:"accepted"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -111,21 +114,44 @@ type DMParticipant struct {
 }
 
 type DMMessage struct {
+	ID             uuid.UUID  `json:"id"`
+	ConversationID uuid.UUID  `json:"conversation_id"`
+	AuthorID       uuid.UUID  `json:"author_id"`
+	Content        string     `json:"content"`
+	Type           string     `json:"type"`
+	ReplyToID      *uuid.UUID `json:"reply_to_id"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+}
+
+type DMReplySnippet struct {
 	ID             uuid.UUID `json:"id"`
-	ConversationID uuid.UUID `json:"conversation_id"`
 	AuthorID       uuid.UUID `json:"author_id"`
+	AuthorUsername string    `json:"author_username"`
 	Content        string    `json:"content"`
-	Type           string    `json:"type"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+}
+
+type DMReactionCount struct {
+	Emoji string `json:"emoji"`
+	Count int    `json:"count"`
+	Me    bool   `json:"me"`
 }
 
 type DMMessageWithAuthor struct {
 	DMMessage
-	AuthorUsername    string       `json:"author_username"`
-	AuthorDisplayName *string      `json:"author_display_name"`
-	AuthorAvatarURL  *string       `json:"author_avatar_url"`
-	Attachments      []Attachment  `json:"attachments"`
+	AuthorUsername    string            `json:"author_username"`
+	AuthorDisplayName *string           `json:"author_display_name"`
+	AuthorAvatarURL  *string            `json:"author_avatar_url"`
+	Attachments      []Attachment       `json:"attachments"`
+	ReplyTo          *DMReplySnippet    `json:"reply_to"`
+	Reactions        []DMReactionCount  `json:"reactions"`
+}
+
+type DMMessageEdit struct {
+	ID          uuid.UUID `json:"id"`
+	DMMessageID uuid.UUID `json:"dm_message_id"`
+	Content     string    `json:"content"`
+	EditedAt    time.Time `json:"edited_at"`
 }
 
 type ServerMemberWithUser struct {
