@@ -95,7 +95,7 @@ func Setup(app *fiber.App, cfg Config) {
 		Window: time.Second,
 	})
 	wsConnRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		Max:    5,
+		Max:    20,
 		Window: time.Minute,
 	})
 
@@ -286,6 +286,7 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Get("/sticker-packs/:id/stickers", cfg.StickerHandler.GetStickers)
 		protected.Post("/servers/:id/sticker-packs", cfg.StickerHandler.CreatePack)
 		protected.Post("/sticker-packs/:id/stickers", cfg.StickerHandler.CreateSticker)
+		protected.Delete("/servers/:serverId/sticker-packs/:id", cfg.StickerHandler.DeletePack)
 		protected.Delete("/stickers/:id", cfg.StickerHandler.DeleteSticker)
 	}
 
@@ -322,6 +323,7 @@ func Setup(app *fiber.App, cfg Config) {
 		protected.Patch("/threads/:threadId", cfg.ThreadHandler.UpdateThread)
 		protected.Post("/threads/:threadId/messages", cfg.ThreadHandler.SendMessage)
 		protected.Get("/threads/:threadId/messages", cfg.ThreadHandler.GetMessages)
+		protected.Delete("/threads/:threadId/messages/:messageId", cfg.ThreadHandler.DeleteMessage)
 		protected.Put("/threads/:threadId/subscription", cfg.ThreadHandler.UpdateSubscription)
 	}
 
@@ -380,6 +382,7 @@ func Setup(app *fiber.App, cfg Config) {
 		// Post messages
 		protected.Get("/forum/posts/:postId/messages", cfg.ForumHandler.GetPostMessages)
 		protected.Post("/forum/posts/:postId/messages", cfg.ForumHandler.CreatePostMessage)
+		protected.Delete("/forum/posts/:postId/messages/:messageId", cfg.ForumHandler.DeletePostMessage)
 	}
 
 	// Onboarding
