@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import type { Message } from '@/types/models'
 import AttachmentPreview from './AttachmentPreview'
+import UserProfilePopup from '@/components/profile/UserProfilePopup'
 
 interface MessageItemProps {
   message: Message
@@ -7,6 +9,7 @@ interface MessageItemProps {
 }
 
 export default function MessageItem({ message, isOwn }: MessageItemProps) {
+  const [showProfile, setShowProfile] = useState(false)
   const time = new Date(message.created_at).toLocaleTimeString([], {
     hour: '2-digit',
     minute: '2-digit'
@@ -20,16 +23,24 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
   return (
     <div className="flex gap-3 py-1.5 hover:bg-sol-bg-elevated/20 px-2 -mx-2 rounded-lg group">
       {/* Avatar */}
-      <div className="w-10 h-10 rounded-full bg-sol-bg-elevated flex-shrink-0 flex items-center justify-center text-sm font-medium text-sol-text-secondary">
+      <button
+        onClick={() => !isOwn && setShowProfile(true)}
+        className="w-10 h-10 rounded-full bg-sol-bg-elevated flex-shrink-0 flex items-center justify-center text-sm font-medium text-sol-text-secondary hover:opacity-80 transition-opacity"
+        type="button"
+      >
         {displayName.charAt(0).toUpperCase()}
-      </div>
+      </button>
 
       {/* Content */}
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2">
-          <span className={`font-medium text-sm ${isOwn ? 'text-sol-amber' : 'text-sol-text-primary'}`}>
+          <button
+            onClick={() => !isOwn && setShowProfile(true)}
+            className={`font-medium text-sm ${isOwn ? 'text-sol-amber' : 'text-sol-text-primary'} hover:underline`}
+            type="button"
+          >
             {displayName}
-          </span>
+          </button>
           <span className="text-xs font-mono text-sol-text-muted">{time}</span>
           {message.updated_at !== message.created_at && (
             <span className="text-xs text-sol-text-muted">(edited)</span>
@@ -58,6 +69,14 @@ export default function MessageItem({ message, isOwn }: MessageItemProps) {
         )}
         {message.attachments && <AttachmentPreview attachments={message.attachments} />}
       </div>
+
+      {showProfile && (
+        <UserProfilePopup
+          userId={message.author_id}
+          onClose={() => setShowProfile(false)}
+          preloaded={{ display_name: message.author_display_name, username: message.author_username }}
+        />
+      )}
     </div>
   )
 }

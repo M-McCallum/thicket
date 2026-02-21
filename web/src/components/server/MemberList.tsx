@@ -1,4 +1,7 @@
+import { useState } from 'react'
 import { useServerStore } from '@/stores/serverStore'
+import { useAuthStore } from '@/stores/authStore'
+import UserProfilePopup from '@/components/profile/UserProfilePopup'
 
 const statusColors: Record<string, string> = {
   online: 'bg-sol-green',
@@ -9,9 +12,18 @@ const statusColors: Record<string, string> = {
 
 export default function MemberList() {
   const { members } = useServerStore()
+  const currentUserId = useAuthStore((s) => s.user?.id)
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+  const [preloadedData, setPreloadedData] = useState<{ display_name?: string | null; username?: string; status?: string } | undefined>()
 
   const onlineMembers = members.filter((m) => m.status !== 'offline')
   const offlineMembers = members.filter((m) => m.status === 'offline')
+
+  const handleMemberClick = (member: { id: string; username: string; display_name: string | null; status: string }) => {
+    if (member.id === currentUserId) return
+    setPreloadedData({ display_name: member.display_name, username: member.username, status: member.status })
+    setSelectedUserId(member.id)
+  }
 
   return (
     <div className="w-60 bg-sol-bg-secondary border-l border-sol-bg-elevated flex flex-col">
@@ -23,7 +35,7 @@ export default function MemberList() {
               Online — {onlineMembers.length}
             </div>
             {onlineMembers.map((member) => (
-              <MemberItem key={member.id} member={member} />
+              <MemberItem key={member.id} member={member} onClick={() => handleMemberClick(member)} />
             ))}
           </div>
         )}
@@ -35,16 +47,24 @@ export default function MemberList() {
               Offline — {offlineMembers.length}
             </div>
             {offlineMembers.map((member) => (
-              <MemberItem key={member.id} member={member} />
+              <MemberItem key={member.id} member={member} onClick={() => handleMemberClick(member)} />
             ))}
           </div>
         )}
       </div>
+
+      {selectedUserId && (
+        <UserProfilePopup
+          userId={selectedUserId}
+          onClose={() => setSelectedUserId(null)}
+          preloaded={preloadedData}
+        />
+      )}
     </div>
   )
 }
 
-function MemberItem({ member }: { member: { id: string; username: string; display_name: string | null; status: string; role: string } }) {
+function MemberItem({ member, onClick }: { member: { id: string; username: string; display_name: string | null; status: string; role: string }; onClick: () => void }) {
   const roleColors: Record<string, string> = {
     owner: 'text-sol-amber',
     admin: 'text-sol-rose',
@@ -52,7 +72,7 @@ function MemberItem({ member }: { member: { id: string; username: string; displa
   }
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
+    <div onClick={onClick} className="flex items-center gap-2 px-3 py-1.5 hover:bg-sol-bg-elevated/50 transition-colors cursor-pointer rounded-lg">
       <div className="relative">
         <div className="w-8 h-8 rounded-full bg-sol-bg-elevated flex items-center justify-center text-sm font-medium">
           {(member.display_name ?? member.username).charAt(0).toUpperCase()}
