@@ -27,7 +27,7 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
       const data = q.trim()
         ? await gifs.search(q.trim())
         : await gifs.trending()
-      setResults(data.results)
+      setResults(data.data)
     } catch {
       // ignore
     }
@@ -66,11 +66,11 @@ export default function GifPicker({ onSelect, onClose }: GifPickerProps) {
             {results.map((gif) => (
               <button
                 key={gif.id}
-                onClick={() => onSelect(gif.media_formats.gif.url)}
+                onClick={() => onSelect(gif.images.original.url)}
                 className="rounded-lg overflow-hidden hover:ring-2 hover:ring-sol-amber/50 transition-all"
               >
                 <img
-                  src={gif.media_formats.tinygif.url}
+                  src={gif.images.fixed_width_small.url}
                   alt={gif.title}
                   className="w-full h-24 object-cover"
                   loading="lazy"

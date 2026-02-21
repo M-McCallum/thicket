@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useVoiceStore } from '@/stores/voiceStore'
 import InviteModal from './InviteModal'
+import StickerManager from './StickerManager'
+import { invalidateStickerCache } from '@/components/chat/MessageInput'
 
 export default function ChannelSidebar() {
   const { channels, activeChannelId, setActiveChannel, servers, activeServerId, createChannel } = useServerStore()
@@ -9,6 +11,7 @@ export default function ChannelSidebar() {
   const activeServer = servers.find((s) => s.id === activeServerId)
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
+  const [showStickers, setShowStickers] = useState(false)
   const [createType, setCreateType] = useState<'text' | 'voice'>('text')
   const [newChannelName, setNewChannelName] = useState('')
 
@@ -141,9 +144,9 @@ export default function ChannelSidebar() {
         </div>
       </div>
 
-      {/* Invite button */}
+      {/* Bottom actions */}
       {activeServer && (
-        <div className="p-3 border-t border-sol-bg-elevated">
+        <div className="p-3 border-t border-sol-bg-elevated flex flex-col gap-1.5">
           <button
             onClick={() => setShowInvite(true)}
             className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-amber bg-sol-bg/50 hover:bg-sol-amber/10 rounded-lg transition-colors"
@@ -156,12 +159,27 @@ export default function ChannelSidebar() {
             </svg>
             Invite People
           </button>
+          <button
+            onClick={() => setShowStickers(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-sol-text-secondary hover:text-sol-violet bg-sol-bg/50 hover:bg-sol-violet/10 rounded-lg transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M12 2a10 10 0 1010 10h-10V2z" />
+              <path d="M12 2v10h10" />
+            </svg>
+            Sticker Packs
+          </button>
         </div>
       )}
 
       {/* Invite modal */}
       {showInvite && activeServer && (
         <InviteModal inviteCode={activeServer.invite_code} onClose={() => setShowInvite(false)} />
+      )}
+
+      {/* Sticker manager */}
+      {showStickers && activeServerId && (
+        <StickerManager serverId={activeServerId} onClose={() => { setShowStickers(false); invalidateStickerCache() }} />
       )}
 
       {/* Create channel modal */}

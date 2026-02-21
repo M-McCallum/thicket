@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
-import data from '@emoji-mart/data'
-import Picker from '@emoji-mart/react'
+import Picker, { Theme, EmojiStyle } from 'emoji-picker-react'
+import type { EmojiClickData } from 'emoji-picker-react'
 
 interface EmojiPickerProps {
   onSelect: (emoji: string) => void
@@ -23,11 +23,14 @@ export default function EmojiPicker({ onSelect, onClose }: EmojiPickerProps) {
   return (
     <div ref={ref} className="absolute bottom-full mb-2 right-0 z-50">
       <Picker
-        data={data}
-        onEmojiSelect={(emoji: { native: string }) => onSelect(emoji.native)}
-        theme="dark"
-        previewPosition="none"
-        skinTonePosition="search"
+        onEmojiClick={(emojiData: EmojiClickData) => onSelect(emojiData.emoji)}
+        theme={Theme.DARK}
+        emojiStyle={EmojiStyle.NATIVE}
+        previewConfig={{ showPreview: false }}
+        skinTonesDisabled={false}
+        searchPlaceHolder="Search emojis..."
+        width={320}
+        height={400}
       />
     </div>
   )

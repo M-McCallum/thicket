@@ -7,6 +7,7 @@ import (
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/google/uuid"
+	"github.com/joho/godotenv"
 
 	"github.com/M-McCallum/thicket/internal/auth"
 	"github.com/M-McCallum/thicket/internal/config"
@@ -21,6 +22,9 @@ import (
 )
 
 func main() {
+	// Load .env from project root (best-effort, not required)
+	_ = godotenv.Load("../.env")
+
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
@@ -115,10 +119,10 @@ func main() {
 	// LiveKit handler
 	livekitHandler := handler.NewLiveKitHandler(serverService, dmService, cfg.LiveKit.APIKey, cfg.LiveKit.APISecret)
 
-	// GIF handler (only if Tenor API key configured)
+	// GIF handler (only if GIPHY API key configured)
 	var gifHandler *handler.GifHandler
-	if cfg.Tenor.APIKey != "" {
-		gifHandler = handler.NewGifHandler(cfg.Tenor.APIKey)
+	if cfg.Giphy.APIKey != "" {
+		gifHandler = handler.NewGifHandler(cfg.Giphy.APIKey)
 	}
 
 	router.Setup(app, router.Config{

@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback, lazy, Suspense } from 'react'
+import { useState, useRef, useCallback, useEffect, lazy, Suspense } from 'react'
+import { gifs, stickers as stickersApi } from '@/services/api'
 
 const EmojiPicker = lazy(() => import('./EmojiPicker'))
 const GifPicker = lazy(() => import('./GifPicker'))
@@ -9,14 +10,40 @@ interface MessageInputProps {
   onSend: (content: string, files?: File[], msgType?: string) => Promise<void>
 }
 
+// Cache feature availability across instances
+let gifAvailable: boolean | null = null
+let stickerAvailable: boolean | null = null
+
+export function invalidateStickerCache() {
+  stickerAvailable = null
+}
+
 export default function MessageInput({ channelName, onSend }: MessageInputProps) {
   const [input, setInput] = useState('')
   const [pendingFiles, setPendingFiles] = useState<File[]>([])
   const [showEmoji, setShowEmoji] = useState(false)
   const [showGif, setShowGif] = useState(false)
   const [showSticker, setShowSticker] = useState(false)
+  const [hasGifs, setHasGifs] = useState(gifAvailable ?? false)
+  const [hasStickers, setHasStickers] = useState(stickerAvailable ?? false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Probe feature availability once
+  useEffect(() => {
+    if (gifAvailable === null) {
+      gifs.trending(1, 0).then(() => {
+        gifAvailable = true
+        setHasGifs(true)
+      }).catch(() => { gifAvailable = false })
+    }
+    if (stickerAvailable === null) {
+      stickersApi.getPacks().then((packs) => {
+        stickerAvailable = packs.length > 0
+        setHasStickers(packs.length > 0)
+      }).catch(() => { stickerAvailable = false })
+    }
+  }, [])
 
   const resetHeight = useCallback(() => {
     const ta = textareaRef.current
@@ -189,26 +216,30 @@ export default function MessageInput({ channelName, onSend }: MessageInputProps)
             </svg>
           </button>
 
-          <button
-            type="button"
-            onClick={() => { setShowGif(!showGif); setShowEmoji(false); setShowSticker(false) }}
-            className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
-            title="GIF"
-          >
-            <span className="text-xs font-bold">GIF</span>
-          </button>
+          {hasGifs && (
+            <button
+              type="button"
+              onClick={() => { setShowGif(!showGif); setShowEmoji(false); setShowSticker(false) }}
+              className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
+              title="GIF"
+            >
+              <span className="text-xs font-bold">GIF</span>
+            </button>
+          )}
 
-          <button
-            type="button"
-            onClick={() => { setShowSticker(!showSticker); setShowEmoji(false); setShowGif(false) }}
-            className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
-            title="Sticker"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M12 2a10 10 0 1010 10h-10V2z" />
-              <path d="M12 2v10h10" />
-            </svg>
-          </button>
+          {hasStickers && (
+            <button
+              type="button"
+              onClick={() => { setShowSticker(!showSticker); setShowEmoji(false); setShowGif(false) }}
+              className="px-1.5 py-3 text-sol-text-muted hover:text-sol-amber transition-colors"
+              title="Sticker"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2a10 10 0 1010 10h-10V2z" />
+                <path d="M12 2v10h10" />
+              </svg>
+            </button>
+          )}
         </div>
 
         <button

@@ -11,11 +11,11 @@ type Config struct {
 	LiveKit LiveKitConfig
 	Ory     OryConfig
 	MinIO   MinIOConfig
-	Tenor   TenorConfig
+	Giphy   GiphyConfig
 	Env     string
 }
 
-type TenorConfig struct {
+type GiphyConfig struct {
 	APIKey string
 }
 
@@ -99,8 +99,8 @@ func Load() (*Config, error) {
 			Bucket:    getEnv("MINIO_BUCKET", "thicket"),
 			UseSSL:    getEnv("MINIO_USE_SSL", "false") == "true",
 		},
-		Tenor: TenorConfig{
-			APIKey: getEnv("TENOR_API_KEY", ""),
+		Giphy: GiphyConfig{
+			APIKey: getEnv("GIPHY_API_KEY", ""),
 		},
 		Env: getEnv("ENV", "development"),
 	}

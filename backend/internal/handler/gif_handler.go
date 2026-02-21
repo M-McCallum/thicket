@@ -25,41 +25,35 @@ func (h *GifHandler) Search(c fiber.Ctx) error {
 	}
 
 	limit := c.Query("limit", "20")
-	pos := c.Query("pos", "")
+	offset := c.Query("offset", "0")
 
 	params := url.Values{
-		"key":        {h.apiKey},
-		"q":          {q},
-		"limit":      {limit},
-		"media_filter": {"tinygif,gif"},
-		"contentfilter": {"medium"},
-	}
-	if pos != "" {
-		params.Set("pos", pos)
+		"api_key": {h.apiKey},
+		"q":       {q},
+		"limit":   {limit},
+		"offset":  {offset},
+		"rating":  {"pg-13"},
 	}
 
-	return h.proxyTenor(c, "https://tenor.googleapis.com/v2/search?"+params.Encode())
+	return h.proxyGiphy(c, "https://api.giphy.com/v1/gifs/search?"+params.Encode())
 }
 
 func (h *GifHandler) Trending(c fiber.Ctx) error {
 	limit := c.Query("limit", "20")
-	pos := c.Query("pos", "")
+	offset := c.Query("offset", "0")
 
 	params := url.Values{
-		"key":        {h.apiKey},
-		"limit":      {limit},
-		"media_filter": {"tinygif,gif"},
-		"contentfilter": {"medium"},
-	}
-	if pos != "" {
-		params.Set("pos", pos)
+		"api_key": {h.apiKey},
+		"limit":   {limit},
+		"offset":  {offset},
+		"rating":  {"pg-13"},
 	}
 
-	return h.proxyTenor(c, "https://tenor.googleapis.com/v2/featured?"+params.Encode())
+	return h.proxyGiphy(c, "https://api.giphy.com/v1/gifs/trending?"+params.Encode())
 }
 
-func (h *GifHandler) proxyTenor(c fiber.Ctx, tenorURL string) error {
-	resp, err := http.Get(tenorURL)
+func (h *GifHandler) proxyGiphy(c fiber.Ctx, giphyURL string) error {
+	resp, err := http.Get(giphyURL)
 	if err != nil {
 		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": "failed to fetch GIFs"})
 	}
@@ -71,12 +65,12 @@ func (h *GifHandler) proxyTenor(c fiber.Ctx, tenorURL string) error {
 	}
 
 	if resp.StatusCode != 200 {
-		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": fmt.Sprintf("Tenor API error: %d", resp.StatusCode)})
+		return c.Status(fiber.StatusBadGateway).JSON(fiber.Map{"error": fmt.Sprintf("GIPHY API error: %d", resp.StatusCode)})
 	}
 
 	var result json.RawMessage
 	if err := json.Unmarshal(body, &result); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "invalid Tenor response"})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "invalid GIPHY response"})
 	}
 
 	c.Set("Content-Type", "application/json")

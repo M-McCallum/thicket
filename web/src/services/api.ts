@@ -286,26 +286,25 @@ export const emojis = {
     })
 }
 
-// GIFs
+// GIFs (GIPHY)
 export const gifs = {
-  search: (q: string, limit = 20, pos?: string) => {
-    const params = new URLSearchParams({ q, limit: String(limit) })
-    if (pos) params.set('pos', pos)
-    return request<{ results: GifResult[]; next: string }>(`/gifs/search?${params}`)
+  search: (q: string, limit = 20, offset = 0) => {
+    const params = new URLSearchParams({ q, limit: String(limit), offset: String(offset) })
+    return request<{ data: GifResult[] }>(`/gifs/search?${params}`)
   },
-  trending: (limit = 20, pos?: string) => {
-    const params = new URLSearchParams({ limit: String(limit) })
-    if (pos) params.set('pos', pos)
-    return request<{ results: GifResult[]; next: string }>(`/gifs/trending?${params}`)
+  trending: (limit = 20, offset = 0) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    return request<{ data: GifResult[] }>(`/gifs/trending?${params}`)
   }
 }
 
 export interface GifResult {
   id: string
   title: string
-  media_formats: {
-    gif: { url: string; dims: [number, number] }
-    tinygif: { url: string; dims: [number, number] }
+  images: {
+    original: { url: string; width: string; height: string }
+    fixed_width_small: { url: string; width: string; height: string }
+    fixed_width: { url: string; width: string; height: string }
   }
 }
 
