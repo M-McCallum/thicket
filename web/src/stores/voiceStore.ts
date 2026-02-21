@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPublication, RemoteTrack } from 'livekit-client'
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
+import { soundService } from '@/services/soundService'
 
 export type VideoLayoutMode = 'grid' | 'focus'
 export type VideoQuality = 'auto' | '720p' | '480p' | '360p'
@@ -106,12 +107,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
           }
         ]
       }))
+      soundService.playJoinSound()
     })
 
     room.on(RoomEvent.ParticipantDisconnected, (participant: RemoteParticipant) => {
       set((state) => ({
         participants: state.participants.filter((p) => p.userId !== participant.identity)
       }))
+      soundService.playLeaveSound()
     })
 
     room.on(RoomEvent.TrackMuted, (_, participant) => {
@@ -179,6 +182,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     })
 
     await room.connect(livekitUrl, token)
+
+    // Resume audio playback — required in production (HTTPS) due to browser
+    // autoplay policy. localhost is exempt, which is why dev works without this.
+    await room.startAudio()
 
     // Enable microphone with saved device preference
     const savedInputId = get().selectedInputDeviceId

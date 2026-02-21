@@ -64,6 +64,7 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
     })
 
     await room.connect(livekitUrl, token)
+    await room.startAudio()
     await room.localParticipant.setMicrophoneEnabled(true)
 
     const existing_participants: DMCallParticipant[] = Array.from(room.remoteParticipants.values()).map((p) => ({
@@ -93,6 +94,7 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
     })
 
     await room.connect(livekitUrl, token)
+    await room.startAudio()
     await room.localParticipant.setMicrophoneEnabled(true)
 
     const existing_participants: DMCallParticipant[] = Array.from(room.remoteParticipants.values()).map((p) => ({
