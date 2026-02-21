@@ -52,7 +52,7 @@ export default function VideoTile({
           autoPlay
           playsInline
           muted={isLocal}
-          className={`w-full h-full object-cover ${isLocal && !isScreenShare ? 'scale-x-[-1]' : ''}`}
+          className={`w-full h-full ${isScreenShare ? 'object-contain' : 'object-cover'} ${isLocal && !isScreenShare ? 'scale-x-[-1]' : ''}`}
         />
       ) : (
         <div className="w-full h-full flex items-center justify-center bg-sol-bg-elevated">
