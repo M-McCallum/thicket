@@ -16,10 +16,10 @@ import (
 
 type AttachmentHandler struct {
 	queries *models.Queries
-	storage *storage.Client
+	storage storage.ObjectStorage
 }
 
-func NewAttachmentHandler(q *models.Queries, sc *storage.Client) *AttachmentHandler {
+func NewAttachmentHandler(q *models.Queries, sc storage.ObjectStorage) *AttachmentHandler {
 	return &AttachmentHandler{queries: q, storage: sc}
 }
 
