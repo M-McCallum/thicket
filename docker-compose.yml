@@ -256,7 +256,9 @@ services:
       - "traefik.http.routers.thicket-livekit.rule=Host(`${DOMAIN}`) && PathPrefix(`/livekit`)"
       - "traefik.http.routers.thicket-livekit.entrypoints=websecure"
       - "traefik.http.routers.thicket-livekit.tls.certResolver=letsencrypt"
+      - "traefik.http.routers.thicket-livekit.middlewares=thicket-livekit-strip"
       - "traefik.http.routers.thicket-livekit.service=thicket-livekit-svc"
+      - "traefik.http.middlewares.thicket-livekit-strip.stripprefix.prefixes=/livekit"
       - "traefik.http.services.thicket-livekit-svc.loadbalancer.server.port=7880"
       - "traefik.docker.network=dokploy-network"
 
