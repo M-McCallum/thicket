@@ -1,41 +1,51 @@
 /** @type {import('tailwindcss').Config} */
+
+function withOpacity(variableName) {
+  return ({ opacityValue }) => {
+    if (opacityValue !== undefined) {
+      return `rgb(var(${variableName}) / ${opacityValue})`
+    }
+    return `rgb(var(${variableName}))`
+  }
+}
+
 export default {
   content: ['./src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {
       colors: {
         'sol-bg': {
-          DEFAULT: 'rgb(var(--color-bg) / <alpha-value>)',
-          secondary: 'rgb(var(--color-bg-secondary) / <alpha-value>)',
-          tertiary: 'rgb(var(--color-bg-tertiary) / <alpha-value>)',
-          elevated: 'rgb(var(--color-bg-elevated) / <alpha-value>)'
+          DEFAULT: withOpacity('--sol-bg'),
+          secondary: withOpacity('--sol-bg-secondary'),
+          tertiary: withOpacity('--sol-bg-tertiary'),
+          elevated: withOpacity('--sol-bg-elevated')
         },
         'sol-amber': {
-          DEFAULT: 'rgb(var(--color-amber) / <alpha-value>)',
-          dim: 'rgb(var(--color-amber-dim) / <alpha-value>)',
-          glow: 'rgb(var(--color-amber) / 0.25)'
+          DEFAULT: withOpacity('--sol-amber'),
+          dim: withOpacity('--sol-amber-dim'),
+          glow: 'rgb(var(--sol-amber) / 0.25)'
         },
         'sol-rose': {
-          DEFAULT: 'rgb(var(--color-rose) / <alpha-value>)',
-          dim: 'rgb(var(--color-rose-dim) / <alpha-value>)',
-          glow: 'rgb(var(--color-rose) / 0.25)'
+          DEFAULT: withOpacity('--sol-rose'),
+          dim: withOpacity('--sol-rose-dim'),
+          glow: 'rgb(var(--sol-rose) / 0.25)'
         },
         'sol-green': {
-          DEFAULT: 'rgb(var(--color-green) / <alpha-value>)',
-          dim: 'rgb(var(--color-green-dim) / <alpha-value>)'
+          DEFAULT: withOpacity('--sol-green'),
+          dim: withOpacity('--sol-green-dim')
         },
         'sol-coral': {
-          DEFAULT: 'rgb(var(--color-coral) / <alpha-value>)',
-          dim: 'rgb(var(--color-coral-dim) / <alpha-value>)'
+          DEFAULT: withOpacity('--sol-coral'),
+          dim: withOpacity('--sol-coral-dim')
         },
         'sol-sage': {
-          DEFAULT: 'rgb(var(--color-sage) / <alpha-value>)',
-          dim: 'rgb(var(--color-sage-dim) / <alpha-value>)'
+          DEFAULT: withOpacity('--sol-sage'),
+          dim: withOpacity('--sol-sage-dim')
         },
         'sol-text': {
-          primary: 'rgb(var(--color-text-primary) / <alpha-value>)',
-          secondary: 'rgb(var(--color-text-secondary) / <alpha-value>)',
-          muted: 'rgb(var(--color-text-muted) / <alpha-value>)'
+          primary: withOpacity('--sol-text-primary'),
+          secondary: withOpacity('--sol-text-secondary'),
+          muted: withOpacity('--sol-text-muted')
         }
       },
       fontFamily: {
@@ -44,11 +54,11 @@ export default {
         mono: ['Fira Mono', 'monospace']
       },
       boxShadow: {
-        'glow-amber': '0 0 12px rgb(var(--color-amber) / 0.21), 0 0 24px rgb(var(--color-amber) / 0.09)',
-        'glow-green': '0 0 12px rgb(var(--color-green) / 0.21), 0 0 24px rgb(var(--color-green) / 0.09)',
-        'glow-coral': '0 0 12px rgb(var(--color-coral) / 0.21), 0 0 24px rgb(var(--color-coral) / 0.09)',
-        'glow-sage': '0 0 12px rgb(var(--color-sage) / 0.21), 0 0 24px rgb(var(--color-sage) / 0.09)',
-        'glow-rose': '0 0 12px rgb(var(--color-rose) / 0.21), 0 0 24px rgb(var(--color-rose) / 0.09)'
+        'glow-amber': '0 0 12px rgb(var(--sol-amber) / 0.21), 0 0 24px rgb(var(--sol-amber) / 0.09)',
+        'glow-green': '0 0 12px rgb(var(--sol-green) / 0.21), 0 0 24px rgb(var(--sol-green) / 0.09)',
+        'glow-coral': '0 0 12px rgb(var(--sol-coral) / 0.21), 0 0 24px rgb(var(--sol-coral) / 0.09)',
+        'glow-sage': '0 0 12px rgb(var(--sol-sage) / 0.21), 0 0 24px rgb(var(--sol-sage) / 0.09)',
+        'glow-rose': '0 0 12px rgb(var(--sol-rose) / 0.21), 0 0 24px rgb(var(--sol-rose) / 0.09)'
       },
       animation: {
         breathe: 'breathe 4s ease-in-out infinite',

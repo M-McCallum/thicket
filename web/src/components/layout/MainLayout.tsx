@@ -13,7 +13,6 @@ import FriendsList from '@/components/dm/FriendsList'
 import FriendRequests from '@/components/dm/FriendRequests'
 import AddFriendModal from '@/components/dm/AddFriendModal'
 import IncomingCallOverlay from '@/components/dm/IncomingCallOverlay'
-import SettingsOverlay from '@/components/settings/SettingsOverlay'
 import SearchModal from '@/components/search/SearchModal'
 import WelcomeScreen from '@/components/server/WelcomeScreen'
 import { useServerStore } from '@/stores/serverStore'
@@ -33,7 +32,6 @@ export default function MainLayout() {
   const { activeChannelId: voiceChannelId } = useVoiceStore()
   const [dmTab, setDMTab] = useState<DMTab>('conversations')
   const [showAddFriend, setShowAddFriend] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [showWelcome, setShowWelcome] = useState(false)
   const [checkingOnboarding, setCheckingOnboarding] = useState(false)
 
@@ -225,21 +223,6 @@ export default function MainLayout() {
       {/* Add friend modal */}
       {showAddFriend && <AddFriendModal onClose={() => setShowAddFriend(false)} />}
 
-      {/* Settings overlay */}
-      {showSettings && <SettingsOverlay onClose={() => setShowSettings(false)} />}
-
-      {/* Settings button (fixed bottom-right) */}
-      <button
-        onClick={() => setShowSettings(true)}
-        className="fixed bottom-4 right-4 w-10 h-10 rounded-full bg-sol-bg-secondary border border-sol-bg-elevated flex items-center justify-center text-sol-text-muted hover:text-sol-amber hover:border-sol-amber/30 transition-colors z-40"
-        title="Accessibility Settings"
-        aria-label="Open accessibility settings"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-        </svg>
-      </button>
     </div>
   )
 }

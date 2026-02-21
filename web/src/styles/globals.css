@@ -1,68 +1,186 @@
-/* Theme definitions — space-separated RGB values for Tailwind opacity support */
-:root,
-body.theme-solarized-dark {
-  --color-bg: 20 30 19;
-  --color-bg-secondary: 28 42 26;
-  --color-bg-tertiary: 36 50 34;
-  --color-bg-elevated: 47 61 44;
-  --color-amber: 232 169 38;
-  --color-amber-dim: 176 128 32;
-  --color-rose: 196 122 138;
-  --color-rose-dim: 154 90 104;
-  --color-green: 92 186 92;
-  --color-green-dim: 61 138 61;
-  --color-coral: 217 104 80;
-  --color-coral-dim: 160 72 56;
-  --color-sage: 138 173 120;
-  --color-sage-dim: 106 138 94;
-  --color-text-primary: 232 224 208;
-  --color-text-secondary: 154 146 128;
-  --color-text-muted: 96 88 72;
-}
-
-body.theme-solarized-light {
-  --color-bg: 253 246 227;
-  --color-bg-secondary: 238 232 213;
-  --color-bg-tertiary: 232 226 207;
-  --color-bg-elevated: 221 214 193;
-  --color-amber: 181 137 0;
-  --color-amber-dim: 138 104 0;
-  --color-rose: 211 54 130;
-  --color-rose-dim: 160 40 96;
-  --color-green: 133 153 0;
-  --color-green-dim: 90 110 0;
-  --color-coral: 203 75 22;
-  --color-coral-dim: 154 56 16;
-  --color-sage: 42 161 152;
-  --color-sage-dim: 28 122 114;
-  --color-text-primary: 7 54 66;
-  --color-text-secondary: 88 110 117;
-  --color-text-muted: 147 161 161;
-}
-
-body.theme-nord {
-  --color-bg: 46 52 64;
-  --color-bg-secondary: 59 66 82;
-  --color-bg-tertiary: 67 76 94;
-  --color-bg-elevated: 76 86 106;
-  --color-amber: 235 203 139;
-  --color-amber-dim: 212 166 74;
-  --color-rose: 180 142 173;
-  --color-rose-dim: 140 106 136;
-  --color-green: 163 190 140;
-  --color-green-dim: 122 154 102;
-  --color-coral: 191 97 106;
-  --color-coral-dim: 160 72 80;
-  --color-sage: 136 192 208;
-  --color-sage-dim: 94 152 170;
-  --color-text-primary: 236 239 244;
-  --color-text-secondary: 216 222 233;
-  --color-text-muted: 76 86 106;
-}
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* ===== Theme definitions ===== */
+
+/* Default / Solarized Dark (forest theme) */
+:root {
+  --sol-bg: 20 30 19;
+  --sol-bg-secondary: 28 42 26;
+  --sol-bg-tertiary: 36 50 34;
+  --sol-bg-elevated: 47 61 44;
+  --sol-amber: 232 169 38;
+  --sol-amber-dim: 176 128 32;
+  --sol-rose: 196 122 138;
+  --sol-rose-dim: 154 90 104;
+  --sol-green: 92 186 92;
+  --sol-green-dim: 61 138 61;
+  --sol-coral: 217 104 80;
+  --sol-coral-dim: 160 72 56;
+  --sol-sage: 138 173 120;
+  --sol-sage-dim: 106 138 94;
+  --sol-text-primary: 232 224 208;
+  --sol-text-secondary: 154 146 128;
+  --sol-text-muted: 96 88 72;
+}
+
+.theme-solarized-dark {
+  --sol-bg: 20 30 19;
+  --sol-bg-secondary: 28 42 26;
+  --sol-bg-tertiary: 36 50 34;
+  --sol-bg-elevated: 47 61 44;
+  --sol-amber: 232 169 38;
+  --sol-amber-dim: 176 128 32;
+  --sol-rose: 196 122 138;
+  --sol-rose-dim: 154 90 104;
+  --sol-green: 92 186 92;
+  --sol-green-dim: 61 138 61;
+  --sol-coral: 217 104 80;
+  --sol-coral-dim: 160 72 56;
+  --sol-sage: 138 173 120;
+  --sol-sage-dim: 106 138 94;
+  --sol-text-primary: 232 224 208;
+  --sol-text-secondary: 154 146 128;
+  --sol-text-muted: 96 88 72;
+}
+
+.theme-solarized-light {
+  --sol-bg: 253 246 227;
+  --sol-bg-secondary: 238 232 213;
+  --sol-bg-tertiary: 224 218 200;
+  --sol-bg-elevated: 210 205 188;
+  --sol-amber: 181 137 0;
+  --sol-amber-dim: 140 106 0;
+  --sol-rose: 160 80 100;
+  --sol-rose-dim: 130 55 75;
+  --sol-green: 42 150 42;
+  --sol-green-dim: 30 110 30;
+  --sol-coral: 203 75 22;
+  --sol-coral-dim: 160 55 15;
+  --sol-sage: 88 110 117;
+  --sol-sage-dim: 65 85 92;
+  --sol-text-primary: 40 40 40;
+  --sol-text-secondary: 88 110 117;
+  --sol-text-muted: 147 161 161;
+}
+
+.theme-nord {
+  --sol-bg: 46 52 64;
+  --sol-bg-secondary: 59 66 82;
+  --sol-bg-tertiary: 67 76 94;
+  --sol-bg-elevated: 76 86 106;
+  --sol-amber: 235 203 139;
+  --sol-amber-dim: 200 170 110;
+  --sol-rose: 180 142 173;
+  --sol-rose-dim: 150 112 143;
+  --sol-green: 163 190 140;
+  --sol-green-dim: 130 160 110;
+  --sol-coral: 191 97 106;
+  --sol-coral-dim: 160 70 80;
+  --sol-sage: 136 192 208;
+  --sol-sage-dim: 106 162 178;
+  --sol-text-primary: 236 239 244;
+  --sol-text-secondary: 216 222 233;
+  --sol-text-muted: 127 140 160;
+}
+
+.theme-amoled {
+  --sol-bg: 0 0 0;
+  --sol-bg-secondary: 10 10 10;
+  --sol-bg-tertiary: 16 16 16;
+  --sol-bg-elevated: 24 24 24;
+  --sol-amber: 255 179 0;
+  --sol-amber-dim: 200 140 0;
+  --sol-rose: 255 105 180;
+  --sol-rose-dim: 200 75 140;
+  --sol-green: 0 200 83;
+  --sol-green-dim: 0 150 60;
+  --sol-coral: 255 69 58;
+  --sol-coral-dim: 200 45 38;
+  --sol-sage: 100 210 255;
+  --sol-sage-dim: 70 170 220;
+  --sol-text-primary: 220 220 220;
+  --sol-text-secondary: 160 160 160;
+  --sol-text-muted: 100 100 100;
+}
+
+/* ===== Theme-aware syntax highlighting ===== */
+.theme-solarized-light .hljs {
+  background: rgb(238 232 213);
+  color: rgb(88 110 117);
+}
+.theme-solarized-light .hljs-comment,
+.theme-solarized-light .hljs-quote {
+  color: rgb(147 161 161);
+}
+.theme-solarized-light .hljs-keyword {
+  color: rgb(133 153 0);
+}
+.theme-solarized-light .hljs-string,
+.theme-solarized-light .hljs-number {
+  color: rgb(42 161 152);
+}
+.theme-solarized-light .hljs-title,
+.theme-solarized-light .hljs-section {
+  color: rgb(38 139 210);
+}
+.theme-solarized-light .hljs-attribute,
+.theme-solarized-light .hljs-variable {
+  color: rgb(181 137 0);
+}
+
+.theme-nord .hljs {
+  background: rgb(59 66 82);
+  color: rgb(216 222 233);
+}
+.theme-nord .hljs-comment,
+.theme-nord .hljs-quote {
+  color: rgb(127 140 160);
+  font-style: italic;
+}
+.theme-nord .hljs-keyword {
+  color: rgb(129 161 193);
+}
+.theme-nord .hljs-string,
+.theme-nord .hljs-number {
+  color: rgb(163 190 140);
+}
+.theme-nord .hljs-title,
+.theme-nord .hljs-section {
+  color: rgb(136 192 208);
+}
+.theme-nord .hljs-attribute,
+.theme-nord .hljs-variable {
+  color: rgb(235 203 139);
+}
+
+.theme-amoled .hljs {
+  background: rgb(10 10 10);
+  color: rgb(200 200 200);
+}
+.theme-amoled .hljs-comment,
+.theme-amoled .hljs-quote {
+  color: rgb(100 100 100);
+  font-style: italic;
+}
+.theme-amoled .hljs-keyword {
+  color: rgb(255 105 180);
+}
+.theme-amoled .hljs-string,
+.theme-amoled .hljs-number {
+  color: rgb(0 200 83);
+}
+.theme-amoled .hljs-title,
+.theme-amoled .hljs-section {
+  color: rgb(100 210 255);
+}
+.theme-amoled .hljs-attribute,
+.theme-amoled .hljs-variable {
+  color: rgb(255 179 0);
+}
+
+/* ===== Base styles ===== */
 
 @layer base {
   * {
@@ -77,20 +195,19 @@ body.theme-nord {
   }
 
   ::-webkit-scrollbar {
-    width: 8px;
+    @apply w-2;
   }
 
   ::-webkit-scrollbar-track {
-    background: rgb(var(--color-bg-secondary));
+    @apply bg-sol-bg-secondary;
   }
 
   ::-webkit-scrollbar-thumb {
-    background: rgb(var(--color-bg-elevated));
-    border-radius: 9999px;
+    @apply bg-sol-bg-elevated rounded-full;
   }
 
   ::-webkit-scrollbar-thumb:hover {
-    background: rgb(var(--color-amber-dim));
+    @apply bg-sol-amber-dim;
   }
 
   /* Focus visible outlines for keyboard navigation */

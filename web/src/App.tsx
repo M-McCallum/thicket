@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 import LoginForm from '@/components/auth/LoginForm'
 import MainLayout from '@/components/layout/MainLayout'
+import SettingsOverlay from '@/components/settings/SettingsOverlay'
 import InviteRedirect from '@/components/server/InviteRedirect'
 import NotFound from '@/components/NotFound'
 
@@ -73,9 +75,16 @@ function AppRoutes() {
 }
 
 export default function App() {
+  const initTheme = useThemeStore((s) => s.initTheme)
+
+  useEffect(() => {
+    initTheme()
+  }, [initTheme])
+
   return (
     <BrowserRouter>
       <AppRoutes />
+      <SettingsOverlay />
     </BrowserRouter>
   )
 }

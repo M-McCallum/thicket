@@ -1,12 +1,11 @@
-import { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useServerStore } from '@/stores/serverStore'
 import { useServerFolderStore } from '@/stores/serverFolderStore'
 import { useAuthStore } from '@/stores/authStore'
+import { useThemeStore } from '@/stores/themeStore'
 import UserAvatar from '@/components/common/UserAvatar'
 import ProfileModal from '@/components/profile/ProfileModal'
 import type { Server } from '@/types/models'
-
-const SettingsOverlay = lazy(() => import('@/components/settings/SettingsOverlay'))
 
 // Stable empty set to avoid re-renders
 const EMPTY_SET = new Set<string>()
@@ -34,6 +33,7 @@ export default function ServerSidebar() {
   const { servers, activeServerId, setActiveServer, createServer, joinServer } = useServerStore()
   const isDiscoverOpen = useServerStore((s) => s.isDiscoverOpen)
   const { user } = useAuthStore()
+  const openSettings = useThemeStore((s) => s.openSettings)
   const folders = useServerFolderStore((s) => s.folders)
   const fetchFolders = useServerFolderStore((s) => s.fetchFolders)
   const addServerToFolder = useServerFolderStore((s) => s.addServerToFolder)
@@ -43,7 +43,6 @@ export default function ServerSidebar() {
   const [showCreate, setShowCreate] = useState(false)
   const [showJoin, setShowJoin] = useState(false)
   const [showProfile, setShowProfile] = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
   const [newServerName, setNewServerName] = useState('')
   const [inviteCode, setInviteCode] = useState('')
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(EMPTY_SET)
@@ -321,7 +320,7 @@ export default function ServerSidebar() {
 
       {/* Settings gear */}
       <button
-        onClick={() => setShowSettings(true)}
+        onClick={openSettings}
         className="w-10 h-10 rounded-full flex items-center justify-center
                    text-sol-text-muted hover:text-sol-text-primary hover:bg-sol-bg-secondary
                    transition-all duration-200"
@@ -500,12 +499,6 @@ export default function ServerSidebar() {
         </div>
       )}
 
-      {/* Settings overlay */}
-      {showSettings && (
-        <Suspense fallback={null}>
-          <SettingsOverlay onClose={() => setShowSettings(false)} />
-        </Suspense>
-      )}
     </nav>
   )
 }
