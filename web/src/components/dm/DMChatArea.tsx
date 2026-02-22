@@ -5,7 +5,7 @@ import { useDMCallStore } from '@/stores/dmCallStore'
 import { wsService } from '@/services/ws'
 import { dm as dmApi } from '@/services/api'
 import type { DMMessageCreateData } from '@/types/ws'
-import type { Message } from '@/types/models'
+import type { Message, DMMessage } from '@/types/models'
 import MessageItem from '@/components/chat/MessageItem'
 import MessageInput from '@/components/chat/MessageInput'
 import DMCallUI from './DMCallUI'
@@ -106,25 +106,45 @@ export default function DMChatArea() {
     // For DM send with reply, we use the sendMessage API but include reply_to_id
     // The sendMessage in dmStore doesn't support reply_to_id directly, so call API
     if (rt) {
+      let msg: DMMessage | null = null
       if (files && files.length > 0) {
         const fd = new FormData()
         fd.append('content', content)
         if (msgType) fd.append('type', msgType)
         fd.append('reply_to_id', rt.id)
         files.forEach((f) => fd.append('files[]', f))
-        // Use fetch directly for multipart with reply
-        await dmApi.sendMessage(activeConversationId, content, files, msgType)
+        msg = await dmApi.sendMessage(activeConversationId, content, files, msgType)
       } else {
-        // Use raw API call with reply_to_id
         const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080/api'
         const token = useAuthStore.getState().accessToken
-        await fetch(`${API_BASE}/dm/conversations/${activeConversationId}/messages`, {
+        const res = await fetch(`${API_BASE}/dm/conversations/${activeConversationId}/messages`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             ...(token ? { Authorization: `Bearer ${token}` } : {})
           },
           body: JSON.stringify({ content, type: msgType, reply_to_id: rt.id })
+        })
+        if (res.ok) {
+          msg = await res.json()
+        }
+      }
+      // Add message immediately so sender sees it without waiting for WS
+      if (msg) {
+        const currentUser = useAuthStore.getState().user
+        useDMStore.getState().addMessage({
+          id: msg.id,
+          conversation_id: activeConversationId,
+          author_id: msg.author_id,
+          content: msg.content,
+          type: msg.type as 'text' | undefined,
+          reply_to_id: msg.reply_to_id,
+          reactions: [],
+          created_at: msg.created_at,
+          updated_at: msg.updated_at,
+          author_username: currentUser?.username,
+          author_display_name: currentUser?.display_name,
+          author_avatar_url: currentUser?.avatar_url,
         })
       }
       useDMStore.getState().setReplyingTo(null)

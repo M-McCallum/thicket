@@ -208,6 +208,27 @@ export const useDMStore = create<DMState>((set, get) => ({
     }
     const msg = await dmApi.sendMessage(conversationId, content, files, msgType)
 
+    // Add the message to the store immediately so the sender sees it
+    // without waiting for the WebSocket broadcast. addMessage deduplicates,
+    // so the later WS event will be a no-op.
+    if (msg) {
+      const { useAuthStore } = await import('./authStore')
+      const currentUser = useAuthStore.getState().user
+      get().addMessage({
+        id: msg.id,
+        conversation_id: msg.conversation_id,
+        author_id: msg.author_id,
+        content: msg.content,
+        type: msg.type as 'text' | undefined,
+        reactions: [],
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        author_username: currentUser?.username,
+        author_display_name: currentUser?.display_name,
+        author_avatar_url: currentUser?.avatar_url,
+      })
+    }
+
     // Finalize large file uploads with the new DM message ID
     if (largePendingIds && largePendingIds.length > 0 && msg?.id) {
       await Promise.all(

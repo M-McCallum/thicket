@@ -120,6 +120,28 @@ export const useMessageStore = create<MessageState>((set, get) => ({
     const msg = await messagesApi.send(channelId, content, files, msgType, replyingTo?.id)
     set({ replyingTo: null })
 
+    // Add the message to the store immediately so the sender sees it
+    // without waiting for the WebSocket broadcast. addMessage deduplicates,
+    // so the later WS event will be a no-op.
+    if (msg) {
+      const { useAuthStore } = await import('./authStore')
+      const currentUser = useAuthStore.getState().user
+      get().addMessage({
+        id: msg.id,
+        channel_id: msg.channel_id,
+        author_id: msg.author_id,
+        content: msg.content,
+        type: msg.type as 'text' | 'poll' | undefined,
+        reply_to_id: msg.reply_to_id,
+        reactions: [],
+        created_at: msg.created_at,
+        updated_at: msg.updated_at,
+        author_username: currentUser?.username,
+        author_display_name: currentUser?.display_name,
+        author_avatar_url: currentUser?.avatar_url,
+      })
+    }
+
     // Finalize large file uploads with the new message ID
     if (largePendingIds && largePendingIds.length > 0 && msg?.id) {
       await Promise.all(
