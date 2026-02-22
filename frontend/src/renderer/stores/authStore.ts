@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '../types/models'
-import { auth as authApi, profile as profileApi, setTokens, clearTokens, setOAuthRefreshHandler } from '../services/api'
+import { profile as profileApi, setTokens, clearTokens, setOAuthRefreshHandler, setAuthFailureHandler } from '../services/api'
 import { wsService } from '../services/ws'
 import { oauthService } from '../services/oauth'
 import type { OAuthTokens } from '../types/api'
@@ -46,6 +46,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initAuth: async () => {
     set({ isLoading: true })
     setOAuthRefreshHandler(() => get().refreshAccessToken())
+    setAuthFailureHandler(() => get().logout())
     try {
       const tokens = await window.api.auth.getTokens()
       if (tokens.access_token) {
@@ -146,24 +147,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
+    // Grab the id_token before clearing so Hydra knows which session to end
+    let idToken: string | undefined
     try {
-      await authApi.logout()
-    } catch {
-      // Ignore errors on logout
-    }
-    try {
-      await oauthService.logout()
-    } catch {
-      // Ignore OAuth logout errors
-    }
+      const tokens = await window.api.auth.getTokens()
+      idToken = tokens.id_token ?? undefined
+    } catch { /* ignore */ }
+
+    // Clear all local state first
     wsService.disconnect()
     clearTokens()
     try {
       await window.api.auth.clearTokens()
-    } catch {
-      // safeStorage may not be available in tests
-    }
-
+    } catch { /* ignore */ }
     set({
       user: null,
       accessToken: null,
@@ -171,6 +167,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null
     })
+
+    // Then trigger Hydra logout in system browser
+    try {
+      await oauthService.logout(idToken)
+    } catch { /* ignore */ }
   },
 
   updateProfile: async (data) => {

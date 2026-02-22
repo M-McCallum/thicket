@@ -72,9 +72,6 @@ describe('authStore', () => {
   })
 
   it('should logout and clear state', async () => {
-    const { auth } = await import('../../services/api')
-    vi.mocked(auth.logout).mockResolvedValue({ message: 'logged out' })
-
     // Set authenticated state first
     useAuthStore.setState({
       user: { id: '123', username: 'test' } as any,

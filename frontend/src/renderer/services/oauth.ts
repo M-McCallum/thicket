@@ -77,9 +77,9 @@ export class OAuthService {
     }
   }
 
-  async logout(): Promise<void> {
+  async logout(idTokenHint?: string): Promise<void> {
     try {
-      const request = await this.client.createSignoutRequest()
+      const request = await this.client.createSignoutRequest({ id_token_hint: idTokenHint })
       await window.api.openExternal(request.url)
     } catch {
       // If signout request fails, just clear stale state

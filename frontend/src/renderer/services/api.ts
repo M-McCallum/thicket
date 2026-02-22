@@ -34,6 +34,7 @@ export function resolveAttachmentUrl(url: string): string {
 let accessToken: string | null = null
 let refreshToken: string | null = null
 let oauthRefreshHandler: (() => Promise<boolean>) | null = null
+let authFailureHandler: (() => void) | null = null
 
 export function setTokens(access: string, refresh: string): void {
   accessToken = access
@@ -47,6 +48,10 @@ export function clearTokens(): void {
 
 export function setOAuthRefreshHandler(handler: () => Promise<boolean>): void {
   oauthRefreshHandler = handler
+}
+
+export function setAuthFailureHandler(handler: () => void): void {
+  authFailureHandler = handler
 }
 
 async function request<T>(
@@ -68,11 +73,14 @@ async function request<T>(
     headers
   })
 
-  if (response.status === 401 && retry && refreshToken) {
-    const refreshed = await refreshAccessToken()
-    if (refreshed) {
-      return request<T>(path, options, false)
+  if (response.status === 401 && retry) {
+    if (refreshToken) {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) {
+        return request<T>(path, options, false)
+      }
     }
+    authFailureHandler?.()
   }
 
   if (!response.ok) {
@@ -127,11 +135,14 @@ async function requestMultipart<T>(
     body: formData
   })
 
-  if (response.status === 401 && retry && refreshToken) {
-    const refreshed = await refreshAccessToken()
-    if (refreshed) {
-      return requestMultipart<T>(path, formData, false)
+  if (response.status === 401 && retry) {
+    if (refreshToken) {
+      const refreshed = await refreshAccessToken()
+      if (refreshed) {
+        return requestMultipart<T>(path, formData, false)
+      }
     }
+    authFailureHandler?.()
   }
 
   if (!response.ok) {
@@ -229,12 +240,6 @@ async function completeLargeUpload(
 
 // Auth
 export const auth = {
-  logout: () =>
-    request<{ message: string }>('/auth/logout', {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken })
-    }),
-
   me: () => request<{ user_id: string; username: string }>('/me')
 }
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '@/types/models'
-import { auth as authApi, profile as profileApi, setTokens, clearTokens as clearApiTokens, setOAuthRefreshHandler } from '@/services/api'
+import { profile as profileApi, setTokens, clearTokens as clearApiTokens, setOAuthRefreshHandler, setAuthFailureHandler } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { oauthService } from '@/services/oauth'
 import { storeTokens, getTokens, clearTokens as clearStoredTokens } from '@/services/tokenStorage'
@@ -42,6 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   initAuth: async () => {
     set({ isLoading: true })
     setOAuthRefreshHandler(() => get().refreshAccessToken())
+    setAuthFailureHandler(() => get().logout())
     try {
       const tokens = getTokens()
       if (tokens.access_token) {
@@ -118,9 +119,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    try { await authApi.logout() } catch { /* Ignore */ }
     const idToken = getTokens().id_token ?? undefined
-    try { await oauthService.logout(idToken) } catch { /* Ignore */ }
+    // Clear all local state BEFORE navigating to Hydra, because
+    // signoutRedirect navigates the page away and code after it won't run.
     wsService.disconnect()
     clearApiTokens()
     clearStoredTokens()
@@ -131,6 +132,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isAuthenticated: false,
       error: null
     })
+    try { await oauthService.logout(idToken) } catch { /* Ignore */ }
   },
 
   updateProfile: async (data) => {
