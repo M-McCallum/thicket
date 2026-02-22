@@ -37,6 +37,13 @@ declare global {
       }
       screen: {
         getSources: () => Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>>
+        hasFollowSupport: () => Promise<boolean>
+        startFollowing: (sourceId: string) => Promise<boolean>
+        stopFollowing: () => Promise<boolean>
+        switchToSource: (newSourceId: string) => Promise<boolean>
+        onSourceSwitched: (callback: (data: { sourceId: string; windowName: string }) => void) => () => void
+        onNewWindowDetected: (callback: (data: { sourceId: string; windowName: string }) => void) => () => void
+        onFollowedAppClosed: (callback: () => void) => () => void
       }
       updater: {
         checkForUpdates: () => Promise<void>

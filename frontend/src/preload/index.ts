@@ -48,7 +48,30 @@ const api = {
 
   screen: {
     getSources: (): Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>> =>
-      ipcRenderer.invoke('screen:get-sources')
+      ipcRenderer.invoke('screen:get-sources'),
+    hasFollowSupport: (): Promise<boolean> =>
+      ipcRenderer.invoke('screen:has-follow-support'),
+    startFollowing: (sourceId: string): Promise<boolean> =>
+      ipcRenderer.invoke('screen:start-following', sourceId),
+    stopFollowing: (): Promise<boolean> =>
+      ipcRenderer.invoke('screen:stop-following'),
+    switchToSource: (newSourceId: string): Promise<boolean> =>
+      ipcRenderer.invoke('screen:switch-to-source', newSourceId),
+    onSourceSwitched: (callback: (data: { sourceId: string; windowName: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { sourceId: string; windowName: string }): void => callback(data)
+      ipcRenderer.on('screen:source-switched', handler)
+      return () => ipcRenderer.removeListener('screen:source-switched', handler)
+    },
+    onNewWindowDetected: (callback: (data: { sourceId: string; windowName: string }) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, data: { sourceId: string; windowName: string }): void => callback(data)
+      ipcRenderer.on('screen:new-window-detected', handler)
+      return () => ipcRenderer.removeListener('screen:new-window-detected', handler)
+    },
+    onFollowedAppClosed: (callback: () => void): (() => void) => {
+      const handler = (): void => callback()
+      ipcRenderer.on('screen:followed-app-closed', handler)
+      return () => ipcRenderer.removeListener('screen:followed-app-closed', handler)
+    }
   },
 
   invite: {

@@ -82,6 +82,11 @@ interface VoiceState {
   screenSharePickerSources: Array<{ id: string; name: string; thumbnailDataUrl: string }> | null
   localTrackVersion: number
 
+  // Follow window
+  followWindowEnabled: boolean
+  followWindowSourceId: string | null
+  followWindowToast: string | null
+
   // Voice settings
   inputMode: InputMode
   pushToTalkKey: string
@@ -108,8 +113,11 @@ interface VoiceState {
   togglePiP: () => void
   setVideoQuality: (quality: VideoQuality) => Promise<void>
   setScreenShareQuality: (quality: ScreenShareQuality) => void
-  startScreenShareWithSource: (sourceId: string) => Promise<void>
+  startScreenShareWithSource: (sourceId: string, followWindow?: boolean) => Promise<void>
   dismissScreenSharePicker: () => void
+  switchScreenShareSource: (newSourceId: string, windowName?: string) => Promise<void>
+  setFollowWindowEnabled: (enabled: boolean) => void
+  setFollowWindowToast: (msg: string | null) => void
 
   // Voice settings actions
   setInputMode: (mode: InputMode) => void
@@ -145,6 +153,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   screenShareQuality: (localStorage.getItem('voice:screenShareQuality') as ScreenShareQuality) || '1080p_30',
   screenSharePickerSources: null,
   localTrackVersion: 0,
+
+  // Follow window
+  followWindowEnabled: localStorage.getItem('voice:followWindow') !== 'false',
+  followWindowSourceId: null,
+  followWindowToast: null,
 
   // Voice settings
   inputMode: (localStorage.getItem('voice:inputMode') as InputMode) || 'voice_activity',
@@ -374,6 +387,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       room.disconnect()
     }
 
+    window.api?.screen?.stopFollowing?.()
+
     if (activeChannelId && activeServerId) {
       wsService.send({
         type: 'VOICE_LEAVE',
@@ -393,7 +408,9 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       isScreenSharing: false,
       focusedTileKey: null,
       isPiPActive: false,
-      isPTTActive: false
+      isPTTActive: false,
+      followWindowSourceId: null,
+      followWindowToast: null
     })
   },
 
@@ -482,7 +499,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
     // Stopping screen share — unpublish the screen share track
     if (isScreenSharing) {
-      set({ isScreenSharing: false })
+      set({ isScreenSharing: false, followWindowSourceId: null, followWindowToast: null })
+      window.api?.screen?.stopFollowing?.()
       const pub = room.localParticipant.getTrackPublication(Track.Source.ScreenShare)
       if (pub?.track) {
         await room.localParticipant.unpublishTrack(pub.track.mediaStreamTrack)
@@ -521,10 +539,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     }
   },
 
-  startScreenShareWithSource: async (sourceId: string) => {
-    const { room, screenShareQuality } = get()
+  startScreenShareWithSource: async (sourceId: string, followWindow?: boolean) => {
+    const { room, screenShareQuality, followWindowEnabled } = get()
     if (!room) return
-    set({ screenSharePickerSources: null, isScreenSharing: true })
+    set({ screenSharePickerSources: null, isScreenSharing: true, followWindowSourceId: sourceId })
     const preset = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
     const { width, height, frameRate } = preset
     try {
@@ -547,9 +565,15 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         source: Track.Source.ScreenShare,
         ...opts,
       })
+
+      // Start following the window if enabled and it's a window source
+      const shouldFollow = followWindow ?? followWindowEnabled
+      if (shouldFollow && sourceId.startsWith('window:') && window.api?.screen?.startFollowing) {
+        window.api.screen.startFollowing(sourceId)
+      }
     } catch (err) {
       console.error('[ScreenShare] Failed to publish screen track:', err)
-      set({ isScreenSharing: false })
+      set({ isScreenSharing: false, followWindowSourceId: null })
     }
   },
 
@@ -677,5 +701,61 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setPTTReleaseDelay: (ms) => {
     localStorage.setItem('voice:pttReleaseDelay', String(ms))
     set({ pttReleaseDelay: ms })
+  },
+
+  switchScreenShareSource: async (newSourceId: string, windowName?: string) => {
+    const { room, screenShareQuality } = get()
+    if (!room) return
+
+    // Unpublish old screen share track
+    const pub = room.localParticipant.getTrackPublication(Track.Source.ScreenShare)
+    if (pub?.track) {
+      await room.localParticipant.unpublishTrack(pub.track.mediaStreamTrack)
+    }
+
+    // Capture and publish the new source
+    const preset = SCREEN_SHARE_RESOLUTIONS[screenShareQuality]
+    const { width, height, frameRate } = preset
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: {
+          mandatory: {
+            chromeMediaSource: 'desktop',
+            chromeMediaSourceId: newSourceId,
+            maxWidth: width,
+            maxHeight: height,
+            maxFrameRate: frameRate,
+          },
+        } as unknown as MediaTrackConstraints,
+      })
+      const track = stream.getVideoTracks()[0]
+      track.contentHint = frameRate >= 30 ? 'motion' : 'detail'
+      const opts = buildPublishOptions(preset)
+      await room.localParticipant.publishTrack(track, {
+        source: Track.Source.ScreenShare,
+        ...opts,
+      })
+
+      set({
+        followWindowSourceId: newSourceId,
+        followWindowToast: windowName ? `Switched to ${windowName}` : 'Screen share source switched'
+      })
+
+      // Update the main process tracker
+      window.api?.screen?.switchToSource?.(newSourceId)
+    } catch (err) {
+      console.error('[ScreenShare] Failed to switch source:', err)
+      set({ isScreenSharing: false, followWindowSourceId: null })
+    }
+  },
+
+  setFollowWindowEnabled: (enabled: boolean) => {
+    localStorage.setItem('voice:followWindow', String(enabled))
+    set({ followWindowEnabled: enabled })
+  },
+
+  setFollowWindowToast: (msg: string | null) => {
+    set({ followWindowToast: msg })
   }
 }))

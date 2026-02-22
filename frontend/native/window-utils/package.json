@@ -1,0 +1,11 @@
+{
+  "name": "window-utils",
+  "version": "1.0.0",
+  "description": "Native addon for mapping window IDs to PIDs",
+  "main": "build/Release/window_utils.node",
+  "private": true,
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^8.0.0"
+  }
+}

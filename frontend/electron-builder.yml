@@ -8,6 +8,7 @@ directories:
 files:
   - "out/**/*"
   - "!out/**/*.map"
+  - "native/window-utils/build/Release/*.node"
 
 extraResources:
   - from: resources
@@ -15,7 +16,7 @@ extraResources:
     filter:
       - "*.png"
 
-npmRebuild: false
+npmRebuild: true
 
 publish:
   provider: github

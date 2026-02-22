@@ -3,6 +3,8 @@ import { Track } from 'livekit-client'
 import { useVoiceStore } from '@renderer/stores/voiceStore'
 import type { VoiceParticipant } from '@renderer/stores/voiceStore'
 import VideoTile from './VideoTile'
+import { ScreenShareToast } from './ScreenShareToast'
+import { useFollowWindow } from '@renderer/hooks/useFollowWindow'
 
 interface LocalParticipantTile {
   participant: VoiceParticipant
@@ -33,6 +35,8 @@ export default function VideoGrid() {
     setFocusedParticipant,
     setVideoLayoutMode
   } = useVoiceStore()
+
+  useFollowWindow()
 
   const localParticipant = room?.localParticipant
 
@@ -87,6 +91,7 @@ export default function VideoGrid() {
 
   return (
     <div className="relative flex-1 min-h-0 bg-sol-bg p-2">
+      <ScreenShareToast />
       {/* Layout switcher toolbar */}
       <div className="absolute top-3 right-3 z-10 flex gap-1 bg-sol-bg-secondary/80 backdrop-blur rounded-lg p-1">
         <button

@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { autoUpdater } from 'electron-updater'
 import { setupNotifications } from './notifications'
+import { setupFollowWindowIPC } from './windowFollower'
 import Store from 'electron-store'
 
 const store = new Store<Record<string, string>>({ name: 'auth-tokens' })
@@ -216,6 +217,8 @@ app.whenReady().then(() => {
       callback({ responseHeaders: details.responseHeaders })
     }
   })
+
+  setupFollowWindowIPC()
 
   createWindow()
   if (mainWindow) setupAutoUpdater(mainWindow)
