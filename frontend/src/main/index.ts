@@ -248,6 +248,9 @@ function setupAutoUpdater(win: BrowserWindow): void {
   ipcMain.handle('updater:check', () => autoUpdater.checkForUpdates())
   ipcMain.handle('updater:download', () => autoUpdater.downloadUpdate())
   ipcMain.handle('updater:install', () => autoUpdater.quitAndInstall())
+  ipcMain.handle('updater:set-auto-download', (_event, v: boolean) => {
+    autoUpdater.autoDownload = v
+  })
 
   setTimeout(() => autoUpdater.checkForUpdates(), 5000)
 }

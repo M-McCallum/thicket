@@ -55,6 +55,7 @@ const api = {
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke('updater:check'),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('updater:download'),
     installUpdate: (): Promise<void> => ipcRenderer.invoke('updater:install'),
+    setAutoDownload: (v: boolean): Promise<void> => ipcRenderer.invoke('updater:set-auto-download', v),
     onStatus: (callback: (data: Record<string, unknown>) => void): (() => void) => {
       const handler = (_event: Electron.IpcRendererEvent, data: Record<string, unknown>): void =>
         callback(data)

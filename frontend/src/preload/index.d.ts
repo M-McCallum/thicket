@@ -42,6 +42,7 @@ declare global {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>
         installUpdate: () => Promise<void>
+        setAutoDownload: (v: boolean) => Promise<void>
         onStatus: (callback: (data: Record<string, unknown>) => void) => () => void
       }
     }

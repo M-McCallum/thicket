@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useThemeStore, type ThemeName } from '@renderer/stores/themeStore'
 import { useAuthStore } from '@renderer/stores/authStore'
+import { useUpdateStore } from '@renderer/stores/updateStore'
 
 type SettingsTab = 'account' | 'appearance'
 
@@ -385,9 +386,58 @@ export default function SettingsOverlay() {
                     spellCheck={false}
                   />
                 </div>
+
+                {/* Updates */}
+                <UpdatesSection />
               </div>
             )}
           </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function UpdatesSection() {
+  const autoDownload = useUpdateStore((s) => s.autoDownload)
+  const setAutoDownload = useUpdateStore((s) => s.setAutoDownload)
+  const status = useUpdateStore((s) => s.status)
+  const checkForUpdates = useUpdateStore((s) => s.checkForUpdates)
+
+  const statusLabel =
+    status === 'checking' ? 'Checking for updates…' :
+    status === 'up-to-date' ? "You're up to date." :
+    status === 'available' ? 'Update available!' :
+    status === 'downloading' ? 'Downloading update…' :
+    status === 'ready' ? 'Update ready — restart to apply.' :
+    status === 'error' ? 'Failed to check for updates.' :
+    null
+
+  return (
+    <div className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-5">
+      <h4 className="text-[11px] font-mono uppercase tracking-widest text-sol-text-muted/60 mb-4">Updates</h4>
+      <div className="space-y-4">
+        <SettingsToggle
+          label="Auto-download updates"
+          description="Automatically download updates in the background when available."
+          checked={autoDownload}
+          onChange={setAutoDownload}
+        />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={checkForUpdates}
+            disabled={status === 'checking'}
+            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-sol-bg-tertiary border border-sol-bg-elevated
+                       text-sol-text-secondary hover:text-sol-text-primary hover:border-sol-amber/30
+                       disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {status === 'checking' ? 'Checking…' : 'Check for updates'}
+          </button>
+          {statusLabel && (
+            <span className={`text-xs ${status === 'error' ? 'text-sol-coral' : 'text-sol-text-muted'}`}>
+              {statusLabel}
+            </span>
+          )}
         </div>
       </div>
     </div>
