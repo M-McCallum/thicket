@@ -21,7 +21,7 @@ publish:
   provider: github
   owner: M-McCallum
   repo: thicket
-  releaseType: draft
+  releaseType: release
 
 protocols:
   - name: Thicket
