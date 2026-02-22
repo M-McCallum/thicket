@@ -284,9 +284,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
       { audioPreset: AudioPresets.musicHighQualityStereo },
     )
 
-    // For PTT mode: mute immediately after enabling mic (so the track is published but muted)
+    // For PTT mode: keep the mic track published but mute it so there's
+    // no re-acquisition latency when the user presses the PTT key.
     if (isPTT) {
-      await room.localParticipant.setMicrophoneEnabled(false)
+      const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+      await micPub?.mute()
     }
 
     // Apply saved output device
@@ -582,13 +584,14 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     set({ inputMode: mode })
     const { room } = get()
     if (room) {
+      const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
       if (mode === 'push_to_talk') {
-        // Mute mic when switching to PTT
-        room.localParticipant.setMicrophoneEnabled(false)
+        // Mute mic track (keep published) when switching to PTT
+        micPub?.mute()
         set({ isMuted: true, isPTTActive: false })
       } else {
-        // Unmute mic when switching to voice activity
-        room.localParticipant.setMicrophoneEnabled(true)
+        // Unmute mic track when switching to voice activity
+        micPub?.unmute()
         set({ isMuted: false, isPTTActive: false })
       }
     }
@@ -631,6 +634,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     const { room, inputMode } = get()
     if (inputMode !== 'push_to_talk' || !room) return
     set({ isPTTActive: active, isMuted: !active })
-    room.localParticipant.setMicrophoneEnabled(active)
+    const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+    if (active) {
+      micPub?.unmute()
+    } else {
+      micPub?.mute()
+    }
   }
 }))
