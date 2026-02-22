@@ -139,7 +139,7 @@ describe('dmStore', () => {
 
     await useDMStore.getState().sendMessage('conv-1', 'Hello DM!')
 
-    expect(dm.sendMessage).toHaveBeenCalledWith('conv-1', { content: 'Hello DM!' })
+    expect(dm.sendMessage).toHaveBeenCalledWith('conv-1', 'Hello DM!', undefined, undefined)
   })
 
   it('should add message (WS)', () => {

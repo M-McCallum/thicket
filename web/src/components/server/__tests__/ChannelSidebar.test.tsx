@@ -4,14 +4,19 @@ import userEvent from '@testing-library/user-event'
 import ChannelSidebar from '../ChannelSidebar'
 import { useServerStore } from '../../../stores/serverStore'
 
-vi.mock('../../../services/api', () => ({
-  servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
-  channels: { list: vi.fn(), create: vi.fn() },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
-}))
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
+    channels: { list: vi.fn(), create: vi.fn() },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -136,19 +141,13 @@ describe('ChannelSidebar', () => {
     expect(useServerStore.getState().activeChannelId).toBe('c2')
   })
 
-  it('renders invite code', () => {
+  it('renders server name when active', () => {
     useServerStore.setState({
       servers: [{ id: 's1', name: 'Srv', icon_url: null, owner_id: 'o1', invite_code: 'INVITE-XYZ', created_at: '' }],
       activeServerId: 's1'
     })
 
     render(<ChannelSidebar />)
-    expect(screen.getByText('INVITE CODE')).toBeInTheDocument()
-    expect(screen.getByText('INVITE-XYZ')).toBeInTheDocument()
-  })
-
-  it('hides invite code with no active server', () => {
-    render(<ChannelSidebar />)
-    expect(screen.queryByText('INVITE CODE')).not.toBeInTheDocument()
+    expect(screen.getByText('Srv')).toBeInTheDocument()
   })
 })

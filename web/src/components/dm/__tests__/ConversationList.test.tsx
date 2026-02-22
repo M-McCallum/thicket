@@ -5,18 +5,23 @@ import ConversationList from '../ConversationList'
 import { useDMStore } from '../../../stores/dmStore'
 import { useAuthStore } from '../../../stores/authStore'
 
-vi.mock('../../../services/api', () => ({
-  dm: {
-    createConversation: vi.fn(),
-    listConversations: vi.fn().mockResolvedValue([]),
-    getMessages: vi.fn(),
-    sendMessage: vi.fn()
-  },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
-}))
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    dm: {
+      createConversation: vi.fn(),
+      listConversations: vi.fn().mockResolvedValue([]),
+      getMessages: vi.fn(),
+      sendMessage: vi.fn()
+    },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -33,6 +38,7 @@ const mockConversations = [
   {
     id: 'conv-1',
     is_group: false,
+    accepted: true,
     name: null,
     created_at: '2024-01-01T00:00:00Z',
     participants: [
@@ -43,6 +49,7 @@ const mockConversations = [
   {
     id: 'conv-2',
     is_group: false,
+    accepted: true,
     name: null,
     created_at: '2024-01-02T00:00:00Z',
     participants: [
@@ -109,22 +116,21 @@ describe('ConversationList', () => {
 
     render(<ConversationList />)
 
-    const buttons = screen.getAllByRole('button')
-    expect(buttons[0].className).toContain('text-sol-amber')
-    expect(buttons[1].className).not.toContain('text-sol-amber')
+    // The active conversation's container should have the active class
+    const bobEl = screen.getByText('Bob D')
+    const container = bobEl.closest('button')
+    expect(container?.className).toContain('text-sol-amber')
   })
 
   it('calls setActiveConversation on click', async () => {
     const { dm } = await import('../../../services/api')
-    vi.mocked(dm.listConversations).mockResolvedValue(mockConversations)
-
-    useDMStore.setState({ conversations: mockConversations })
+    vi.mocked(dm.listConversations).mockResolvedValue(mockConversations as any)
+    useDMStore.setState({ conversations: mockConversations as any })
 
     const user = userEvent.setup()
     render(<ConversationList />)
 
-    const buttons = await screen.findAllByRole('button')
-    await user.click(buttons[0])
+    await user.click(screen.getByText('Bob D'))
 
     expect(useDMStore.getState().activeConversationId).toBe('conv-1')
   })

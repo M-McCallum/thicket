@@ -7,21 +7,34 @@ import { useAuthStore } from '../../../stores/authStore'
 
 const mockOn = vi.fn(() => vi.fn())
 
-vi.mock('../../../services/api', () => ({
-  dm: {
-    createConversation: vi.fn(),
-    listConversations: vi.fn().mockResolvedValue([]),
-    getMessages: vi.fn().mockResolvedValue([]),
-    sendMessage: vi.fn().mockResolvedValue({})
-  },
-  servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
-  channels: { list: vi.fn(), create: vi.fn() },
-  messages: { list: vi.fn().mockResolvedValue([]), send: vi.fn().mockResolvedValue({}) },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
+// Mock IntersectionObserver for jsdom
+const mockIntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn()
 }))
+vi.stubGlobal('IntersectionObserver', mockIntersectionObserver)
+
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    dm: {
+      createConversation: vi.fn(),
+      listConversations: vi.fn().mockResolvedValue([]),
+      getMessages: vi.fn().mockResolvedValue([]),
+      sendMessage: vi.fn().mockResolvedValue({})
+    },
+    servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
+    channels: { list: vi.fn(), create: vi.fn() },
+    messages: { list: vi.fn().mockResolvedValue([]), send: vi.fn().mockResolvedValue({}) },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -175,7 +188,7 @@ describe('DMChatArea', () => {
     await user.keyboard('{Enter}')
 
     await waitFor(() => {
-      expect(dm.sendMessage).toHaveBeenCalledWith('conv-1', { content: 'Hey' })
+      expect(dm.sendMessage).toHaveBeenCalledWith('conv-1', 'Hey', undefined, undefined)
     })
 
     await waitFor(() => {

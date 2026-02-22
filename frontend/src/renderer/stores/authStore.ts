@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import type { User } from '../types/models'
-import { profile as profileApi, setTokens, clearTokens, setOAuthRefreshHandler, setAuthFailureHandler } from '../services/api'
+import { profile as profileApi, setTokens, clearTokens, setOAuthRefreshHandler, setAuthFailureHandler, tokenManager } from '../services/api'
 import { wsService } from '../services/ws'
 import { oauthService } from '../services/oauth'
 import type { OAuthTokens } from '../types/api'
@@ -50,42 +50,50 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const tokens = await window.api.auth.getTokens()
       if (tokens.access_token) {
-        setTokens(tokens.access_token, tokens.refresh_token ?? '')
-        wsService.connect(tokens.access_token)
-        const user = await profileApi.get()
-        set({
-          user,
-          accessToken: tokens.access_token,
-          refreshToken: tokens.refresh_token,
-          isAuthenticated: true,
-          isLoading: false
-        })
-        return
-      }
-
-      set({ isLoading: false })
-    } catch {
-      // Access token expired or invalid — try refreshing before giving up
-      const tokens = await window.api.auth.getTokens()
-      if (tokens.refresh_token) {
+        setTokens(tokens.access_token, tokens.refresh_token ?? '', tokens.expires_at)
+        tokenManager.suppressAuthFailure()
         try {
-          const refreshed = await oauthService.refreshToken(tokens.refresh_token)
-          await storeTokensSecurely(refreshed)
-          setTokens(refreshed.access_token, refreshed.refresh_token ?? '')
-          wsService.connect(refreshed.access_token)
+          wsService.connect(tokens.access_token)
           const user = await profileApi.get()
           set({
             user,
-            accessToken: refreshed.access_token,
-            refreshToken: refreshed.refresh_token,
+            accessToken: tokens.access_token,
+            refreshToken: tokens.refresh_token,
             isAuthenticated: true,
             isLoading: false
           })
           return
         } catch {
-          // Refresh also failed — give up
+          // Access token expired or invalid — try refreshing before giving up
+          if (tokens.refresh_token) {
+            try {
+              const refreshed = await oauthService.refreshToken(tokens.refresh_token)
+              await storeTokensSecurely(refreshed)
+              setTokens(refreshed.access_token, refreshed.refresh_token ?? '', refreshed.expires_at)
+              wsService.disconnect()
+              wsService.connect(refreshed.access_token)
+              const user = await profileApi.get()
+              set({
+                user,
+                accessToken: refreshed.access_token,
+                refreshToken: refreshed.refresh_token,
+                isAuthenticated: true,
+                isLoading: false
+              })
+              return
+            } catch {
+              // Refresh also failed — give up
+            }
+          }
+          set({ isLoading: false, isAuthenticated: false, user: null, accessToken: null, refreshToken: null })
+        } finally {
+          tokenManager.restoreAuthFailure()
         }
+        return
       }
+
+      set({ isLoading: false })
+    } catch {
       set({ isLoading: false })
     }
   },
@@ -108,7 +116,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const tokens = await oauthService.handleCallback(url)
       await storeTokensSecurely(tokens)
 
-      setTokens(tokens.access_token, tokens.refresh_token ?? '')
+      setTokens(tokens.access_token, tokens.refresh_token ?? '', tokens.expires_at)
       wsService.connect(tokens.access_token)
       const user = await profileApi.get()
       set({
@@ -134,7 +142,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const tokens = await oauthService.refreshToken(refreshToken)
       await storeTokensSecurely(tokens)
 
-      setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken)
+      setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken, tokens.expires_at)
       wsService.sendTokenRefresh(tokens.access_token)
       set({
         accessToken: tokens.access_token,

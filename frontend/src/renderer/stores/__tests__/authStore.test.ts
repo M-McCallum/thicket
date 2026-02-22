@@ -1,22 +1,40 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAuthStore } from '../authStore'
 
+const { tokenManagerMock } = vi.hoisted(() => ({
+  tokenManagerMock: {
+    suppressAuthFailure: vi.fn(),
+    restoreAuthFailure: vi.fn()
+  }
+}))
+
 // Mock the API module
 vi.mock('../../services/api', () => ({
+  profile: {
+    get: vi.fn(),
+    update: vi.fn(),
+    updateStatus: vi.fn(),
+    updateCustomStatus: vi.fn(),
+    uploadAvatar: vi.fn(),
+    deleteAvatar: vi.fn()
+  },
   auth: {
     logout: vi.fn(),
     me: vi.fn()
   },
   setTokens: vi.fn(),
   clearTokens: vi.fn(),
-  setOAuthRefreshHandler: vi.fn()
+  setOAuthRefreshHandler: vi.fn(),
+  setAuthFailureHandler: vi.fn(),
+  tokenManager: tokenManagerMock
 }))
 
 // Mock the WebSocket service
 vi.mock('../../services/ws', () => ({
   wsService: {
     connect: vi.fn(),
-    disconnect: vi.fn()
+    disconnect: vi.fn(),
+    sendTokenRefresh: vi.fn()
   }
 }))
 
@@ -35,7 +53,7 @@ const authApiMock = {
   canEncrypt: vi.fn().mockResolvedValue(true),
   getStorageBackend: vi.fn().mockResolvedValue('keychain'),
   storeTokens: vi.fn().mockResolvedValue(undefined),
-  getTokens: vi.fn().mockResolvedValue({ access_token: null, refresh_token: null, id_token: null }),
+  getTokens: vi.fn().mockResolvedValue({ access_token: null, refresh_token: null, id_token: null, expires_at: null }),
   clearTokens: vi.fn().mockResolvedValue(undefined),
   onCallback: vi.fn().mockReturnValue(() => {})
 }
@@ -59,7 +77,7 @@ describe('authStore', () => {
       isLoading: false,
       error: null
     })
-    authApiMock.getTokens.mockResolvedValue({ access_token: null, refresh_token: null, id_token: null })
+    authApiMock.getTokens.mockResolvedValue({ access_token: null, refresh_token: null, id_token: null, expires_at: null })
     vi.clearAllMocks()
   })
 
@@ -95,13 +113,14 @@ describe('authStore', () => {
   })
 
   it('should initAuth from safeStorage', async () => {
-    const { auth } = await import('../../services/api')
+    const { profile } = await import('../../services/api')
     authApiMock.getTokens.mockResolvedValue({
       access_token: 'oauth-access',
       refresh_token: 'oauth-refresh',
-      id_token: 'oauth-id'
+      id_token: 'oauth-id',
+      expires_at: 9999999999
     })
-    vi.mocked(auth.me).mockResolvedValue({ user_id: 'u1', username: 'oauthuser' })
+    vi.mocked(profile.get).mockResolvedValue({ id: 'u1', username: 'oauthuser' } as any)
 
     await useAuthStore.getState().initAuth()
 
@@ -114,7 +133,7 @@ describe('authStore', () => {
 
   it('should handle OAuth callback', async () => {
     const { oauthService } = await import('../../services/oauth')
-    const { auth } = await import('../../services/api')
+    const { profile } = await import('../../services/api')
 
     vi.mocked(oauthService.handleCallback).mockResolvedValue({
       access_token: 'new-access',
@@ -122,7 +141,7 @@ describe('authStore', () => {
       id_token: 'new-id',
       expires_at: 9999999999
     })
-    vi.mocked(auth.me).mockResolvedValue({ user_id: 'u3', username: 'callbackuser' })
+    vi.mocked(profile.get).mockResolvedValue({ id: 'u3', username: 'callbackuser' } as any)
 
     await useAuthStore.getState().handleCallback('thicket://auth/callback?code=abc')
 
@@ -139,5 +158,77 @@ describe('authStore', () => {
     await useAuthStore.getState().startLogin()
 
     expect(oauthService.startLogin).toHaveBeenCalled()
+  })
+
+  it('should initAuth with expired token → refresh succeeds', async () => {
+    const { profile } = await import('../../services/api')
+    const { oauthService } = await import('../../services/oauth')
+
+    authApiMock.getTokens.mockResolvedValue({
+      access_token: 'expired-access',
+      refresh_token: 'valid-refresh',
+      id_token: 'id',
+      expires_at: 1000
+    })
+
+    vi.mocked(profile.get)
+      .mockRejectedValueOnce(new Error('Unauthorized'))
+      .mockResolvedValueOnce({ id: 'u1', username: 'refreshed-user' } as any)
+
+    vi.mocked(oauthService.refreshToken).mockResolvedValue({
+      access_token: 'new-access',
+      refresh_token: 'new-refresh',
+      id_token: 'new-id',
+      expires_at: 9999999999
+    })
+
+    await useAuthStore.getState().initAuth()
+
+    const state = useAuthStore.getState()
+    expect(state.isAuthenticated).toBe(true)
+    expect(state.user?.username).toBe('refreshed-user')
+    expect(state.isLoading).toBe(false)
+  })
+
+  it('should initAuth with expired token → refresh fails → not authenticated', async () => {
+    const { profile } = await import('../../services/api')
+    const { oauthService } = await import('../../services/oauth')
+
+    authApiMock.getTokens.mockResolvedValue({
+      access_token: 'expired-access',
+      refresh_token: 'valid-refresh',
+      id_token: 'id',
+      expires_at: 1000
+    })
+
+    vi.mocked(profile.get).mockRejectedValue(new Error('Unauthorized'))
+    vi.mocked(oauthService.refreshToken).mockRejectedValue(new Error('Refresh failed'))
+
+    await useAuthStore.getState().initAuth()
+
+    const state = useAuthStore.getState()
+    expect(state.isAuthenticated).toBe(false)
+    expect(state.isLoading).toBe(false)
+    expect(state.user).toBeNull()
+  })
+
+  it('should NOT trigger logout during initAuth even with expired token', async () => {
+    const { profile } = await import('../../services/api')
+    const { oauthService } = await import('../../services/oauth')
+
+    authApiMock.getTokens.mockResolvedValue({
+      access_token: 'expired-access',
+      refresh_token: 'valid-refresh',
+      id_token: 'id',
+      expires_at: 1000
+    })
+
+    vi.mocked(profile.get).mockRejectedValue(new Error('Unauthorized'))
+    vi.mocked(oauthService.refreshToken).mockRejectedValue(new Error('Refresh failed'))
+
+    await useAuthStore.getState().initAuth()
+
+    expect(tokenManagerMock.suppressAuthFailure).toHaveBeenCalled()
+    expect(tokenManagerMock.restoreAuthFailure).toHaveBeenCalled()
   })
 })

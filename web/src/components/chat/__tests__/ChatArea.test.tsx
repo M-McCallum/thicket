@@ -10,15 +10,27 @@ const mockSubscribe = vi.fn()
 const mockUnsubscribe = vi.fn()
 const mockOn = vi.fn(() => vi.fn())
 
-vi.mock('../../../services/api', () => ({
-  servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
-  channels: { list: vi.fn(), create: vi.fn() },
-  messages: { list: vi.fn().mockResolvedValue([]), send: vi.fn().mockResolvedValue({}) },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
-}))
+// Mock IntersectionObserver for jsdom
+vi.stubGlobal('IntersectionObserver', vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn()
+})))
+
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
+    channels: { list: vi.fn(), create: vi.fn() },
+    messages: { list: vi.fn().mockResolvedValue([]), send: vi.fn().mockResolvedValue({}) },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -135,6 +147,10 @@ describe('ChatArea', () => {
   })
 
   it('renders input with channel name placeholder', () => {
+    useAuthStore.setState({
+      user: { id: 'u1', username: 'alice', email: 'a@test.com', avatar_url: null, display_name: null, status: 'online', created_at: '' },
+      isAuthenticated: true
+    })
     useServerStore.setState({
       activeChannelId: 'c1',
       channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
@@ -150,6 +166,10 @@ describe('ChatArea', () => {
       id: 'm1', channel_id: 'c1', author_id: 'u1', content: 'Hi', created_at: '', updated_at: ''
     })
 
+    useAuthStore.setState({
+      user: { id: 'u1', username: 'alice', email: 'a@test.com', avatar_url: null, display_name: null, status: 'online', created_at: '' },
+      isAuthenticated: true
+    })
     useServerStore.setState({
       activeChannelId: 'c1',
       channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
@@ -163,7 +183,7 @@ describe('ChatArea', () => {
     await user.keyboard('{Enter}')
 
     await waitFor(() => {
-      expect(messages.send).toHaveBeenCalledWith('c1', { content: 'Hi' })
+      expect(messages.send).toHaveBeenCalledWith('c1', 'Hi', undefined, undefined, undefined)
     })
 
     await waitFor(() => {
@@ -172,14 +192,20 @@ describe('ChatArea', () => {
   })
 
   it('disabled send when input empty', () => {
+    useAuthStore.setState({
+      user: { id: 'u1', username: 'alice', email: 'a@test.com', avatar_url: null, display_name: null, status: 'online', created_at: '' },
+      isAuthenticated: true
+    })
     useServerStore.setState({
       activeChannelId: 'c1',
       channels: [{ id: 'c1', server_id: 's1', name: 'general', type: 'text' as const, position: 0, created_at: '' }]
     })
 
     render(<ChatArea />)
-    const submitButton = screen.getByRole('button')
-    expect(submitButton).toBeDisabled()
+    // The send button is the last button in the message input area and is disabled when input is empty
+    const buttons = screen.getAllByRole('button')
+    const sendButton = buttons[buttons.length - 1]
+    expect(sendButton).toBeDisabled()
   })
 
   it('registers MESSAGE_CREATE handler', () => {

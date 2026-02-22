@@ -5,21 +5,26 @@ import ServerSidebar from '../ServerSidebar'
 import { useServerStore } from '../../../stores/serverStore'
 import { useAuthStore } from '../../../stores/authStore'
 
-vi.mock('../../../services/api', () => ({
-  servers: {
-    list: vi.fn(),
-    create: vi.fn(),
-    join: vi.fn(),
-    members: vi.fn()
-  },
-  channels: {
-    list: vi.fn()
-  },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
-}))
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    servers: {
+      list: vi.fn(),
+      create: vi.fn(),
+      join: vi.fn(),
+      members: vi.fn()
+    },
+    channels: {
+      list: vi.fn()
+    },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -226,23 +231,16 @@ describe('ServerSidebar', () => {
     expect(screen.getByText('T')).toBeInTheDocument()
   })
 
-  it('clicking logout calls logout', async () => {
-    const { auth } = await import('../../../services/api')
-    vi.mocked(auth.logout).mockResolvedValue({ message: 'ok' })
-
+  it('clicking user settings opens settings', async () => {
     useAuthStore.setState({
       user: { id: 'u1', username: 'testuser', email: 'test@test.com', display_name: null, avatar_url: null, status: 'online', created_at: '' },
       isAuthenticated: true
     })
 
-    const user = userEvent.setup()
     render(<ServerSidebar />)
 
-    await user.click(screen.getByTitle('testuser - Click to logout'))
-
-    await waitFor(() => {
-      expect(auth.logout).toHaveBeenCalled()
-    })
+    // User button now shows the username as title and opens settings
+    expect(screen.getByTitle('testuser')).toBeInTheDocument()
   })
 
   it('shows "?" with no user', () => {

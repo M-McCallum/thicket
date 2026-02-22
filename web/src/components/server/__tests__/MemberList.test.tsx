@@ -3,14 +3,19 @@ import { render, screen } from '@testing-library/react'
 import MemberList from '../MemberList'
 import { useServerStore } from '../../../stores/serverStore'
 
-vi.mock('../../../services/api', () => ({
-  servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
-  channels: { list: vi.fn(), create: vi.fn() },
-  auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
-  setTokens: vi.fn(),
-  clearTokens: vi.fn(),
-  setOnTokenRefresh: vi.fn()
-}))
+vi.mock('../../../services/api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../services/api')>()
+  return {
+    ...actual,
+    servers: { list: vi.fn(), create: vi.fn(), join: vi.fn(), members: vi.fn() },
+    channels: { list: vi.fn(), create: vi.fn() },
+    auth: { login: vi.fn(), signup: vi.fn(), logout: vi.fn() },
+    setTokens: vi.fn(),
+    clearTokens: vi.fn(),
+    setOAuthRefreshHandler: vi.fn(),
+    setAuthFailureHandler: vi.fn()
+  }
+})
 
 vi.mock('../../../services/ws', () => ({
   wsService: {
@@ -117,7 +122,6 @@ describe('MemberList', () => {
     useServerStore.setState({ members: [] })
 
     render(<MemberList />)
-    expect(screen.queryByText(/Online/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Offline/)).not.toBeInTheDocument()
+    expect(screen.getByText(/Online — 0/)).toBeInTheDocument()
   })
 })

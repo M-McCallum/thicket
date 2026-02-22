@@ -14,6 +14,13 @@ vi.mock('../../services/api', () => ({
     list: vi.fn(),
     create: vi.fn()
   },
+  categories: {
+    list: vi.fn().mockResolvedValue([])
+  },
+  roles: {
+    list: vi.fn().mockResolvedValue([]),
+    membersWithRoles: vi.fn().mockResolvedValue([])
+  },
   auth: {
     login: vi.fn(),
     signup: vi.fn(),
@@ -109,7 +116,8 @@ describe('serverStore', () => {
     await useServerStore.getState().setActiveServer('s1')
 
     const state = useServerStore.getState()
-    expect(state.activeChannelId).toBeNull()
+    // Store now selects first channel regardless of type
+    expect(state.activeChannelId).toBe('ch1')
   })
 
   it('should setActiveServer error', async () => {

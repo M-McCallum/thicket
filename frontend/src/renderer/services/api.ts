@@ -31,28 +31,94 @@ export function resolveAttachmentUrl(url: string): string {
   return API_ORIGIN + url
 }
 
-let accessToken: string | null = null
-let refreshToken: string | null = null
-let oauthRefreshHandler: (() => Promise<boolean>) | null = null
-let authFailureHandler: (() => void) | null = null
-let refreshPromise: Promise<boolean> | null = null
+class TokenManager {
+  accessToken: string | null = null
+  refreshToken: string | null = null
+  private oauthRefreshHandler: (() => Promise<boolean>) | null = null
+  private authFailureHandler: (() => void) | null = null
+  private refreshPromise: Promise<boolean> | null = null
+  private proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null
+  private _authFailureSuppressed = false
 
-export function setTokens(access: string, refresh: string): void {
-  accessToken = access
-  refreshToken = refresh
+  setTokens(access: string, refresh: string, expiresAt?: number | null): void {
+    this.accessToken = access
+    this.refreshToken = refresh
+    this.scheduleProactiveRefresh(expiresAt)
+  }
+
+  clearTokens(): void {
+    this.accessToken = null
+    this.refreshToken = null
+    if (this.proactiveRefreshTimer) {
+      clearTimeout(this.proactiveRefreshTimer)
+      this.proactiveRefreshTimer = null
+    }
+  }
+
+  setOAuthRefreshHandler(handler: () => Promise<boolean>): void {
+    this.oauthRefreshHandler = handler
+  }
+
+  setAuthFailureHandler(handler: () => void): void {
+    this.authFailureHandler = handler
+  }
+
+  suppressAuthFailure(): void {
+    this._authFailureSuppressed = true
+  }
+
+  restoreAuthFailure(): void {
+    this._authFailureSuppressed = false
+  }
+
+  async refresh(): Promise<boolean> {
+    if (!this.oauthRefreshHandler) return false
+    if (this.refreshPromise) return this.refreshPromise
+    this.refreshPromise = this.oauthRefreshHandler()
+      .catch(() => false)
+      .finally(() => { this.refreshPromise = null })
+    return this.refreshPromise
+  }
+
+  handleAuthFailure(): void {
+    if (this._authFailureSuppressed) return
+    if (this.authFailureHandler) {
+      this.authFailureHandler()
+    }
+  }
+
+  private scheduleProactiveRefresh(expiresAt?: number | null): void {
+    if (this.proactiveRefreshTimer) {
+      clearTimeout(this.proactiveRefreshTimer)
+      this.proactiveRefreshTimer = null
+    }
+    if (!expiresAt) return
+    const msUntilExpiry = expiresAt * 1000 - Date.now()
+    const msUntilRefresh = msUntilExpiry - 60_000
+    if (msUntilRefresh <= 0) return
+    this.proactiveRefreshTimer = setTimeout(() => {
+      this.proactiveRefreshTimer = null
+      this.refresh()
+    }, msUntilRefresh)
+  }
+}
+
+export const tokenManager = new TokenManager()
+
+export function setTokens(access: string, refresh: string, expiresAt?: number | null): void {
+  tokenManager.setTokens(access, refresh, expiresAt)
 }
 
 export function clearTokens(): void {
-  accessToken = null
-  refreshToken = null
+  tokenManager.clearTokens()
 }
 
 export function setOAuthRefreshHandler(handler: () => Promise<boolean>): void {
-  oauthRefreshHandler = handler
+  tokenManager.setOAuthRefreshHandler(handler)
 }
 
 export function setAuthFailureHandler(handler: () => void): void {
-  authFailureHandler = handler
+  tokenManager.setAuthFailureHandler(handler)
 }
 
 async function request<T>(
@@ -65,8 +131,8 @@ async function request<T>(
     ...(options.headers as Record<string, string>)
   }
 
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`
+  if (tokenManager.accessToken) {
+    headers['Authorization'] = `Bearer ${tokenManager.accessToken}`
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
@@ -75,17 +141,13 @@ async function request<T>(
   })
 
   if (response.status === 401 && retry) {
-    if (refreshToken) {
-      const refreshed = await refreshAccessToken()
+    if (tokenManager.refreshToken) {
+      const refreshed = await tokenManager.refresh()
       if (refreshed) {
         return request<T>(path, options, false)
       }
     }
-    if (authFailureHandler) {
-      const handler = authFailureHandler
-      authFailureHandler = null
-      handler()
-    }
+    tokenManager.handleAuthFailure()
   }
 
   if (!response.ok) {
@@ -94,14 +156,6 @@ async function request<T>(
   }
 
   return response.json()
-}
-
-async function refreshAccessToken(): Promise<boolean> {
-  if (!oauthRefreshHandler) return false
-  // Deduplicate: if a refresh is already in-flight, all callers wait for the same result
-  if (refreshPromise) return refreshPromise
-  refreshPromise = oauthRefreshHandler().catch(() => false).finally(() => { refreshPromise = null })
-  return refreshPromise
 }
 
 export class ApiError extends Error {
@@ -129,8 +183,8 @@ async function requestMultipart<T>(
   retry = true
 ): Promise<T> {
   const headers: Record<string, string> = {}
-  if (accessToken) {
-    headers['Authorization'] = `Bearer ${accessToken}`
+  if (tokenManager.accessToken) {
+    headers['Authorization'] = `Bearer ${tokenManager.accessToken}`
   }
 
   const response = await fetch(`${API_BASE}${path}`, {
@@ -140,17 +194,13 @@ async function requestMultipart<T>(
   })
 
   if (response.status === 401 && retry) {
-    if (refreshToken) {
-      const refreshed = await refreshAccessToken()
+    if (tokenManager.refreshToken) {
+      const refreshed = await tokenManager.refresh()
       if (refreshed) {
         return requestMultipart<T>(path, formData, false)
       }
     }
-    if (authFailureHandler) {
-      const handler = authFailureHandler
-      authFailureHandler = null
-      handler()
-    }
+    tokenManager.handleAuthFailure()
   }
 
   if (!response.ok) {
@@ -1125,36 +1175,46 @@ export const webhooks = {
     request<{ message: string }>(`/webhooks/${webhookId}`, { method: 'DELETE' })
 }
 
+async function requestBlob(
+  path: string,
+  options: RequestInit = {},
+  retry = true
+): Promise<Blob> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>)
+  }
+
+  if (tokenManager.accessToken) {
+    headers['Authorization'] = `Bearer ${tokenManager.accessToken}`
+  }
+
+  const response = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers
+  })
+
+  if (response.status === 401 && retry) {
+    if (tokenManager.refreshToken) {
+      const refreshed = await tokenManager.refresh()
+      if (refreshed) {
+        return requestBlob(path, options, false)
+      }
+    }
+    tokenManager.handleAuthFailure()
+  }
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new ApiError(error.error || 'Unknown error', response.status, error.retry_after, error)
+  }
+
+  return response.blob()
+}
+
 // Exports
 export const exports = {
-  channelMessages: async (channelId: string, format: 'json' | 'html'): Promise<Blob> => {
-    const headers: Record<string, string> = {}
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`
-    }
-    const response = await fetch(
-      `${API_BASE}/channels/${channelId}/export?format=${format}`,
-      { method: 'POST', headers }
-    )
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Export failed' }))
-      throw new ApiError(error.error || 'Export failed', response.status)
-    }
-    return response.blob()
-  },
-  accountData: async (): Promise<Blob> => {
-    const headers: Record<string, string> = {}
-    if (accessToken) {
-      headers['Authorization'] = `Bearer ${accessToken}`
-    }
-    const response = await fetch(`${API_BASE}/me/data-export`, {
-      method: 'POST',
-      headers
-    })
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ error: 'Export failed' }))
-      throw new ApiError(error.error || 'Export failed', response.status)
-    }
-    return response.blob()
-  }
+  channelMessages: (channelId: string, format: 'json' | 'html'): Promise<Blob> =>
+    requestBlob(`/channels/${channelId}/export?format=${format}`, { method: 'POST' }),
+  accountData: (): Promise<Blob> =>
+    requestBlob('/me/data-export', { method: 'POST' })
 }
