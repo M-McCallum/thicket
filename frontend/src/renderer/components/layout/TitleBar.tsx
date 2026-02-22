@@ -11,6 +11,18 @@ export default function TitleBar() {
         </span>
         <div className="w-px h-3 bg-sol-bg-elevated" />
         <span className="text-sol-text-muted text-xs font-mono">v{__APP_VERSION__}</span>
+        <button
+          onClick={() => window.api?.dev?.toggleDevTools()}
+          className="titlebar-no-drag w-6 h-6 flex items-center justify-center text-sol-text-muted hover:text-sol-amber transition-colors rounded"
+          title="Developer Tools"
+          aria-label="Developer Tools"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4,2 0,6 4,10" />
+            <polyline points="12,2 16,6 12,10" />
+            <line x1="10" y1="1" x2="6" y2="11" />
+          </svg>
+        </button>
       </div>
 
       {/* Window controls — only needed on Windows/Linux; macOS uses native traffic lights */}

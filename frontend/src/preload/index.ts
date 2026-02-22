@@ -82,6 +82,10 @@ const api = {
     }
   },
 
+  dev: {
+    toggleDevTools: (): void => ipcRenderer.send('dev:toggle-devtools')
+  },
+
   updater: {
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke('updater:check'),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('updater:download'),

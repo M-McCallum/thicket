@@ -51,6 +51,9 @@ declare global {
       invite: {
         onInviteLink: (callback: (code: string) => void) => () => void
       }
+      dev: {
+        toggleDevTools: () => void
+      }
       updater: {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>
