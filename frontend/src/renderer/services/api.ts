@@ -35,6 +35,7 @@ let accessToken: string | null = null
 let refreshToken: string | null = null
 let oauthRefreshHandler: (() => Promise<boolean>) | null = null
 let authFailureHandler: (() => void) | null = null
+let refreshPromise: Promise<boolean> | null = null
 
 export function setTokens(access: string, refresh: string): void {
   accessToken = access
@@ -80,7 +81,11 @@ async function request<T>(
         return request<T>(path, options, false)
       }
     }
-    authFailureHandler?.()
+    if (authFailureHandler) {
+      const handler = authFailureHandler
+      authFailureHandler = null
+      handler()
+    }
   }
 
   if (!response.ok) {
@@ -93,11 +98,10 @@ async function request<T>(
 
 async function refreshAccessToken(): Promise<boolean> {
   if (!oauthRefreshHandler) return false
-  try {
-    return await oauthRefreshHandler()
-  } catch {
-    return false
-  }
+  // Deduplicate: if a refresh is already in-flight, all callers wait for the same result
+  if (refreshPromise) return refreshPromise
+  refreshPromise = oauthRefreshHandler().catch(() => false).finally(() => { refreshPromise = null })
+  return refreshPromise
 }
 
 export class ApiError extends Error {
@@ -142,7 +146,11 @@ async function requestMultipart<T>(
         return requestMultipart<T>(path, formData, false)
       }
     }
-    authFailureHandler?.()
+    if (authFailureHandler) {
+      const handler = authFailureHandler
+      authFailureHandler = null
+      handler()
+    }
   }
 
   if (!response.ok) {
