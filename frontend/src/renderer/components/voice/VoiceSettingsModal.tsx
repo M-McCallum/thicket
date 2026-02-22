@@ -3,6 +3,7 @@ import { Room } from 'livekit-client'
 import { useVoiceStore } from '@renderer/stores/voiceStore'
 import type { VideoQuality, ScreenShareQuality, InputMode } from '@renderer/stores/voiceStore'
 import { soundService } from '@renderer/services/soundService'
+import { formatPTTKeyName } from './pttUtils'
 
 interface VoiceSettingsModalProps {
   onClose: () => void
@@ -102,12 +103,26 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
 
   useEffect(() => {
     if (!isCapturingKey) return
-    const handler = (e: KeyboardEvent) => {
+    const handleKey = (e: KeyboardEvent) => {
       e.preventDefault(); e.stopPropagation()
+      if (e.key === 'Escape') { setIsCapturingKey(false); return }
       setPushToTalkKey(e.code); setIsCapturingKey(false)
     }
-    window.addEventListener('keydown', handler, true)
-    return () => window.removeEventListener('keydown', handler, true)
+    const handleMouse = (e: MouseEvent) => {
+      // Only capture non-primary buttons (side buttons, middle, right)
+      if (e.button === 0) return
+      e.preventDefault(); e.stopPropagation()
+      setPushToTalkKey(`Mouse${e.button}`); setIsCapturingKey(false)
+    }
+    const preventContext = (e: Event) => { e.preventDefault() }
+    window.addEventListener('keydown', handleKey, true)
+    window.addEventListener('mousedown', handleMouse, true)
+    window.addEventListener('contextmenu', preventContext, true)
+    return () => {
+      window.removeEventListener('keydown', handleKey, true)
+      window.removeEventListener('mousedown', handleMouse, true)
+      window.removeEventListener('contextmenu', preventContext, true)
+    }
   }, [isCapturingKey, setPushToTalkKey])
 
   const handleKeyDown = useCallback(
@@ -154,11 +169,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
     { value: '4k_15', label: '4K @ 15fps (Best quality)' }
   ]
 
-  const formatKeyName = (code: string) => {
-    if (code.startsWith('Key')) return code.slice(3)
-    if (code.startsWith('Digit')) return code.slice(5)
-    return code.replace(/([A-Z])/g, ' $1').trim()
-  }
+  const formatKeyName = formatPTTKeyName
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={handleClose}>
@@ -273,7 +284,7 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
                           : 'bg-sol-bg-tertiary text-sol-text-primary border border-sol-bg-elevated hover:border-sol-amber/20'
                       }`}
                     >
-                      {isCapturingKey ? 'Press any key...' : formatKeyName(pushToTalkKey)}
+                      {isCapturingKey ? 'Press a key or mouse button...' : formatKeyName(pushToTalkKey)}
                     </button>
                   </div>
                 )}

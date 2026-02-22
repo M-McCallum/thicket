@@ -5,6 +5,7 @@ import { useServerStore } from '@renderer/stores/serverStore'
 import VoiceSettingsModal from './VoiceSettingsModal'
 import SoundboardPanel from './SoundboardPanel'
 import { ScreenSharePicker } from './ScreenSharePicker'
+import { formatPTTKeyName } from './pttUtils'
 
 export default function VoiceControls() {
   const room = useVoiceStore((s) => s.room)
@@ -29,12 +30,15 @@ export default function VoiceControls() {
   const meterRef = useRef<HTMLDivElement>(null)
   const micButtonRef = useRef<HTMLButtonElement>(null)
 
-  // Push-to-talk key listeners
+  // Push-to-talk key/mouse listeners
   useEffect(() => {
     if (inputMode !== 'push_to_talk' || !room) return
 
+    const isMouseBind = pushToTalkKey.startsWith('Mouse')
+    const boundButton = isMouseBind ? parseInt(pushToTalkKey.slice(5), 10) : -1
+
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat) return
+      if (isMouseBind || e.repeat) return
       if (e.code === pushToTalkKey || e.key === pushToTalkKey) {
         e.preventDefault()
         setPTTActive(true)
@@ -42,18 +46,39 @@ export default function VoiceControls() {
     }
 
     const handleKeyUp = (e: KeyboardEvent) => {
+      if (isMouseBind) return
       if (e.code === pushToTalkKey || e.key === pushToTalkKey) {
         e.preventDefault()
         setPTTActive(false)
       }
     }
 
+    const handleMouseDown = (e: MouseEvent) => {
+      if (!isMouseBind || e.button !== boundButton) return
+      e.preventDefault()
+      setPTTActive(true)
+    }
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!isMouseBind || e.button !== boundButton) return
+      e.preventDefault()
+      setPTTActive(false)
+    }
+
     window.addEventListener('keydown', handleKeyDown)
     window.addEventListener('keyup', handleKeyUp)
+    window.addEventListener('mousedown', handleMouseDown)
+    window.addEventListener('mouseup', handleMouseUp)
+    // Prevent context menu when right-click is PTT
+    const preventContext = (e: MouseEvent) => { if (isMouseBind && e.button === boundButton) e.preventDefault() }
+    window.addEventListener('contextmenu', preventContext)
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown)
       window.removeEventListener('keyup', handleKeyUp)
+      window.removeEventListener('mousedown', handleMouseDown)
+      window.removeEventListener('mouseup', handleMouseUp)
+      window.removeEventListener('contextmenu', preventContext)
     }
   }, [inputMode, pushToTalkKey, room, setPTTActive])
 
@@ -156,7 +181,7 @@ export default function VoiceControls() {
             ? 'bg-sol-sage/20 text-sol-sage'
             : 'bg-sol-bg-elevated text-sol-text-muted'
         }`}>
-          {isPTTActive ? 'Transmitting...' : `Push [${pushToTalkKey}] to talk`}
+          {isPTTActive ? 'Transmitting...' : `Push [${formatPTTKeyName(pushToTalkKey)}] to talk`}
         </div>
       )}
 
