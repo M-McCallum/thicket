@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Room } from 'livekit-client'
 import { useVoiceStore } from '@/stores/voiceStore'
-import type { VideoQuality, ScreenShareQuality, InputMode } from '@/stores/voiceStore'
+import type { VideoQuality, ScreenShareQuality, InputMode, NoiseSuppressionMode } from '@/stores/voiceStore'
 import { soundService } from '@/services/soundService'
 
 interface VoiceSettingsModalProps {
@@ -47,8 +47,8 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
   const setInputMode = useVoiceStore((s) => s.setInputMode)
   const pushToTalkKey = useVoiceStore((s) => s.pushToTalkKey)
   const setPushToTalkKey = useVoiceStore((s) => s.setPushToTalkKey)
-  const noiseSuppression = useVoiceStore((s) => s.noiseSuppression)
-  const setNoiseSuppression = useVoiceStore((s) => s.setNoiseSuppression)
+  const noiseSuppressionMode = useVoiceStore((s) => s.noiseSuppressionMode)
+  const setNoiseSuppressionMode = useVoiceStore((s) => s.setNoiseSuppressionMode)
   const participants = useVoiceStore((s) => s.participants)
   const perUserVolume = useVoiceStore((s) => s.perUserVolume)
   const setPerUserVolume = useVoiceStore((s) => s.setPerUserVolume)
@@ -280,13 +280,32 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
               </div>
 
               {/* Noise Suppression */}
-              <div className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-4">
-                <ToggleRow
-                  label="Noise Suppression"
-                  description="Reduce background noise from your microphone."
-                  checked={noiseSuppression}
-                  onChange={() => setNoiseSuppression(!noiseSuppression)}
-                />
+              <div className="bg-sol-bg-secondary border border-sol-bg-elevated rounded-xl p-4 space-y-3">
+                <h4 className="text-[11px] font-mono uppercase tracking-widest text-sol-text-muted/60">Noise Suppression</h4>
+                <div className="flex gap-2">
+                  {([
+                    { value: 'off', label: 'Off' },
+                    { value: 'basic', label: 'Basic' },
+                    { value: 'enhanced', label: 'Enhanced' },
+                  ] as { value: NoiseSuppressionMode; label: string }[]).map((opt) => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setNoiseSuppressionMode(opt.value)}
+                      className={`flex-1 py-2.5 px-3 rounded-lg text-sm transition-all ${
+                        noiseSuppressionMode === opt.value
+                          ? 'bg-sol-amber/10 text-sol-amber border border-sol-amber/30 font-medium'
+                          : 'bg-sol-bg-tertiary text-sol-text-secondary border border-sol-bg-elevated hover:border-sol-amber/20'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-sol-text-muted">
+                  {noiseSuppressionMode === 'off' && 'No noise processing applied.'}
+                  {noiseSuppressionMode === 'basic' && 'Browser built-in noise suppression.'}
+                  {noiseSuppressionMode === 'enhanced' && 'AI-powered noise cancellation via RNNoise.'}
+                </p>
               </div>
             </>
           )}

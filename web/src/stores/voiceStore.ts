@@ -3,11 +3,30 @@ import { Room, RoomEvent, Track, RemoteParticipant, Participant, RemoteTrackPubl
 import { voice } from '@/services/api'
 import { wsService } from '@/services/ws'
 import { soundService } from '@/services/soundService'
+import { noiseProcessor } from '@/services/noiseProcessor'
 
 export type VideoLayoutMode = 'grid' | 'focus'
 export type VideoQuality = '1080p_60' | '1080p' | '720p_60' | '720p' | '480p' | '360p'
 export type ScreenShareQuality = '1080p_60' | '1080p_30' | '1080p_15' | '720p_60' | '720p_30' | '4k_15'
 export type InputMode = 'voice_activity' | 'push_to_talk'
+export type NoiseSuppressionMode = 'off' | 'basic' | 'enhanced'
+
+/** Migrate old boolean localStorage key to new mode key. */
+function migrateNoiseSuppression(): NoiseSuppressionMode {
+  const stored = localStorage.getItem('voice:noiseSuppressionMode')
+  if (stored === 'off' || stored === 'basic' || stored === 'enhanced') return stored
+
+  // Migrate from old boolean key
+  const old = localStorage.getItem('voice:noiseSuppression')
+  if (old !== null) {
+    const mode = old === 'false' ? 'off' : 'enhanced'
+    localStorage.setItem('voice:noiseSuppressionMode', mode)
+    localStorage.removeItem('voice:noiseSuppression')
+    return mode
+  }
+
+  return 'enhanced' // default
+}
 
 interface VideoPreset {
   width: number
@@ -85,7 +104,7 @@ interface VoiceState {
   inputMode: InputMode
   pushToTalkKey: string
   perUserVolume: Record<string, number>
-  noiseSuppression: boolean
+  noiseSuppressionMode: NoiseSuppressionMode
   isPTTActive: boolean
 
   joinVoiceChannel: (serverId: string, channelId: string) => Promise<void>
@@ -112,7 +131,7 @@ interface VoiceState {
   setInputMode: (mode: InputMode) => void
   setPushToTalkKey: (key: string) => void
   setPerUserVolume: (userId: string, volume: number) => void
-  setNoiseSuppression: (enabled: boolean) => void
+  setNoiseSuppressionMode: (mode: NoiseSuppressionMode) => void
   setPTTActive: (active: boolean) => void
 }
 
@@ -142,7 +161,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   inputMode: (localStorage.getItem('voice:inputMode') as InputMode) || 'voice_activity',
   pushToTalkKey: localStorage.getItem('voice:pushToTalkKey') || 'Space',
   perUserVolume: {},
-  noiseSuppression: localStorage.getItem('voice:noiseSuppression') !== 'false',
+  noiseSuppressionMode: migrateNoiseSuppression(),
   isPTTActive: false,
 
   joinVoiceChannel: async (serverId, channelId) => {
@@ -265,20 +284,41 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     // autoplay policy. localhost is exempt, which is why dev works without this.
     await room.startAudio()
 
-    const { inputMode, noiseSuppression } = get()
+    const { inputMode, noiseSuppressionMode } = get()
     const isPTT = inputMode === 'push_to_talk'
 
-    // Enable microphone with saved device preference and noise suppression
+    // Pre-load RNNoise WASM if enhanced mode is selected
+    if (noiseSuppressionMode === 'enhanced' && noiseProcessor.isSupported) {
+      noiseProcessor.initialize().catch((err) =>
+        console.warn('[NoiseProcessor] Failed to pre-load RNNoise:', err)
+      )
+    }
+
+    // Enable microphone with saved device preference and basic noise suppression
     const savedInputId = get().selectedInputDeviceId
     const micOptions: Record<string, unknown> = {}
     if (savedInputId) micOptions.deviceId = savedInputId
-    if (noiseSuppression) micOptions.noiseSuppression = true
+    if (noiseSuppressionMode === 'basic') micOptions.noiseSuppression = true
 
     await room.localParticipant.setMicrophoneEnabled(
       true,
       Object.keys(micOptions).length > 0 ? micOptions : undefined,
       { audioPreset: AudioPresets.musicHighQualityStereo },
     )
+
+    // Apply enhanced noise cancellation (RNNoise via WASM AudioWorklet)
+    if (noiseSuppressionMode === 'enhanced' && noiseProcessor.isSupported) {
+      try {
+        await noiseProcessor.applyToTrack(room)
+      } catch (err) {
+        console.warn('[NoiseProcessor] Failed to apply RNNoise, falling back to basic:', err)
+        // Fallback: enable browser-level noise suppression
+        const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+        if (micPub?.track) {
+          await micPub.track.restartTrack({ noiseSuppression: true, ...(savedInputId ? { deviceId: savedInputId } : {}) })
+        }
+      }
+    }
 
     // For PTT mode: mute immediately after enabling mic (so the track is published but muted)
     if (isPTT) {
@@ -350,6 +390,8 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   leaveVoiceChannel: () => {
     const { room, activeChannelId, activeServerId } = get()
 
+    noiseProcessor.destroy()
+
     if (room) {
       room.disconnect()
     }
@@ -409,9 +451,16 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   setInputDevice: (deviceId) => {
     localStorage.setItem('voice:inputDeviceId', deviceId)
     set({ selectedInputDeviceId: deviceId })
-    const { room } = get()
+    const { room, noiseSuppressionMode } = get()
     if (room) {
-      room.switchActiveDevice('audioinput', deviceId)
+      room.switchActiveDevice('audioinput', deviceId).then(() => {
+        // Re-apply enhanced noise processor after device switch
+        if (noiseSuppressionMode === 'enhanced' && noiseProcessor.isSupported) {
+          noiseProcessor.applyToTrack(room).catch((err) =>
+            console.warn('[NoiseProcessor] Failed to re-apply after device switch:', err)
+          )
+        }
+      })
     }
   },
 
@@ -555,9 +604,31 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
     }
   },
 
-  setNoiseSuppression: (enabled) => {
-    localStorage.setItem('voice:noiseSuppression', String(enabled))
-    set({ noiseSuppression: enabled })
+  setNoiseSuppressionMode: (mode) => {
+    localStorage.setItem('voice:noiseSuppressionMode', mode)
+    set({ noiseSuppressionMode: mode })
+
+    const { room } = get()
+    if (!room) return
+
+    // Live-toggle noise suppression mid-call
+    const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+    if (!micPub?.track) return
+
+    if (mode === 'enhanced' && noiseProcessor.isSupported) {
+      noiseProcessor.applyToTrack(room).catch((err) =>
+        console.warn('[NoiseProcessor] Failed to apply RNNoise:', err)
+      )
+    } else {
+      // Remove RNNoise processor if active
+      noiseProcessor.removeFromTrack(room).catch(() => {})
+      // For 'basic', restart track with browser noise suppression
+      const inputId = get().selectedInputDeviceId
+      micPub.track.restartTrack({
+        noiseSuppression: mode === 'basic',
+        ...(inputId ? { deviceId: inputId } : {}),
+      }).catch(() => {})
+    }
   },
 
   setPTTActive: (active) => {

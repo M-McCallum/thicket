@@ -2,6 +2,31 @@ import { create } from 'zustand'
 import { Room, RoomEvent, RemoteParticipant, Participant, Track, RemoteTrack, RemoteTrackPublication, ExternalE2EEKeyProvider } from 'livekit-client'
 import { dm } from '@/services/api'
 import { wsService } from '@/services/ws'
+import { noiseProcessor } from '@/services/noiseProcessor'
+import type { NoiseSuppressionMode } from '@/stores/voiceStore'
+
+/** Read the noise suppression preference from localStorage (shared with voiceStore). */
+function getNoiseSuppressionMode(): NoiseSuppressionMode {
+  const stored = localStorage.getItem('voice:noiseSuppressionMode')
+  if (stored === 'off' || stored === 'basic' || stored === 'enhanced') return stored
+  return 'enhanced'
+}
+
+/** Apply noise suppression to a room's mic track based on user preference. */
+async function applyNoiseSuppression(room: Room): Promise<void> {
+  const mode = getNoiseSuppressionMode()
+  if (mode === 'enhanced' && noiseProcessor.isSupported) {
+    try {
+      await noiseProcessor.applyToTrack(room)
+    } catch (err) {
+      console.warn('[NoiseProcessor] Failed in DM call, falling back to basic:', err)
+      const micPub = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+      if (micPub?.track) {
+        await micPub.track.restartTrack({ noiseSuppression: true })
+      }
+    }
+  }
+}
 
 export interface DMCallParticipant {
   userId: string
@@ -100,7 +125,15 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
 
     await room.connect(livekitUrl, token)
     await room.startAudio()
-    await room.localParticipant.setMicrophoneEnabled(true)
+
+    // Enable mic with basic noise suppression if selected, or no constraints for enhanced/off
+    const nsMode = getNoiseSuppressionMode()
+    const micOpts: Record<string, unknown> = {}
+    if (nsMode === 'basic') micOpts.noiseSuppression = true
+    await room.localParticipant.setMicrophoneEnabled(true, Object.keys(micOpts).length > 0 ? micOpts : undefined)
+
+    // Apply enhanced noise cancellation if selected
+    await applyNoiseSuppression(room)
 
     const existing_participants: DMCallParticipant[] = Array.from(room.remoteParticipants.values()).map((p) => ({
       userId: p.identity,
@@ -163,7 +196,15 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
 
     await room.connect(livekitUrl, token)
     await room.startAudio()
-    await room.localParticipant.setMicrophoneEnabled(true)
+
+    // Enable mic with basic noise suppression if selected
+    const nsMode = getNoiseSuppressionMode()
+    const micOpts: Record<string, unknown> = {}
+    if (nsMode === 'basic') micOpts.noiseSuppression = true
+    await room.localParticipant.setMicrophoneEnabled(true, Object.keys(micOpts).length > 0 ? micOpts : undefined)
+
+    // Apply enhanced noise cancellation if selected
+    await applyNoiseSuppression(room)
 
     const existing_participants: DMCallParticipant[] = Array.from(room.remoteParticipants.values()).map((p) => ({
       userId: p.identity,
@@ -176,6 +217,7 @@ export const useDMCallStore = create<DMCallState>((set, get) => ({
 
   endCall: () => {
     const { room, activeConversationId } = get()
+    noiseProcessor.destroy()
     if (room) room.disconnect()
     if (activeConversationId) {
       wsService.send({ type: 'DM_CALL_END', data: { conversation_id: activeConversationId } })

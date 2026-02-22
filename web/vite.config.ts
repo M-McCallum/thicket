@@ -11,5 +11,9 @@ export default defineConfig({
   },
   server: {
     port: 5173
-  }
+  },
+  optimizeDeps: {
+    // WASM packages need to bypass Vite's pre-bundling
+    exclude: ['@shiguredo/rnnoise-wasm'],
+  },
 })
