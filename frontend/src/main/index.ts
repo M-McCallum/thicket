@@ -186,12 +186,20 @@ app.whenReady().then(() => {
   })
 
   session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [csp]
-      }
-    })
+    // Only apply CSP to document/page navigations — not to WS upgrades, XHR, or
+    // external requests (e.g. presigned MinIO URLs).  Applying CSP to WebSocket
+    // upgrade responses can break WS connections on Windows Electron builds.
+    const isPage = details.resourceType === 'mainFrame' || details.resourceType === 'subFrame'
+    if (isPage) {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [csp]
+        }
+      })
+    } else {
+      callback({ responseHeaders: details.responseHeaders })
+    }
   })
 
   createWindow()

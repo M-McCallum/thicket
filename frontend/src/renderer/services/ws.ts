@@ -7,7 +7,10 @@ const RECONNECT_DELAY = 3000
 const MAX_RECONNECT_DELAY = 30000
 const SESSION_EXPIRED_CLOSE_CODE = 4001
 
+export type WSConnectionStatus = 'connected' | 'connecting' | 'disconnected'
+
 type EventHandler = (data: unknown) => void
+type StatusListener = (status: WSConnectionStatus) => void
 
 export class WebSocketService {
   private ws: WebSocket | null = null
@@ -18,6 +21,23 @@ export class WebSocketService {
   private reconnectDelay = RECONNECT_DELAY
   private shouldReconnect = false
   private onSessionExpired: (() => void) | null = null
+  private _status: WSConnectionStatus = 'disconnected'
+  private statusListeners: Set<StatusListener> = new Set()
+
+  get status(): WSConnectionStatus {
+    return this._status
+  }
+
+  private setStatus(status: WSConnectionStatus): void {
+    if (this._status === status) return
+    this._status = status
+    this.statusListeners.forEach((l) => l(status))
+  }
+
+  onStatusChange(listener: StatusListener): () => void {
+    this.statusListeners.add(listener)
+    return () => { this.statusListeners.delete(listener) }
+  }
 
   connect(token: string): void {
     this.token = token
@@ -28,6 +48,7 @@ export class WebSocketService {
   disconnect(): void {
     this.shouldReconnect = false
     this.cleanup()
+    this.setStatus('disconnected')
   }
 
   on(event: WSEventType, handler: EventHandler): () => void {
@@ -74,12 +95,14 @@ export class WebSocketService {
   private doConnect(): void {
     if (!this.token) return
 
+    this.setStatus('connecting')
     this.ws = new WebSocket(WS_URL)
 
     this.ws.onopen = () => {
       this.send({ type: 'IDENTIFY', data: { token: this.token } })
       this.reconnectDelay = RECONNECT_DELAY
       this.startHeartbeat()
+      this.setStatus('connected')
     }
 
     this.ws.onmessage = (event) => {
@@ -89,6 +112,7 @@ export class WebSocketService {
         if (wsEvent.type === 'SESSION_EXPIRED') {
           this.shouldReconnect = false
           this.cleanup()
+          this.setStatus('disconnected')
           this.onSessionExpired?.()
           return
         }
@@ -103,11 +127,15 @@ export class WebSocketService {
       this.stopHeartbeat()
       if (event.code === SESSION_EXPIRED_CLOSE_CODE) {
         this.shouldReconnect = false
+        this.setStatus('disconnected')
         this.onSessionExpired?.()
         return
       }
       if (this.shouldReconnect) {
+        this.setStatus('connecting')
         this.scheduleReconnect()
+      } else {
+        this.setStatus('disconnected')
       }
     }
 

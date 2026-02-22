@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { Message } from '@renderer/types/models'
 import { messages as messagesApi, pins as pinsApi, reactions as reactionsApi } from '@renderer/services/api'
+import { useAuthStore } from '@renderer/stores/authStore'
 
 interface MessageState {
   messages: Message[]
@@ -116,8 +117,28 @@ export const useMessageStore = create<MessageState>((set, get) => ({
 
   sendMessage: async (channelId, content, files, msgType) => {
     const { replyingTo } = get()
-    await messagesApi.send(channelId, content, files, msgType, replyingTo?.id)
+    const msg = await messagesApi.send(channelId, content, files, msgType, replyingTo?.id)
     set({ replyingTo: null })
+
+    // Optimistically add the message so it appears immediately without
+    // waiting for the WebSocket MESSAGE_CREATE echo. The addMessage dedup
+    // check will prevent a duplicate when the WS event arrives.
+    const user = useAuthStore.getState().user
+    get().addMessage({
+      id: msg.id,
+      channel_id: msg.channel_id ?? channelId,
+      author_id: msg.author_id ?? user?.id ?? '',
+      content: msg.content ?? content,
+      type: (msg.type as 'text' | 'poll' | undefined) ?? (msgType as 'text' | 'poll' | undefined),
+      reply_to_id: msg.reply_to_id,
+      reactions: [],
+      created_at: msg.created_at ?? new Date().toISOString(),
+      updated_at: msg.updated_at ?? msg.created_at ?? new Date().toISOString(),
+      author_username: msg.author_username ?? user?.username,
+      author_avatar_url: msg.author_avatar_url ?? user?.avatar_url,
+      author_display_name: msg.author_display_name ?? user?.display_name,
+      attachments: msg.attachments
+    })
   },
 
   addMessage: (message) =>

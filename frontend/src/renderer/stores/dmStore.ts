@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { DMConversationWithParticipants, DMMessage } from '@renderer/types/models'
 import { dm as dmApi } from '@renderer/services/api'
+import { useAuthStore } from '@renderer/stores/authStore'
 
 const emptyReactions: DMMessage['reactions'] = []
 
@@ -205,7 +206,26 @@ export const useDMStore = create<DMState>((set, get) => ({
         }
       }
     }
-    await dmApi.sendMessage(conversationId, content, files, msgType)
+    const msg = await dmApi.sendMessage(conversationId, content, files, msgType)
+
+    // Optimistically add the message so it appears immediately without
+    // waiting for the WebSocket DM_MESSAGE_CREATE echo.
+    const user = useAuthStore.getState().user
+    get().addMessage({
+      id: msg.id,
+      conversation_id: msg.conversation_id ?? conversationId,
+      author_id: msg.author_id ?? user?.id ?? '',
+      content: msg.content ?? content,
+      type: msg.type,
+      reply_to_id: msg.reply_to_id,
+      reactions: [],
+      created_at: msg.created_at ?? new Date().toISOString(),
+      updated_at: msg.updated_at ?? msg.created_at ?? new Date().toISOString(),
+      author_username: msg.author_username ?? user?.username,
+      author_avatar_url: msg.author_avatar_url ?? user?.avatar_url,
+      author_display_name: msg.author_display_name ?? user?.display_name,
+      attachments: msg.attachments
+    })
   },
 
   addMessage: (message) =>
