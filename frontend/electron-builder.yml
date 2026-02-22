@@ -41,6 +41,9 @@ mac:
   hardenedRuntime: true
   gatekeeperAssess: false
   identity: null
+  extendInfo:
+    NSMicrophoneUsageDescription: "Thicket needs microphone access for voice channels and calls."
+    NSCameraUsageDescription: "Thicket needs camera access for video calls."
 
 dmg:
   artifactName: "${productName}-${version}-mac.${ext}"
