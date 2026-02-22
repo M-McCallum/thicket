@@ -83,16 +83,13 @@ dist-linux:
 
 # Release (bumps version, commits, tags, pushes — triggers GitHub Actions)
 release:
-	cd frontend && npm version patch
-	git push && git push --tags
+	./scripts/release.sh patch
 
 release-minor:
-	cd frontend && npm version minor
-	git push && git push --tags
+	./scripts/release.sh minor
 
 release-major:
-	cd frontend && npm version major
-	git push && git push --tags
+	./scripts/release.sh major
 
 # Security
 sec-scan:
