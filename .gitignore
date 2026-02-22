@@ -34,6 +34,9 @@ docker-compose.override.yml
 
 # Electron
 frontend/release/
+frontend/native/*/build/
+frontend/native/*/node_modules/
+frontend/native/*/package-lock.json
 
 # Web
 web/dist/
