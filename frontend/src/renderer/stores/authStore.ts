@@ -36,6 +36,11 @@ async function storeTokensSecurely(tokens: OAuthTokens): Promise<void> {
   await window.api.auth.storeTokens(toStore)
 }
 
+// Deduplication guard: concurrent callers share the same in-flight refresh promise.
+// This prevents Hydra's refresh-token rotation from invalidating a token that a
+// second caller is about to use.
+let inflightRefresh: Promise<boolean> | null = null
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -90,6 +95,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               // Refresh also failed — give up
             }
           }
+          wsService.disconnect()
           set({ isLoading: false, isAuthenticated: false, user: null, accessToken: null, refreshToken: null })
         } finally {
           tokenManager.restoreAuthFailure()
@@ -139,24 +145,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  refreshAccessToken: async () => {
-    const { refreshToken } = get()
-    if (!refreshToken) return false
+  refreshAccessToken: () => {
+    if (inflightRefresh) return inflightRefresh
 
-    try {
-      const tokens = await oauthService.refreshToken(refreshToken)
-      await storeTokensSecurely(tokens)
+    inflightRefresh = (async () => {
+      const { refreshToken } = get()
+      if (!refreshToken) return false
 
-      setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken, tokens.expires_at)
-      wsService.sendTokenRefresh(tokens.access_token)
-      set({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? refreshToken
-      })
-      return true
-    } catch {
-      return false
-    }
+      try {
+        const tokens = await oauthService.refreshToken(refreshToken)
+        await storeTokensSecurely(tokens)
+
+        setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken, tokens.expires_at)
+        wsService.sendTokenRefresh(tokens.access_token)
+        set({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token ?? refreshToken
+        })
+        return true
+      } catch {
+        return false
+      }
+    })()
+
+    inflightRefresh.finally(() => { inflightRefresh = null })
+    return inflightRefresh
   },
 
   logout: async () => {

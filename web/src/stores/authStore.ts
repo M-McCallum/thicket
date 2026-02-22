@@ -31,6 +31,11 @@ function storeTokensLocally(tokens: OAuthTokens): void {
   storeTokens(tokens)
 }
 
+// Deduplication guard: concurrent callers share the same in-flight refresh promise.
+// This prevents Hydra's refresh-token rotation from invalidating a token that a
+// second caller is about to use.
+let inflightRefresh: Promise<boolean> | null = null
+
 export const useAuthStore = create<AuthState>((set, get) => ({
   user: null,
   accessToken: null,
@@ -84,6 +89,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
               // Refresh also failed
             }
           }
+          wsService.disconnect()
           set({ isLoading: false, isAuthenticated: false, user: null, accessToken: null, refreshToken: null })
         } finally {
           tokenManager.restoreAuthFailure()
@@ -92,6 +98,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
       set({ isLoading: false })
     } catch {
+      wsService.disconnect()
       set({ isLoading: false, isAuthenticated: false, user: null, accessToken: null, refreshToken: null })
     }
   },
@@ -131,22 +138,29 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
   },
 
-  refreshAccessToken: async () => {
-    const { refreshToken } = get()
-    if (!refreshToken) return false
-    try {
-      const tokens = await oauthService.refreshToken(refreshToken)
-      storeTokensLocally(tokens)
-      setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken, tokens.expires_at)
-      wsService.sendTokenRefresh(tokens.access_token)
-      set({
-        accessToken: tokens.access_token,
-        refreshToken: tokens.refresh_token ?? refreshToken
-      })
-      return true
-    } catch {
-      return false
-    }
+  refreshAccessToken: () => {
+    if (inflightRefresh) return inflightRefresh
+
+    inflightRefresh = (async () => {
+      const { refreshToken } = get()
+      if (!refreshToken) return false
+      try {
+        const tokens = await oauthService.refreshToken(refreshToken)
+        storeTokensLocally(tokens)
+        setTokens(tokens.access_token, tokens.refresh_token ?? refreshToken, tokens.expires_at)
+        wsService.sendTokenRefresh(tokens.access_token)
+        set({
+          accessToken: tokens.access_token,
+          refreshToken: tokens.refresh_token ?? refreshToken
+        })
+        return true
+      } catch {
+        return false
+      }
+    })()
+
+    inflightRefresh.finally(() => { inflightRefresh = null })
+    return inflightRefresh
   },
 
   logout: async () => {
