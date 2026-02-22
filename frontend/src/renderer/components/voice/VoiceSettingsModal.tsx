@@ -50,6 +50,8 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
   const setPushToTalkKey = useVoiceStore((s) => s.setPushToTalkKey)
   const noiseSuppression = useVoiceStore((s) => s.noiseSuppression)
   const setNoiseSuppression = useVoiceStore((s) => s.setNoiseSuppression)
+  const pttReleaseDelay = useVoiceStore((s) => s.pttReleaseDelay)
+  const setPTTReleaseDelay = useVoiceStore((s) => s.setPTTReleaseDelay)
   const participants = useVoiceStore((s) => s.participants)
   const perUserVolume = useVoiceStore((s) => s.perUserVolume)
   const setPerUserVolume = useVoiceStore((s) => s.setPerUserVolume)
@@ -274,19 +276,39 @@ export default function VoiceSettingsModal({ onClose }: VoiceSettingsModalProps)
                 </div>
 
                 {inputMode === 'push_to_talk' && (
-                  <div>
-                    <label className="block text-xs text-sol-text-muted mb-1.5 font-mono uppercase tracking-wider">PTT Key</label>
-                    <button
-                      onClick={() => setIsCapturingKey(true)}
-                      className={`w-full py-2.5 px-3 rounded-lg text-sm font-mono text-left transition-all ${
-                        isCapturingKey
-                          ? 'bg-sol-sage/10 text-sol-sage border border-sol-sage/30 animate-pulse'
-                          : 'bg-sol-bg-tertiary text-sol-text-primary border border-sol-bg-elevated hover:border-sol-amber/20'
-                      }`}
-                    >
-                      {isCapturingKey ? 'Press a key or mouse button...' : formatKeyName(pushToTalkKey)}
-                    </button>
-                  </div>
+                  <>
+                    <div>
+                      <label className="block text-xs text-sol-text-muted mb-1.5 font-mono uppercase tracking-wider">PTT Key</label>
+                      <button
+                        onClick={() => setIsCapturingKey(true)}
+                        className={`w-full py-2.5 px-3 rounded-lg text-sm font-mono text-left transition-all ${
+                          isCapturingKey
+                            ? 'bg-sol-sage/10 text-sol-sage border border-sol-sage/30 animate-pulse'
+                            : 'bg-sol-bg-tertiary text-sol-text-primary border border-sol-bg-elevated hover:border-sol-amber/20'
+                        }`}
+                      >
+                        {isCapturingKey ? 'Press a key or mouse button...' : formatKeyName(pushToTalkKey)}
+                      </button>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-sol-text-muted mb-1.5 font-mono uppercase tracking-wider">
+                        PTT Release Delay
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          min={0}
+                          max={2000}
+                          step={50}
+                          value={pttReleaseDelay}
+                          onChange={(e) => setPTTReleaseDelay(Number(e.target.value))}
+                          className="flex-1 accent-sol-amber h-1"
+                        />
+                        <span className="text-xs text-sol-text-muted w-14 text-right font-mono">{pttReleaseDelay}ms</span>
+                      </div>
+                      <p className="text-[10px] text-sol-text-muted/60 mt-1">Delay before muting after releasing the PTT key.</p>
+                    </div>
+                  </>
                 )}
               </div>
 

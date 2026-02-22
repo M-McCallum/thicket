@@ -133,7 +133,11 @@ interface VoiceState {
   setPerUserVolume: (userId: string, volume: number) => void
   setNoiseSuppressionMode: (mode: NoiseSuppressionMode) => void
   setPTTActive: (active: boolean) => void
+  pttReleaseDelay: number
+  setPTTReleaseDelay: (ms: number) => void
 }
+
+let pttReleaseTimer: ReturnType<typeof setTimeout> | null = null
 
 export const useVoiceStore = create<VoiceState>((set, get) => ({
   room: null,
@@ -163,6 +167,7 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   perUserVolume: {},
   noiseSuppressionMode: migrateNoiseSuppression(),
   isPTTActive: false,
+  pttReleaseDelay: parseInt(localStorage.getItem('voice:pttReleaseDelay') || '300', 10),
 
   joinVoiceChannel: async (serverId, channelId) => {
     const { room: existingRoom } = get()
@@ -225,6 +230,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
         const vol = get().perUserVolume[participant.identity]
         if (vol !== undefined && el instanceof HTMLMediaElement) {
           el.volume = Math.min(vol / 100, 1)
+        }
+        // If user is deafened, detach immediately so no audio plays
+        if (get().isDeafened) {
+          track.detach()
         }
         return
       }
@@ -389,6 +398,11 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   leaveVoiceChannel: () => {
     const { room, activeChannelId, activeServerId } = get()
+
+    if (pttReleaseTimer) {
+      clearTimeout(pttReleaseTimer)
+      pttReleaseTimer = null
+    }
 
     noiseProcessor.destroy()
 
@@ -560,6 +574,10 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
 
   // Voice settings actions
   setInputMode: (mode) => {
+    if (pttReleaseTimer) {
+      clearTimeout(pttReleaseTimer)
+      pttReleaseTimer = null
+    }
     localStorage.setItem('voice:inputMode', mode)
     set({ inputMode: mode })
     const { room } = get()
@@ -632,9 +650,31 @@ export const useVoiceStore = create<VoiceState>((set, get) => ({
   },
 
   setPTTActive: (active) => {
-    const { room, inputMode } = get()
+    const { room, inputMode, pttReleaseDelay } = get()
     if (inputMode !== 'push_to_talk' || !room) return
-    set({ isPTTActive: active, isMuted: !active })
-    room.localParticipant.setMicrophoneEnabled(active)
+
+    if (active) {
+      if (pttReleaseTimer) {
+        clearTimeout(pttReleaseTimer)
+        pttReleaseTimer = null
+      }
+      set({ isPTTActive: true, isMuted: false })
+      room.localParticipant.setMicrophoneEnabled(true)
+    } else {
+      set({ isPTTActive: false })
+      pttReleaseTimer = setTimeout(() => {
+        pttReleaseTimer = null
+        const current = get()
+        if (current.inputMode === 'push_to_talk' && !current.isPTTActive) {
+          set({ isMuted: true })
+          current.room?.localParticipant.setMicrophoneEnabled(false)
+        }
+      }, pttReleaseDelay)
+    }
+  },
+
+  setPTTReleaseDelay: (ms) => {
+    localStorage.setItem('voice:pttReleaseDelay', String(ms))
+    set({ pttReleaseDelay: ms })
   }
 }))
