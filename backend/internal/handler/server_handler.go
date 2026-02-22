@@ -461,7 +461,7 @@ func (h *ServerHandler) GetServerPreview(c fiber.Ctx) error {
 
 	preview, err := h.serverService.GetServerPreview(c.Context(), inviteCode)
 	if err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "invalid invite code"})
+		return handleServerError(c, err)
 	}
 
 	return c.JSON(preview)
@@ -493,6 +493,10 @@ func handleServerError(c fiber.Ctx, err error) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
 	case errors.Is(err, service.ErrUserTimedOut):
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInviteExpired):
+		return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
+	case errors.Is(err, service.ErrInviteMaxUsed):
+		return c.Status(fiber.StatusGone).JSON(fiber.Map{"error": err.Error()})
 	default:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "internal server error"})
 	}

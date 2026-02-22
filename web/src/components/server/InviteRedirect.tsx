@@ -27,7 +27,8 @@ export default function InviteRedirect() {
     if (!code) return
     setJoining(true)
     try {
-      await joinServer(code)
+      const server = await joinServer(code)
+      await setActiveServer(server.id)
       navigate('/', { replace: true })
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to join')
@@ -86,6 +87,12 @@ export default function InviteRedirect() {
         >
           {joining ? 'Joining...' : 'Join Server'}
         </button>
+        <a
+          href={`thicket://invite/${code}`}
+          className="block mt-3 text-xs text-sol-text-muted hover:text-sol-amber transition-colors"
+        >
+          Open in Desktop App
+        </a>
       </div>
     </div>
   )

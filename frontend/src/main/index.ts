@@ -22,12 +22,27 @@ if (process.defaultApp) {
   app.setAsDefaultProtocolClient('thicket')
 }
 
-function handleAuthCallback(url: string): void {
-  if (mainWindow) {
-    if (mainWindow.isMinimized()) mainWindow.restore()
-    mainWindow.focus()
-    mainWindow.webContents.send('auth-callback', url)
+function handleProtocolUrl(url: string): void {
+  if (!mainWindow) return
+  if (mainWindow.isMinimized()) mainWindow.restore()
+  mainWindow.focus()
+
+  try {
+    const parsed = new URL(url)
+    // thicket://invite/{code}
+    const pathParts = parsed.pathname.replace(/^\/+/, '').split('/')
+    if (parsed.host === 'invite' || (pathParts.length >= 1 && pathParts[0] === 'invite')) {
+      const code = parsed.host === 'invite' ? pathParts[0] : pathParts[1]
+      if (code) {
+        mainWindow.webContents.send('invite-link', code)
+        return
+      }
+    }
+  } catch {
+    // Not a valid URL, fall through to auth callback
   }
+
+  mainWindow.webContents.send('auth-callback', url)
 }
 
 function createWindow(): void {
@@ -71,7 +86,7 @@ function createWindow(): void {
 // macOS: handle thicket:// URLs via open-url event
 app.on('open-url', (event, url) => {
   event.preventDefault()
-  handleAuthCallback(url)
+  handleProtocolUrl(url)
 })
 
 // Windows/Linux: handle thicket:// URLs via second-instance event
@@ -82,7 +97,7 @@ if (!gotTheLock) {
   app.on('second-instance', (_event, commandLine) => {
     const url = commandLine.find((arg) => arg.startsWith('thicket://'))
     if (url) {
-      handleAuthCallback(url)
+      handleProtocolUrl(url)
     }
   })
 }

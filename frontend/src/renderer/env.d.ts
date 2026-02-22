@@ -41,6 +41,9 @@ declare global {
       screen: {
         getSources: () => Promise<Array<{ id: string; name: string; thumbnailDataUrl: string }>>
       }
+      invite: {
+        onInviteLink: (callback: (code: string) => void) => () => void
+      }
       updater: {
         checkForUpdates: () => Promise<void>
         downloadUpdate: () => Promise<void>

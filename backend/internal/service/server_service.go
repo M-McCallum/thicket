@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -99,7 +100,8 @@ func (s *ServerService) JoinServer(ctx context.Context, inviteCode string, userI
 	server, err := s.queries.GetServerByInviteCode(ctx, inviteCode)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, ErrServerNotFound
+			// Fallback: check temporary invites in server_invites table
+			return s.joinViaTemporaryInvite(ctx, inviteCode, userID)
 		}
 		return nil, err
 	}
@@ -122,6 +124,49 @@ func (s *ServerService) JoinServer(ctx context.Context, inviteCode string, userI
 		return nil, err
 	}
 
+	return &server, nil
+}
+
+func (s *ServerService) joinViaTemporaryInvite(ctx context.Context, code string, userID uuid.UUID) (*models.Server, error) {
+	invite, err := s.queries.GetServerInviteByCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, ErrServerNotFound
+		}
+		return nil, err
+	}
+
+	if invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now()) {
+		return nil, ErrInviteExpired
+	}
+	if invite.MaxUses != nil && invite.Uses >= *invite.MaxUses {
+		return nil, ErrInviteMaxUsed
+	}
+
+	if _, err := s.queries.GetServerMember(ctx, invite.ServerID, userID); err == nil {
+		return nil, ErrAlreadyMember
+	}
+
+	if banned, err := s.queries.IsUserBanned(ctx, invite.ServerID, userID); err == nil && banned {
+		return nil, ErrUserBanned
+	}
+
+	if err := s.queries.IncrementInviteUses(ctx, invite.ID); err != nil {
+		return nil, err
+	}
+
+	if err := s.queries.AddServerMember(ctx, models.AddServerMemberParams{
+		ServerID: invite.ServerID,
+		UserID:   userID,
+		Role:     "member",
+	}); err != nil {
+		return nil, err
+	}
+
+	server, err := s.queries.GetServerByID(ctx, invite.ServerID)
+	if err != nil {
+		return nil, err
+	}
 	return &server, nil
 }
 
@@ -184,7 +229,31 @@ type ServerPreview struct {
 func (s *ServerService) GetServerPreview(ctx context.Context, inviteCode string) (*ServerPreview, error) {
 	server, err := s.queries.GetServerByInviteCode(ctx, inviteCode)
 	if err != nil {
-		return nil, ErrServerNotFound
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return nil, err
+		}
+		// Fallback: check temporary invites in server_invites table
+		invite, err2 := s.queries.GetServerInviteByCode(ctx, inviteCode)
+		if err2 != nil {
+			return nil, ErrServerNotFound
+		}
+		if invite.ExpiresAt != nil && invite.ExpiresAt.Before(time.Now()) {
+			return nil, ErrInviteExpired
+		}
+		if invite.MaxUses != nil && invite.Uses >= *invite.MaxUses {
+			return nil, ErrInviteMaxUsed
+		}
+		srv, err3 := s.queries.GetServerByID(ctx, invite.ServerID)
+		if err3 != nil {
+			return nil, ErrServerNotFound
+		}
+		count, _ := s.queries.GetServerMemberCount(ctx, srv.ID)
+		return &ServerPreview{
+			Name:        srv.Name,
+			MemberCount: count,
+			IconURL:     srv.IconURL,
+			Description: srv.Description,
+		}, nil
 	}
 	count, _ := s.queries.GetServerMemberCount(ctx, server.ID)
 	return &ServerPreview{

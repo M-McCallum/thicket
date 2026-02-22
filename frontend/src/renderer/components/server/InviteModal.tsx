@@ -73,7 +73,8 @@ export default function InviteModal({ serverId, onClose }: InviteModalProps) {
   }
 
   const handleCopy = async (code: string, id: string) => {
-    const link = `${window.location.origin}/invite/${code}`
+    const webUrl = import.meta.env.VITE_WEB_URL || window.location.origin
+    const link = `${webUrl}/invite/${code}`
     await navigator.clipboard.writeText(link)
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)

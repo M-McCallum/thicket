@@ -51,6 +51,14 @@ const api = {
       ipcRenderer.invoke('screen:get-sources')
   },
 
+  invite: {
+    onInviteLink: (callback: (code: string) => void): (() => void) => {
+      const handler = (_event: Electron.IpcRendererEvent, code: string): void => callback(code)
+      ipcRenderer.on('invite-link', handler)
+      return () => ipcRenderer.removeListener('invite-link', handler)
+    }
+  },
+
   updater: {
     checkForUpdates: (): Promise<void> => ipcRenderer.invoke('updater:check'),
     downloadUpdate: (): Promise<void> => ipcRenderer.invoke('updater:download'),
