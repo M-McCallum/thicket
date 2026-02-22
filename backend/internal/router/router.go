@@ -65,8 +65,14 @@ func Setup(app *fiber.App, cfg Config) {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(middleware.SecurityHeaders())
+	// Electron production builds send Origin: file:// — include it alongside
+	// the configured origin so desktop clients can reach the API.
+	allowedOrigins := []string{cfg.CORSOrigin}
+	if cfg.CORSOrigin != "file://" {
+		allowedOrigins = append(allowedOrigins, "file://")
+	}
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: []string{cfg.CORSOrigin},
+		AllowOrigins: allowedOrigins,
 		AllowHeaders: []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		AllowMethods: []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 	}))

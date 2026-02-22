@@ -23,6 +23,12 @@ var upgrader = websocket.FastHTTPUpgrader{
 		if origin == "" {
 			return false
 		}
+		// Electron production builds load from file:// so the browser sends
+		// "file://" as the Origin header. This is safe to allow because WS
+		// auth is handled via the IDENTIFY token, not cookies.
+		if origin == "file://" {
+			return true
+		}
 		for _, allowed := range AllowedOrigins {
 			if strings.EqualFold(origin, allowed) {
 				return true
