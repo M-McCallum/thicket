@@ -132,7 +132,7 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('auth:get-tokens', () => {
-    const keys = ['access_token', 'refresh_token', 'id_token']
+    const keys = ['access_token', 'refresh_token', 'id_token', 'expires_at']
     const result: Record<string, string | null> = {}
     for (const key of keys) {
       const encrypted = store.get(key)

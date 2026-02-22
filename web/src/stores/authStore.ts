@@ -43,6 +43,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true })
     setOAuthRefreshHandler(() => get().refreshAccessToken())
     setAuthFailureHandler(() => get().logout())
+    wsService.setOnSessionExpired(() => {
+      get().refreshAccessToken().then(ok => { if (!ok) get().logout() })
+    })
     try {
       const tokens = getTokens()
       if (tokens.access_token) {

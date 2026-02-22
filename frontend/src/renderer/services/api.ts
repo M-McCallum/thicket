@@ -39,16 +39,32 @@ class TokenManager {
   private refreshPromise: Promise<boolean> | null = null
   private proactiveRefreshTimer: ReturnType<typeof setTimeout> | null = null
   private _authFailureSuppressed = false
+  private expiresAt: number | null = null
+
+  constructor() {
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && this.expiresAt) {
+          const msUntilExpiry = this.expiresAt * 1000 - Date.now()
+          if (msUntilExpiry < 60_000) {
+            this.refresh()
+          }
+        }
+      })
+    }
+  }
 
   setTokens(access: string, refresh: string, expiresAt?: number | null): void {
     this.accessToken = access
     this.refreshToken = refresh
+    this.expiresAt = expiresAt ?? null
     this.scheduleProactiveRefresh(expiresAt)
   }
 
   clearTokens(): void {
     this.accessToken = null
     this.refreshToken = null
+    this.expiresAt = null
     if (this.proactiveRefreshTimer) {
       clearTimeout(this.proactiveRefreshTimer)
       this.proactiveRefreshTimer = null
@@ -95,7 +111,11 @@ class TokenManager {
     if (!expiresAt) return
     const msUntilExpiry = expiresAt * 1000 - Date.now()
     const msUntilRefresh = msUntilExpiry - 60_000
-    if (msUntilRefresh <= 0) return
+    if (msUntilRefresh <= 0) {
+      // Timer is late or token is already near expiry — refresh immediately
+      this.refresh()
+      return
+    }
     this.proactiveRefreshTimer = setTimeout(() => {
       this.proactiveRefreshTimer = null
       this.refresh()

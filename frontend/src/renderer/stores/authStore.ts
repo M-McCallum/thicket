@@ -32,6 +32,7 @@ async function storeTokensSecurely(tokens: OAuthTokens): Promise<void> {
   }
   if (tokens.refresh_token) toStore.refresh_token = tokens.refresh_token
   if (tokens.id_token) toStore.id_token = tokens.id_token
+  if (tokens.expires_at != null) toStore.expires_at = String(tokens.expires_at)
   await window.api.auth.storeTokens(toStore)
 }
 
@@ -47,10 +48,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isLoading: true })
     setOAuthRefreshHandler(() => get().refreshAccessToken())
     setAuthFailureHandler(() => get().logout())
+    wsService.setOnSessionExpired(() => {
+      get().refreshAccessToken().then(ok => { if (!ok) get().logout() })
+    })
     try {
       const tokens = await window.api.auth.getTokens()
       if (tokens.access_token) {
-        setTokens(tokens.access_token, tokens.refresh_token ?? '', tokens.expires_at)
+        const expiresAt = tokens.expires_at ? Number(tokens.expires_at) : undefined
+        setTokens(tokens.access_token, tokens.refresh_token ?? '', expiresAt)
         tokenManager.suppressAuthFailure()
         try {
           wsService.connect(tokens.access_token)

@@ -34,7 +34,8 @@ vi.mock('../../services/ws', () => ({
   wsService: {
     connect: vi.fn(),
     disconnect: vi.fn(),
-    sendTokenRefresh: vi.fn()
+    sendTokenRefresh: vi.fn(),
+    setOnSessionExpired: vi.fn()
   }
 }))
 
