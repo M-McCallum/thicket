@@ -1,6 +1,6 @@
 {
   "name": "thicket",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Thicket — Group Chat",
   "main": "./out/main/index.js",
   "author": {
