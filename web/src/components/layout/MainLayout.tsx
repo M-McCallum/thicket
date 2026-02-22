@@ -132,7 +132,7 @@ export default function MainLayout() {
           <VoiceControls />
         </div>
       ) : !isDiscoverOpen ? (
-        <div className="w-60 bg-sol-bg-secondary flex flex-col border-r border-sol-bg-elevated">
+        <div className="w-72 bg-sol-bg-secondary flex flex-col border-r border-sol-bg-elevated">
           <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated">
             <h2 className="font-display text-sm font-bold text-sol-text-primary tracking-wide">
               Direct Messages
@@ -140,20 +140,23 @@ export default function MainLayout() {
           </div>
 
           {/* Tab buttons */}
-          <div className="flex border-b border-sol-bg-elevated">
-            {(['conversations', 'friends', 'requests', 'invites'] as DMTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setDMTab(tab)}
-                className={`flex-1 py-2 text-xs font-mono uppercase tracking-wider transition-colors ${
-                  dmTab === tab
-                    ? 'text-sol-amber border-b-2 border-sol-amber'
-                    : 'text-sol-text-muted hover:text-sol-text-primary'
-                }`}
-              >
-                {tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : tab === 'requests' ? 'Requests' : 'Invites'}
-              </button>
-            ))}
+          <div className="flex gap-0.5 p-1.5 border-b border-sol-bg-elevated">
+            {(['conversations', 'friends', 'requests', 'invites'] as DMTab[]).map((tab) => {
+              const label = tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : tab === 'requests' ? 'Requests' : 'Invites'
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setDMTab(tab)}
+                  className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                    dmTab === tab
+                      ? 'bg-sol-amber/15 text-sol-amber'
+                      : 'text-sol-text-muted hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
 
           <div className="flex-1 overflow-y-auto">

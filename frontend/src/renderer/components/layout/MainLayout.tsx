@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, lazy, Suspense } from 'react'
+import { useEffect, useState, useCallback, lazy, Suspense, useRef } from 'react'
 import TitleBar from './TitleBar'
 import UpdateNotification from './UpdateNotification'
 import ServerSidebar from '@renderer/components/server/ServerSidebar'
@@ -25,6 +25,7 @@ import { useThemeStore } from '@renderer/stores/themeStore'
 import { useLayoutStore } from '@renderer/stores/layoutStore'
 import { useDMStore } from '@renderer/stores/dmStore'
 import { useWebSocketEvents } from '@renderer/hooks/useWebSocketEvents'
+import { wsService, type WSConnectionStatus } from '@renderer/services/ws'
 import { onboarding as onboardingApi } from '@renderer/services/api'
 
 const DiscoverPage = lazy(() => import('@renderer/components/server/DiscoverPage'))
@@ -45,6 +46,31 @@ export default function MainLayout() {
   const closeAll = useLayoutStore((s) => s.closeAll)
 
   useWebSocketEvents()
+
+  // Track WebSocket connection status for the disconnection banner
+  const [wsStatus, setWsStatus] = useState<WSConnectionStatus>(wsService.status)
+  const [showBanner, setShowBanner] = useState(false)
+  const disconnectedSince = useRef<number | null>(null)
+
+  useEffect(() => {
+    return wsService.onStatusChange((status) => setWsStatus(status))
+  }, [])
+
+  // Only show the banner after being disconnected/connecting for >4s to
+  // avoid flashing it during brief reconnects
+  useEffect(() => {
+    if (wsStatus === 'connected') {
+      disconnectedSince.current = null
+      setShowBanner(false)
+      return
+    }
+    // Start tracking when we first left 'connected'
+    if (disconnectedSince.current === null) {
+      disconnectedSince.current = Date.now()
+    }
+    const timer = setTimeout(() => setShowBanner(true), 4000)
+    return () => clearTimeout(timer)
+  }, [wsStatus])
 
   useEffect(() => {
     fetchServers()
@@ -148,7 +174,7 @@ export default function MainLayout() {
           <VoiceControls />
         </div>
       ) : !isDiscoverOpen ? (
-        <div className="w-60 bg-sol-bg-secondary flex flex-col border-r border-sol-bg-elevated">
+        <div className="w-72 bg-sol-bg-secondary flex flex-col border-r border-sol-bg-elevated">
           <div className="h-12 flex items-center px-4 border-b border-sol-bg-elevated">
             <h2 className="font-display text-sm font-bold text-sol-text-primary tracking-wide">
               Direct Messages
@@ -156,20 +182,23 @@ export default function MainLayout() {
           </div>
 
           {/* Tab buttons */}
-          <div className="flex border-b border-sol-bg-elevated">
-            {(['conversations', 'friends', 'requests', 'invites'] as DMTab[]).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setDMTab(tab)}
-                className={`flex-1 py-2 text-xs font-mono uppercase tracking-wider transition-colors ${
-                  dmTab === tab
-                    ? 'text-sol-amber border-b-2 border-sol-amber'
-                    : 'text-sol-text-muted hover:text-sol-text-primary'
-                }`}
-              >
-                {tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : tab === 'requests' ? 'Requests' : 'Invites'}
-              </button>
-            ))}
+          <div className="flex gap-0.5 p-1.5 border-b border-sol-bg-elevated">
+            {(['conversations', 'friends', 'requests', 'invites'] as DMTab[]).map((tab) => {
+              const label = tab === 'conversations' ? 'DMs' : tab === 'friends' ? 'Friends' : tab === 'requests' ? 'Requests' : 'Invites'
+              return (
+                <button
+                  key={tab}
+                  onClick={() => setDMTab(tab)}
+                  className={`flex-1 py-1.5 text-[11px] font-medium rounded-md transition-colors ${
+                    dmTab === tab
+                      ? 'bg-sol-amber/15 text-sol-amber'
+                      : 'text-sol-text-muted hover:text-sol-text-primary hover:bg-sol-bg-elevated/50'
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
 
           <div className="flex-1 overflow-y-auto">
@@ -203,6 +232,28 @@ export default function MainLayout() {
     <div className="h-screen w-screen flex flex-col bg-sol-bg overflow-hidden">
       <TitleBar />
       <UpdateNotification />
+
+      {/* Connection lost banner */}
+      {showBanner && (
+        <div className="flex items-center justify-center gap-2 px-3 py-1.5 bg-sol-coral/90 text-white text-xs font-medium">
+          {wsStatus === 'connecting' ? (
+            <>
+              <svg className="w-3.5 h-3.5 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" />
+              </svg>
+              Reconnecting — messages may not update in real time
+            </>
+          ) : (
+            <>
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="1" y1="1" x2="23" y2="23" />
+                <path d="M16.72 11.06A10.94 10.94 0 0119 12.55M5 12.55a10.94 10.94 0 015.17-2.39M10.71 5.05A16 16 0 0122.56 9M1.42 9a15.91 15.91 0 014.7-2.88M8.53 16.11a6 6 0 016.95 0M12 20h.01" />
+              </svg>
+              Connection lost — messages may not update in real time
+            </>
+          )}
+        </div>
+      )}
 
       {/* Warm accent line */}
       <div className="h-1 bg-gradient-to-r from-transparent via-sol-amber/50 to-transparent" />
